@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Acme",
+  "version": "0.0.1",
+  "identifier": "com.acme.app",
+  "build": {
+    "beforeDevCommand": "nx serve desktop",
+    "devUrl": "http://localhost:4500",
+    "beforeBuildCommand": "nx build desktop",
+    "frontendDist": "../../../dist/apps/desktop"
+  },
+  "app": {
+    "windows": [{ "title": "Acme", "width": 1024, "height": 720 }],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png"]
+  },
+  "plugins": {}
+}

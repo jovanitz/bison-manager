@@ -1,0 +1,65 @@
+{
+  "$comment": "Machine-readable mirror of @nx/enforce-module-boundaries in eslint.config.mjs. Source of truth for what each layer may import. Keep in sync with eslint.config.mjs; the lint rule is authoritative.",
+  "version": 1,
+  "layers": {
+    "shared": {
+      "tag": "layer:shared",
+      "path": "libs/shared",
+      "responsibility": "Result/Either, branded types, clock & logger contracts.",
+      "mayImport": [],
+      "forbidden": ["domain", "application", "infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+    },
+    "domain": {
+      "tag": "layer:domain",
+      "path": "libs/domain",
+      "responsibility": "Entities, value objects, business rules, domain events. Pure.",
+      "mayImport": ["shared"],
+      "forbidden": ["application", "infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+    },
+    "application": {
+      "tag": "layer:application",
+      "path": "libs/application",
+      "responsibility": "Use cases, port TYPES, DTOs. Orchestration only.",
+      "mayImport": ["domain", "shared"],
+      "forbidden": ["infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+    },
+    "infrastructure": {
+      "tag": "layer:infrastructure",
+      "path": "libs/infrastructure",
+      "responsibility": "Adapters: Dexie, REST, JWT auth, sync engine.",
+      "mayImport": ["application", "domain", "shared"],
+      "forbidden": ["platform", "ui"]
+    },
+    "platform": {
+      "tag": "layer:platform",
+      "path": "libs/platform",
+      "responsibility": "Device ports + browser/Capacitor/Tauri adapters.",
+      "mayImport": ["application", "domain", "shared"],
+      "forbidden": ["infrastructure", "ui"]
+    },
+    "ui": {
+      "tag": "layer:ui",
+      "path": "libs/ui",
+      "responsibility": "Design system + feature screens. Consume use cases via UseCasesProvider.",
+      "mayImport": ["application", "shared"],
+      "forbidden": ["infrastructure", "platform", "domain"]
+    },
+    "app": {
+      "tag": "layer:app",
+      "path": "apps/*",
+      "responsibility": "Composition roots. The only place concrete adapters are wired.",
+      "mayImport": ["*"],
+      "forbidden": []
+    }
+  },
+  "globalRules": {
+    "noClasses": true,
+    "noDecorators": true,
+    "resultOverExceptions": true,
+    "portsAreTypes": true,
+    "adaptersAreFactoryFunctions": true,
+    "diIsExplicitParameters": true,
+    "noDIContainer": true,
+    "businessLogicIsFrameworkFree": ["domain", "application"]
+  }
+}
