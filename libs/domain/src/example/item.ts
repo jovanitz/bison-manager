@@ -98,6 +98,6 @@ export const restoreItem = (
 };
 
 /** A read-only predicate — pure domain rule with no side effects. */
-export const isEditable = (item: Item): boolean => item.status === 'active';
+export const isItemEditable = (item: Item): boolean => item.status === 'active';
 
 export type { ItemId, ItemName, ItemStatus };

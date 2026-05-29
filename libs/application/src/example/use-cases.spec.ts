@@ -6,7 +6,8 @@ import {
 } from '@acme/shared';
 import type { Item, ItemId } from '@acme/domain';
 import { nullEventPublisher } from '../ports/event-publisher';
-import type { ItemRepository, ListOptions } from './ports';
+import type { ItemRepository } from './ports';
+import type { ListOptions } from '../ports/list-options';
 import { makeItemUseCases } from './use-cases';
 
 /**
