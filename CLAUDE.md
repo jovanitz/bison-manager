@@ -13,10 +13,11 @@ only when the task needs it (progressive disclosure).
 
 | You are about to…                              | Read |
 | ---------------------------------------------- | ---- |
+| Understand the harness terms (Guides/Sensors/Guardrails) | [docs/ai/harness.md](docs/ai/harness.md) |
 | Place a change in the right layer / import     | [docs/ai/architecture.md](docs/ai/architecture.md) |
 | Check what is **forbidden** (hard rules)       | [docs/ai/constraints.md](docs/ai/constraints.md) |
 | Build a feature end-to-end (the agent loop)    | [docs/ai/workflow.md](docs/ai/workflow.md) |
-| Measure quality / impact / perf / gaps         | [docs/ai/tools.md](docs/ai/tools.md) |
+| Measure quality / impact / perf / gaps (sensors) | [docs/ai/sensors.md](docs/ai/sensors.md) |
 | Know a layer's local rules                     | the `CLAUDE.md` inside that `libs/<layer>/` |
 | Understand *why* a rule exists                 | [docs/adr/README.md](docs/adr/README.md) |
 
@@ -58,5 +59,8 @@ wiring → [apps/web/src/composition-root.ts](apps/web/src/composition-root.ts).
 ## Quality gate (run before declaring work done)
 
 ```bash
-pnpm exec nx affected -t lint typecheck test build
+pnpm harness quality        # lint + typecheck + test on affected projects (a sensor)
 ```
+
+The same gate is enforced automatically as a **guardrail** (the Stop hook) — see
+[docs/ai/harness.md](docs/ai/harness.md). Other sensors: `pnpm harness gaps|impact|perf`.

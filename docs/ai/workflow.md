@@ -31,9 +31,9 @@ verifiable in isolation. The deeper rationale is in
 6. **Wire it.** Add the concrete adapter in `apps/*/composition-root.ts`. This is
    the only place the slice becomes "real".
 
-7. **Verify & evaluate.** `pnpm exec nx affected -t lint typecheck test build`,
-   then use the evaluation tools in [tools.md](tools.md) to check impact, perf and
-   gaps before declaring done.
+7. **Verify & evaluate.** Run the quality gate (`pnpm harness quality`), then use
+   the other **sensors** in [sensors.md](sensors.md) (`impact`, `perf`, `gaps`) to
+   check reach, performance and gaps before declaring done.
 
 ## Why this works for an agent
 
