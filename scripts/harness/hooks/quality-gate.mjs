@@ -1,55 +1,50 @@
 #!/usr/bin/env node
 /**
- * Stage 6 — Stop hook.
- * Runs the quality gate (lint + typecheck + test) on affected projects before
- * the agent is allowed to finish. Strict: a red gate vetoes with exit 2 and
- * returns the failure so the model fixes it.
+ * Stage 6 — Stop hook. A GUARDRAIL: blocks finishing on a red gate.
+ *
+ * This is just a *surface* over the `quality` sensor — it does not re-implement
+ * the gate logic. It runs the sensor and, on failure, vetoes with exit 2 so the
+ * model gets the failures and fixes them.
  *
  * Loop guard: when `stop_hook_active` is set, the model is already responding to
  * a previous block — do not block again, or the gate would loop forever.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 let payload = {};
 try {
   payload = JSON.parse(readFileSync(0, 'utf8') || '{}');
 } catch {
-  /* fall through with empty payload */
+  /* empty payload is fine */
 }
 
 if (payload.stop_hook_active) process.exit(0); // anti-loop
 
 const cwd = payload.cwd || process.cwd();
-const nx = path.join(cwd, 'node_modules', '.bin', 'nx');
-if (!existsSync(nx)) process.exit(0); // nx not installed → don't block
+const here = path.dirname(fileURLToPath(import.meta.url));
+const sensor = path.resolve(here, '..', 'sensors', 'quality.mjs');
+if (!existsSync(sensor)) process.exit(0); // sensor missing → don't block
 
-const targets = ['lint', 'typecheck', 'test'];
+const res = spawnSync(process.execPath, [sensor, `--root=${cwd}`], {
+  cwd,
+  encoding: 'utf8',
+});
 
-// Prefer `affected` (fast, needs git); fall back to `run-many` if affected
-// can't resolve a base (e.g. shallow/initial repo state).
-const tryRun = (mode) =>
-  spawnSync(nx, [mode, '-t', ...targets], {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env, CI: 'true' },
-  });
-
-let res = tryRun('affected');
-const cannotResolveBase =
-  res.status &&
-  /affected|base|NX_BASE|Could not find|SHA/i.test(`${res.stdout}${res.stderr}`) &&
-  /base/i.test(`${res.stdout}${res.stderr}`);
-if (cannotResolveBase) {
-  res = tryRun('run-many');
+let report = {};
+try {
+  report = JSON.parse(res.stdout || '{}');
+} catch {
+  /* if the sensor output is unparseable, fall through to status check */
 }
 
-if (res.status && res.status !== 0) {
-  const out = `${res.stdout || ''}${res.stderr || ''}`.trim().slice(0, 6000);
+if (res.status !== 0 || report.ok === false) {
+  const detail = report.output || res.stderr || res.stdout || 'quality gate failed';
   process.stderr.write(
     `Quality gate failed (lint/typecheck/test). The work is not done until this ` +
-      `is green. Fix the failures below and try again:\n\n${out}`,
+      `is green. Fix the failures below and try again:\n\n${detail}`,
   );
   process.exit(2);
 }
