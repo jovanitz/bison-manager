@@ -14,6 +14,39 @@ export const ItemScreen = () => {
   const { data: items, isLoading } = useItems();
   const archive = useArchiveItem();
 
+  // Early returns instead of a nested ternary keep the three states readable.
+  const body = () => {
+    if (isLoading) {
+      return <p className="text-sm text-slate-500">Loading…</p>;
+    }
+    if (!items || items.length === 0) {
+      return (
+        <p className="text-sm text-slate-500">No items yet. Add one above.</p>
+      );
+    }
+    return (
+      <ul className="flex flex-col gap-2">
+        {items.map((item) => (
+          <li key={item.id}>
+            <Card>
+              <CardBody>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{item.name}</span>
+                  <Button
+                    variant="ghost"
+                    onClick={() => archive.mutate({ id: item.id })}
+                  >
+                    Archive
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-4 p-6">
       <header>
@@ -25,31 +58,7 @@ export const ItemScreen = () => {
 
       <ItemForm />
 
-      {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
-      ) : items && items.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {items.map((item) => (
-            <li key={item.id}>
-              <Card>
-                <CardBody>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{item.name}</span>
-                    <Button
-                      variant="ghost"
-                      onClick={() => archive.mutate({ id: item.id })}
-                    >
-                      Archive
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-slate-500">No items yet. Add one above.</p>
-      )}
+      {body()}
     </section>
   );
 };

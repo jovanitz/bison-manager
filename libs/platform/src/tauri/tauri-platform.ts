@@ -78,6 +78,12 @@ const tauriFileSystem = (fs: TauriApis['fs']): FileSystem => ({
   },
 });
 
+/** Map a Tauri OS string to our platform union; anything else is treated as web. */
+const TAURI_PLATFORM: Record<string, DeviceInfo['platform']> = {
+  windows: 'windows',
+  macos: 'macos',
+};
+
 export const createTauriPlatform = (
   apis: TauriApis,
   appVersion = '0.0.0',
@@ -89,8 +95,7 @@ export const createTauriPlatform = (
     fileSystem: tauriFileSystem(apis.fs),
     device: async (): Promise<DeviceInfo> => {
       const raw = await apis.os.platform();
-      const platform =
-        raw === 'windows' ? 'windows' : raw === 'macos' ? 'macos' : 'web';
+      const platform = TAURI_PLATFORM[raw] ?? 'web';
       return { platform, appVersion, model: raw };
     },
   };

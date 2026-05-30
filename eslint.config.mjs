@@ -2,6 +2,7 @@
 import nx from '@nx/eslint-plugin';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
+import sonarjs from 'eslint-plugin-sonarjs';
 import prettier from 'eslint-config-prettier';
 
 /**
@@ -12,7 +13,30 @@ import prettier from 'eslint-config-prettier';
  * Every project is tagged in its `project.json` with exactly one `layer:*` tag.
  * The `depConstraints` below describe — declaratively — which layer may import
  * which. A violation fails `nx lint`, so the architecture cannot silently rot.
+ *
+ * On top of boundaries we enforce clean-code limits (small files, low
+ * complexity) and SonarJS rules, scoped to app code (libs/apps). These keep
+ * files human-readable and are the in-repo equivalent of a SonarQube pass.
  */
+
+// Clean-code limits — see docs/ai/structure.md. Tuned so today's code passes.
+const CLEAN_CODE_RULES = {
+  'max-lines': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+  // 70 (not 50): this codebase is built from factory functions that return an
+  // object of methods, so a "function" legitimately bundles several small ones.
+  // 70 still catches genuinely giant functions. File size is the headline cap.
+  'max-lines-per-function': [
+    'error',
+    { max: 70, skipBlankLines: true, skipComments: true },
+  ],
+  complexity: ['error', 10],
+  'max-depth': ['error', 3],
+  'max-params': ['error', 4],
+  'max-nested-callbacks': ['error', 3],
+};
+
+const APP_CODE = ['libs/**/*.{ts,tsx}', 'apps/**/*.{ts,tsx}'];
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
@@ -140,6 +164,49 @@ export default [
           ],
         },
       ],
+    },
+  },
+  // ── Clean code (Sonar-like), scoped to app code. Harness scripts (.mjs) and
+  // config files are intentionally exempt.
+  { files: APP_CODE, rules: CLEAN_CODE_RULES },
+  { ...sonarjs.configs.recommended, files: APP_CODE },
+  {
+    files: APP_CODE,
+    rules: {
+      'sonarjs/cognitive-complexity': ['error', 15],
+      // `void promise` is our deliberate marker for intentional fire-and-forget.
+      'sonarjs/void-use': 'off',
+      // Semantic primitive aliases (e.g. `type Millis = number`) aid readability.
+      'sonarjs/redundant-type-aliases': 'off',
+    },
+  },
+  // Composition roots are assembly: wiring many adapters in one factory is their
+  // job, so the function-length cap doesn't apply.
+  {
+    files: ['apps/**/composition-root.ts'],
+    rules: { 'max-lines-per-function': 'off' },
+  },
+  // Fake/test-double adapters are setup-heavy by nature.
+  {
+    files: ['**/fake/**/*.ts'],
+    rules: { 'max-lines-per-function': 'off' },
+  },
+  // Tests & contracts: relax size/duplication — fixtures and repetitive
+  // assertions are expected and not a smell there.
+  {
+    files: [
+      '**/*.spec.{ts,tsx}',
+      '**/*.test.{ts,tsx}',
+      '**/testing/**/*.ts',
+      '**/*.bench.ts',
+    ],
+    rules: {
+      'max-lines': 'off',
+      'max-lines-per-function': 'off',
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/no-identical-functions': 'off',
+      // Contract-test specs call a shared contract fn, so they look "empty".
+      'sonarjs/no-empty-test-file': 'off',
     },
   },
   prettier,
