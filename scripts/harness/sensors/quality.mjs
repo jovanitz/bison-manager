@@ -23,7 +23,11 @@ const getArg = (name) => {
   return hit ? hit.slice(name.length + 3) : undefined;
 };
 const ROOT = path.resolve(getArg('root') || process.cwd());
-const targets = (getArg('targets') || 'lint,typecheck,test').split(',').filter(Boolean);
+const targets = (getArg('targets') || 'lint,typecheck,test')
+  .split(',')
+  .filter(Boolean);
+// `--build` adds the build target so the gate matches CI (ci.yml runs build too).
+if (has('build') && !targets.includes('build')) targets.push('build');
 const base = getArg('base');
 const head = getArg('head');
 
@@ -58,14 +62,19 @@ let res = run(mode);
 // Fall back to run-many if `affected` couldn't resolve a base.
 if (mode === 'affected' && res.status) {
   const blob = `${res.stdout}${res.stderr}`;
-  if (/base/i.test(blob) && /(affected|NX_BASE|Could not find|SHA)/i.test(blob)) {
+  if (
+    /base/i.test(blob) &&
+    /(affected|NX_BASE|Could not find|SHA)/i.test(blob)
+  ) {
     mode = 'run-many';
     res = run(mode);
   }
 }
 
 const ok = res.status === 0;
-const output = ok ? '' : `${res.stdout || ''}${res.stderr || ''}`.trim().slice(0, 6000);
+const output = ok
+  ? ''
+  : `${res.stdout || ''}${res.stderr || ''}`.trim().slice(0, 6000);
 
 emit(
   {

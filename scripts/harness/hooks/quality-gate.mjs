@@ -28,7 +28,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const sensor = path.resolve(here, '..', 'sensors', 'quality.mjs');
 if (!existsSync(sensor)) process.exit(0); // sensor missing → don't block
 
-const res = spawnSync(process.execPath, [sensor, `--root=${cwd}`], {
+// `--build` so the finishing gate matches CI (which runs build too).
+const res = spawnSync(process.execPath, [sensor, `--root=${cwd}`, '--build'], {
   cwd,
   encoding: 'utf8',
 });
@@ -41,7 +42,8 @@ try {
 }
 
 if (res.status !== 0 || report.ok === false) {
-  const detail = report.output || res.stderr || res.stdout || 'quality gate failed';
+  const detail =
+    report.output || res.stderr || res.stdout || 'quality gate failed';
   process.stderr.write(
     `Quality gate failed (lint/typecheck/test). The work is not done until this ` +
       `is green. Fix the failures below and try again:\n\n${detail}`,

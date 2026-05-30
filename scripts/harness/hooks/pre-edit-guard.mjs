@@ -29,13 +29,21 @@ const cwd = payload.cwd || process.cwd();
 const filePath = payload.tool_input?.file_path;
 if (!filePath) process.exit(0);
 
-const rel = path.relative(cwd, path.resolve(cwd, filePath)).split(path.sep).join('/');
+const rel = path
+  .relative(cwd, path.resolve(cwd, filePath))
+  .split(path.sep)
+  .join('/');
 
-if (PROTECTED.has(rel)) {
+// `project.json` files carry the `layer:*` tags that ARE the architecture
+// boundaries — editing one silently rewrites the rules ESLint enforces.
+const isProjectConfig = /(^|\/)project\.json$/.test(rel);
+
+if (PROTECTED.has(rel) || isProjectConfig) {
   process.stderr.write(
     `Blocked by harness: "${rel}" is a protected config file (it defines the ` +
-      `architecture rules the harness enforces). Do not edit it directly — ask ` +
-      `the user to confirm this change first, then it can be made manually.`,
+      `architecture rules — layer tags / boundaries — the harness enforces). Do ` +
+      `not edit it directly — ask the user to confirm this change first, then it ` +
+      `can be made manually.`,
   );
   process.exit(2);
 }
