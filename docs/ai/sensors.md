@@ -21,6 +21,8 @@ it — none re-implement it.
 | **perf**      | Bundle size (raw+gzip) + benchmarks of the pure core                                    | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
 | **quality**   | Quality gate: lint + typecheck + test (`--build` to match CI)                           | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
 | **structure** | File/folder organization: files-per-folder (≤8), oversized files; screaming arch        | `pnpm harness structure`                                                    | —                      |
+| **cycles**    | Circular import dependencies (file level, via madge)                                    | `pnpm harness cycles`                                                       | —                      |
+| **consumers** | File-level blast radius: who imports the changed/named files (direct + transitive)      | `pnpm harness consumers [<file>…]`                                          | —                      |
 | **doctor**    | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
 
 ## When to reach for which
@@ -28,8 +30,11 @@ it — none re-implement it.
 - **Before declaring done** → `quality`. Non-negotiable. (Also enforced as a
   guardrail by the Stop hook, which runs it with `--build` to match CI — see
   [harness.md](harness.md).)
-- **Before a risky refactor / to scope review** → `impact`. Test only what's
-  affected.
+- **Before a risky refactor / to scope which projects to test** → `impact`
+  (project level — this is what the gate runs).
+- **Before changing a shared symbol's signature / to focus review** → `consumers`
+  (file level — exactly which files import what you changed, direct + transitive).
+  Complements `impact`; it does not drive the gate.
 - **After touching domain/application hot paths or adding a screen** → `perf`.
 - **When asked "what's missing?" / auditing a feature** → `gaps`. Uniquely cheap
   here: because ports are types, an adapter with no contract test is a
@@ -37,6 +42,7 @@ it — none re-implement it.
   `scripts/harness/harness-ignore.json` or an inline `// harness-ignore`.
 - **To keep files small / folders organized** → `structure` (also part of the
   Stop guardrail). See [structure.md](structure.md).
+- **Suspect a circular import** → `cycles` (also part of the Stop guardrail).
 - **After touching the harness / before starting real work** → `doctor`.
 
 > **Inferential sensor:** for logic-level review (e.g. auth flaws) the
@@ -51,6 +57,8 @@ it — none re-implement it.
   `libs/domain/src/example/item.bench.ts`)
 - ✅ `quality` — `scripts/harness/sensors/quality.mjs` (also the Stop-hook guardrail)
 - ✅ `structure` — `scripts/harness/sensors/structure.mjs` (also the Stop-hook guardrail)
+- ✅ `cycles` — `scripts/harness/sensors/cycles.mjs` (madge; also the Stop-hook guardrail)
+- ✅ `consumers` — `scripts/harness/sensors/consumers.mjs` (file-level blast radius)
 - ✅ `doctor` — `scripts/harness/sensors/doctor.mjs`
 
 ## Not a sensor

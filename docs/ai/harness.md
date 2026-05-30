@@ -62,16 +62,18 @@ Harness
 │   ├── docs/ai/capabilities.json   (machine-readable rules; verified by `doctor`)
 │   └── hooks: session-context, prompt-reminder   (inject guides at runtime)
 ├── Sensors (feedback)            → catalog: docs/ai/sensors.md
-│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,doctor}.mjs
+│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,cycles,consumers,doctor}.mjs
 │   │   (gaps respects scripts/harness/harness-ignore.json + // harness-ignore)
+│   │   (impact = project-level, drives the gate; consumers = file-level review aid)
 │   ├── clean-code: eslint.config.mjs (max-lines/complexity/… + eslint-plugin-sonarjs)
+│   ├── cycles: madge (circular imports ESLint's layer rules can't see)
 │   ├── inferential: /security-review (built-in skill, for logic/auth review)
 │   ├── exposed as CLI: pnpm harness <sensor>
 │   ├── exposed as skills: find-gaps, evaluate-impact, evaluate-performance, …
 │   └── hook: post-edit-check (lint the touched file)
 ├── Guardrails (vetoing sensors)
 │   ├── hook: pre-edit-guard (PreToolUse) — blocks protected files + project.json tags
-│   └── hook: quality-gate (Stop) — blocks finishing on a red gate (quality+structure, build = CI)
+│   └── hook: quality-gate (Stop) — blocks finishing (quality+structure+cycles; build = CI)
 ├── Generators (write code) → scripts/harness/generators/generate-feature.mjs (CRUD only)
 └── Runtime  → Claude Code (loop, tool routing, stop) — not ours to build
 ```
