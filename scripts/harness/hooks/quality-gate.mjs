@@ -74,4 +74,14 @@ if (!s.ok) {
   );
 }
 
+// 3) Circular dependencies.
+const c = runSensor('cycles.mjs');
+if (!c.ok) {
+  const lines = (c.report?.cycles || []).map((cy) => `- ${cy}`).join('\n');
+  veto(
+    `Circular dependencies detected. Break the cycle before finishing:\n\n` +
+      `${lines || c.res?.stderr || 'cycles found'}`,
+  );
+}
+
 process.exit(0);

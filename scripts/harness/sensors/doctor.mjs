@@ -60,6 +60,8 @@ const EXPECTED = {
   perf: 'sensors/perf.mjs',
   quality: 'sensors/quality.mjs',
   structure: 'sensors/structure.mjs',
+  cycles: 'sensors/cycles.mjs',
+  consumers: 'sensors/consumers.mjs',
   doctor: 'sensors/doctor.mjs',
   'generate-feature': 'generators/generate-feature.mjs',
 };
