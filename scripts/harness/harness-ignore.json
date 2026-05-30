@@ -1,0 +1,14 @@
+{
+  "_comment": "Paths the `gaps` sensor should NOT flag. Globs support * and **. These are the example/template's reference adapters (thin Dexie/HTTP/JWT wrappers whose port contract is proven via the in-memory adapter). Remove entries once you add real contract tests, or when you delete the example module. You can also annotate a file inline with `// harness-ignore`.",
+  "gaps": [
+    "libs/infrastructure/src/api/api-item-repository.ts",
+    "libs/infrastructure/src/api/http-api-client.ts",
+    "libs/infrastructure/src/auth/jwt-auth-provider.ts",
+    "libs/infrastructure/src/persistence/dexie-db.ts",
+    "libs/infrastructure/src/persistence/dexie-item-repository.ts",
+    "libs/infrastructure/src/sync/dexie-operation-queue.ts",
+    "libs/platform/src/browser/browser-platform.ts",
+    "libs/platform/src/capacitor/capacitor-platform.ts",
+    "libs/platform/src/tauri/tauri-platform.ts"
+  ]
+}

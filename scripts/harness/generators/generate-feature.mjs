@@ -14,7 +14,14 @@
  *
  * Usage: node scripts/harness/generators/generate-feature.mjs <name> [--root=<dir>]
  */
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import {
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  statSync,
+} from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -47,7 +54,10 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 
 /** Rename identifiers in file CONTENT (case-sensitive, longest/most-specific first). */
 const transformContent = (s) =>
-  s.replaceAll('ITEM', UPPER).replaceAll('Item', Pascal).replaceAll('item', name);
+  s
+    .replaceAll('ITEM', UPPER)
+    .replaceAll('Item', Pascal)
+    .replaceAll('item', name);
 /** Rename the `item` token in a FILE NAME (lowercase only). */
 const transformBasename = (b) => b.replaceAll('item', name);
 
@@ -74,10 +84,20 @@ const fileJobs = [
 
 // Pre-flight: refuse to overwrite anything.
 const conflicts = [];
-for (const [, dest] of dirJobs) if (existsSync(path.join(ROOT, dest))) conflicts.push(dest);
-for (const [, dest] of fileJobs) if (existsSync(path.join(ROOT, dest))) conflicts.push(dest);
+for (const [, dest] of dirJobs)
+  if (existsSync(path.join(ROOT, dest))) conflicts.push(dest);
+for (const [, dest] of fileJobs)
+  if (existsSync(path.join(ROOT, dest))) conflicts.push(dest);
 if (conflicts.length) {
-  emit({ tool: 'generate-feature', ok: false, error: 'Targets already exist', conflicts }, 1);
+  emit(
+    {
+      tool: 'generate-feature',
+      ok: false,
+      error: 'Targets already exist',
+      conflicts,
+    },
+    1,
+  );
 }
 
 const created = [];
@@ -95,7 +115,8 @@ for (const [srcDir, destDir] of dirJobs) {
     copyFile(fileAbs, path.join(ROOT, destDir, transformBasename(entry)));
   }
 }
-for (const [src, dest] of fileJobs) copyFile(path.join(ROOT, src), path.join(ROOT, dest));
+for (const [src, dest] of fileJobs)
+  copyFile(path.join(ROOT, src), path.join(ROOT, dest));
 
 // Append the index.ts exports (append-only; safe because targets were new).
 const appendExports = (indexRel, lines) => {
@@ -137,6 +158,8 @@ emit(
       `Replace the copied example logic with the real ${Pascal} domain rules, then run 'pnpm harness quality' (and 'pnpm harness gaps') to verify the slice is green.`,
     ],
     note: 'domain/application/infrastructure should compile and test on their own; the UI typecheck stays red until AppUseCases is extended (step 1).',
+    scope:
+      'This scaffolds a CRUD ENTITY feature (Item-shaped: an entity with a repository and create/rename/archive use cases). It is the wrong tool for cross-cutting concerns like authentication, sessions, or permissions — build those by hand following docs/ai/workflow.md (port type first), and run /security-review for sensitive ones.',
   },
   0,
 );

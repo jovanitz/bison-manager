@@ -29,6 +29,7 @@ const COMMANDS = {
   impact: 'sensors/impact.mjs',
   perf: 'sensors/perf.mjs',
   quality: 'sensors/quality.mjs',
+  doctor: 'sensors/doctor.mjs',
   // Generators (write code — not controls)
   'generate-feature': 'generators/generate-feature.mjs',
 };
@@ -40,7 +41,8 @@ function help() {
       '  gaps      Find development gaps (untested adapters/use-cases/screens, TODOs)\n' +
       '  impact    Blast radius of a change (affected projects, platforms, risk)\n' +
       '  perf      Bundle size (raw+gzip) + benchmarks of the pure core\n' +
-      '  quality   Quality gate: lint + typecheck + test (affected, or --all)\n\n' +
+      '  quality   Quality gate: lint + typecheck + test (--build, --all)\n' +
+      '  doctor    Self-check the harness (hooks, scripts, capabilities↔eslint)\n\n' +
       'Generators (write code):\n' +
       '  generate-feature <name>   Copy the example slice into a new feature\n',
   );
