@@ -12,7 +12,7 @@ verifiable in isolation. The deeper rationale is in
    `application`. I/O → `infrastructure`/`platform`. Screen → `ui`.
 
 2. **Type first.** A new capability means adding/changing a **port type** in
-   `application` *before* any implementation. The type is the contract.
+   `application` _before_ any implementation. The type is the contract.
 
 3. **Drive use cases headlessly.** Wire the use case to in-memory adapters in a
    Vitest spec (see
@@ -34,6 +34,10 @@ verifiable in isolation. The deeper rationale is in
 7. **Verify & evaluate.** Run the quality gate (`pnpm harness quality`), then use
    the other **sensors** in [sensors.md](sensors.md) (`impact`, `perf`, `gaps`) to
    check reach, performance and gaps before declaring done.
+
+> **Sensitive feature?** (auth, tokens, permissions, payments) Don't use
+> `generate-feature` (CRUD-only). Follow [security.md](security.md) and run
+> `/security-review` before merging.
 
 ## Why this works for an agent
 

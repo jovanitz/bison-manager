@@ -9,6 +9,17 @@ A two-part workflow: a **generator** writes the slice files (deterministic), the
 **you** wire the bespoke parts (judgment) and verify with **sensors**. The
 generator is not a sensor — see [docs/ai/harness.md](../../../docs/ai/harness.md).
 
+## When NOT to use this
+
+This scaffolds a **CRUD entity** (Item-shaped: an entity + repository + create/
+rename/archive use cases). Do **not** use it for **cross-cutting concerns** —
+authentication, session, login, permissions, theming, i18n. Those are not entities
+with a repository; the template would generate nonsense (e.g. an `Auth` entity with
+`name`/`status` and an `AuthRepository`). Build those **by hand** following
+[docs/ai/workflow.md](../../../docs/ai/workflow.md) (port type first), and run
+`/security-review` for the sensitive ones. Good fits: `order`, `invoice`,
+`product`, `customer`.
+
 ## 1. Generate the files
 
 ```bash
