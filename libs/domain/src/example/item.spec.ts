@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   archiveItem,
   createItem,
-  isEditable,
+  isItemEditable,
   renameItem,
   restoreItem,
 } from './item';
@@ -36,7 +36,7 @@ describe('createItem', () => {
   it('produces an active item and an ItemCreated event', () => {
     const item = newItem();
     expect(item.status).toBe('active');
-    expect(isEditable(item)).toBe(true);
+    expect(isItemEditable(item)).toBe(true);
   });
 });
 

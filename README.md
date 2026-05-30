@@ -54,18 +54,18 @@ imports are isolated to a single `native-*.ts` file in each app (stubbed for CI)
 A generic `Item` feature demonstrates every layer end-to-end. Trace it to learn
 the architecture:
 
-| Deliverable          | File |
-| -------------------- | ---- |
-| Domain entity + rules | [libs/domain/src/example/item.ts](libs/domain/src/example/item.ts) |
-| Value objects        | [libs/domain/src/example/value-objects.ts](libs/domain/src/example/value-objects.ts) |
-| Use cases            | [libs/application/src/example/use-cases.ts](libs/application/src/example/use-cases.ts) |
-| Repository port      | [libs/application/src/example/ports.ts](libs/application/src/example/ports.ts) |
+| Deliverable                       | File                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Domain entity + rules             | [libs/domain/src/example/item.ts](libs/domain/src/example/item.ts)                                               |
+| Value objects                     | [libs/domain/src/example/value-objects.ts](libs/domain/src/example/value-objects.ts)                             |
+| Use cases                         | [libs/application/src/example/use-cases.ts](libs/application/src/example/use-cases.ts)                           |
+| Repository port                   | [libs/application/src/example/ports.ts](libs/application/src/example/ports.ts)                                   |
 | In-memory / Dexie / REST adapters | [libs/infrastructure/src/persistence](libs/infrastructure/src/persistence) · [/api](libs/infrastructure/src/api) |
-| Offline sync         | [libs/infrastructure/src/sync](libs/infrastructure/src/sync) |
-| Capacitor adapter    | [libs/platform/src/capacitor/capacitor-platform.ts](libs/platform/src/capacitor/capacitor-platform.ts) |
-| Tauri adapter        | [libs/platform/src/tauri/tauri-platform.ts](libs/platform/src/tauri/tauri-platform.ts) |
-| React feature screen | [libs/ui/src/example/item-screen.tsx](libs/ui/src/example/item-screen.tsx) |
-| Composition root     | [apps/web/src/composition-root.ts](apps/web/src/composition-root.ts) |
+| Offline sync                      | [libs/infrastructure/src/sync](libs/infrastructure/src/sync)                                                     |
+| Capacitor adapter                 | [libs/platform/src/capacitor/capacitor-platform.ts](libs/platform/src/capacitor/capacitor-platform.ts)           |
+| Tauri adapter                     | [libs/platform/src/tauri/tauri-platform.ts](libs/platform/src/tauri/tauri-platform.ts)                           |
+| React feature screen              | [libs/ui/src/example/item-screen.tsx](libs/ui/src/example/item-screen.tsx)                                       |
+| Composition root                  | [apps/web/src/composition-root.ts](apps/web/src/composition-root.ts)                                             |
 
 ## Documentation
 

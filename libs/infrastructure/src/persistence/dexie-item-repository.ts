@@ -10,9 +10,7 @@ import type { AppDatabase } from './dexie-db';
  * in-memory and REST adapters, the contract test suite runs against it
  * unchanged, and the use cases never know IndexedDB is involved.
  */
-export const createDexieItemRepository = (
-  db: AppDatabase,
-): ItemRepository => ({
+export const createDexieItemRepository = (db: AppDatabase): ItemRepository => ({
   findById: async (id) => {
     const dto = await db.items.get(id);
     return dto ? fromItemDto(dto) : null;

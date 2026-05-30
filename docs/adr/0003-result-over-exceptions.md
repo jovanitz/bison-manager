@@ -11,7 +11,7 @@ system, makes control flow implicit, and is easy to forget to handle.
 
 ## Decision
 
-Use a `Result<T, E>` (`Ok | Err`) type from `@acme/shared` for all *expected*
+Use a `Result<T, E>` (`Ok | Err`) type from `@acme/shared` for all _expected_
 failures in `domain` and `application`. Errors are **tagged, immutable data**
 (`TaggedError`), not exceptions — serializable and pattern-matchable.
 

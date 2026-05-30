@@ -13,13 +13,13 @@ contracts to stay pure and deterministic.
 ## Decision
 
 Treat `shared` as a **foundation layer that itself depends on nothing** and that
-*every* layer — including `domain` — may import. The boundary rule for
+_every_ layer — including `domain` — may import. The boundary rule for
 `layer:shared` allows only `layer:shared`; `layer:domain` allows
 `layer:domain` + `layer:shared`.
 
 To preserve the spirit of "domain depends on nothing", `shared` is restricted to
 framework-free, side-effect-free primitives: types, `Result`, branded types,
-tagged-error helpers, and *contracts* (not implementations) for `Logger`/`Clock`.
+tagged-error helpers, and _contracts_ (not implementations) for `Logger`/`Clock`.
 
 ## Consequences
 

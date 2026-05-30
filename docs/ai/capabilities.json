@@ -7,21 +7,54 @@
       "path": "libs/shared",
       "responsibility": "Result/Either, branded types, clock & logger contracts.",
       "mayImport": [],
-      "forbidden": ["domain", "application", "infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+      "forbidden": [
+        "domain",
+        "application",
+        "infrastructure",
+        "platform",
+        "ui",
+        "react",
+        "browser",
+        "db",
+        "http",
+        "auth",
+        "native"
+      ]
     },
     "domain": {
       "tag": "layer:domain",
       "path": "libs/domain",
       "responsibility": "Entities, value objects, business rules, domain events. Pure.",
       "mayImport": ["shared"],
-      "forbidden": ["application", "infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+      "forbidden": [
+        "application",
+        "infrastructure",
+        "platform",
+        "ui",
+        "react",
+        "browser",
+        "db",
+        "http",
+        "auth",
+        "native"
+      ]
     },
     "application": {
       "tag": "layer:application",
       "path": "libs/application",
       "responsibility": "Use cases, port TYPES, DTOs. Orchestration only.",
       "mayImport": ["domain", "shared"],
-      "forbidden": ["infrastructure", "platform", "ui", "react", "browser", "db", "http", "auth", "native"]
+      "forbidden": [
+        "infrastructure",
+        "platform",
+        "ui",
+        "react",
+        "browser",
+        "db",
+        "http",
+        "auth",
+        "native"
+      ]
     },
     "infrastructure": {
       "tag": "layer:infrastructure",

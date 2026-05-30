@@ -34,8 +34,4 @@ export type ItemRestored = {
   readonly occurredAt: string;
 };
 
-export type ItemEvent =
-  | ItemCreated
-  | ItemRenamed
-  | ItemArchived
-  | ItemRestored;
+export type ItemEvent = ItemCreated | ItemRenamed | ItemArchived | ItemRestored;

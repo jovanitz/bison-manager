@@ -1,4 +1,5 @@
 import type { Item, ItemId } from '@acme/domain';
+import type { ListOptions } from '../ports/list-options';
 
 /**
  * The repository port for the example module.
@@ -15,8 +16,4 @@ export type ItemRepository = {
   readonly list: (options?: ListOptions) => Promise<ReadonlyArray<Item>>;
   readonly save: (item: Item) => Promise<void>;
   readonly remove: (id: ItemId) => Promise<void>;
-};
-
-export type ListOptions = {
-  readonly includeArchived?: boolean;
 };

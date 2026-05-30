@@ -69,7 +69,9 @@ const mapConnectionType = (raw: string): NetworkState['connectionType'] => {
   }
 };
 
-const capacitorNetwork = (Network: CapacitorPlugins['Network']): NetworkStatus => ({
+const capacitorNetwork = (
+  Network: CapacitorPlugins['Network'],
+): NetworkStatus => ({
   current: async (): Promise<NetworkState> => {
     const status = await Network.getStatus();
     return {
@@ -99,15 +101,24 @@ const capacitorSecureStorage = (
 });
 
 const capacitorCamera = (CameraPlugin: CapacitorPlugins['Camera']): Camera => ({
-  capture: async (): Promise<Result<{ dataUrl: string; format: string }, PlatformError>> => {
+  capture: async (): Promise<
+    Result<{ dataUrl: string; format: string }, PlatformError>
+  > => {
     try {
-      const photo = await CameraPlugin.getPhoto({ resultType: 'dataUrl', quality: 80 });
+      const photo = await CameraPlugin.getPhoto({
+        resultType: 'dataUrl',
+        quality: 80,
+      });
       if (!photo.dataUrl) {
         return err({ tag: 'platform/error', message: 'No image captured.' });
       }
       return ok({ dataUrl: photo.dataUrl, format: photo.format });
     } catch (cause) {
-      return err({ tag: 'platform/denied', message: 'Camera capture failed.', ...(cause ? {} : {}) });
+      return err({
+        tag: 'platform/denied',
+        message: 'Camera capture failed.',
+        ...(cause ? {} : {}),
+      });
     }
   },
 });

@@ -30,6 +30,10 @@ export const nativePlugins: CapacitorPlugins = {
     getPhoto: async () => ({ format: 'jpeg' }),
   },
   Device: {
-    getInfo: async () => ({ platform: 'ios', appVersion: '0.0.0', model: 'simulator' }),
+    getInfo: async () => ({
+      platform: 'ios',
+      appVersion: '0.0.0',
+      model: 'simulator',
+    }),
   },
 };

@@ -17,9 +17,7 @@ export type HttpApiClientConfig = {
   readonly fetchImpl?: typeof fetch;
 };
 
-export const createHttpApiClient = (
-  config: HttpApiClientConfig,
-): ApiClient => {
+export const createHttpApiClient = (config: HttpApiClientConfig): ApiClient => {
   const doFetch = config.fetchImpl ?? fetch;
 
   const request = async <TResponse, TBody>(

@@ -36,5 +36,7 @@ export type AuthProvider = {
   readonly signOut: () => Promise<void>;
   /** Returns a fresh bearer token, refreshing transparently if needed. */
   readonly getAccessToken: () => Promise<Result<string, AuthError>>;
-  readonly onChange: (listener: (session: AuthSession | null) => void) => () => void;
+  readonly onChange: (
+    listener: (session: AuthSession | null) => void,
+  ) => () => void;
 };

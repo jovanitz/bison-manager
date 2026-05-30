@@ -19,7 +19,7 @@ eventual synchronization.
   are unaware.
 - **Sync engine:** `createSyncEngine` drains the outbox to the remote
   (`ApiClient`-backed) repository. The **platform `NetworkStatus`** port decides
-  *when* to run it (on reconnect / interval / resume) — scheduling stays out of
+  _when_ to run it (on reconnect / interval / resume) — scheduling stays out of
   business code.
 - **Conflict resolution:** last-write-wins by a version derived from
   `updatedAt`. If the remote copy is newer, the local op is dropped and local is

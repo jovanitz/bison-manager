@@ -19,6 +19,7 @@
     "affected:typecheck": "nx affected -t typecheck",
     "affected:build": "nx affected -t build",
     "graph": "nx graph",
+    "harness": "node scripts/harness/cli.mjs",
     "web": "nx serve web",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

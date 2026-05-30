@@ -35,13 +35,17 @@ export const noopLogger: Logger = {
  * compiles with neither the DOM nor the Node type libs — preserving the rule
  * that `shared` (and therefore `domain`) stays free of any environment lib.
  */
-type ConsoleLike = Record<LogLevel, (message: string, fields: LogFields) => void>;
+type ConsoleLike = Record<
+  LogLevel,
+  (message: string, fields: LogFields) => void
+>;
 
 const consoleLike = (globalThis as unknown as { console: ConsoleLike }).console;
 
 export const createConsoleLogger = (base: LogFields = {}): Logger => {
   const log =
-    (level: LogLevel) => (message: string, fields: LogFields = {}) => {
+    (level: LogLevel) =>
+    (message: string, fields: LogFields = {}) => {
       const payload = { ...base, ...fields };
       consoleLike[level](`[${level}] ${message}`, payload);
     };

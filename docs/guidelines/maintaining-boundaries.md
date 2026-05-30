@@ -14,13 +14,13 @@ know what to do when the linter pushes back.
 
 ## Common violations and the fix
 
-| Symptom | Why it's blocked | Fix |
-| --- | --- | --- |
-| `ui` imports `@acme/infrastructure` | UI must not know concrete adapters | Add a use case + read it from `UseCasesProvider` |
-| `application` imports `@acme/infrastructure` | Inner can't depend on outer | Define a **port** in `application`; implement in `infrastructure`; wire in the composition root |
-| `domain` imports `dexie`/`react` | Domain must be portable | Move the concern behind a port; pass data in/out as plain values |
-| Need `Date.now()` in a use case | Hidden non-determinism | Inject the `Clock` port and call `clock.now()` |
-| Wrote a `class Repository` | ADR-0002 | Convert to a `create…` factory returning a plain object |
+| Symptom                                      | Why it's blocked                   | Fix                                                                                             |
+| -------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ui` imports `@acme/infrastructure`          | UI must not know concrete adapters | Add a use case + read it from `UseCasesProvider`                                                |
+| `application` imports `@acme/infrastructure` | Inner can't depend on outer        | Define a **port** in `application`; implement in `infrastructure`; wire in the composition root |
+| `domain` imports `dexie`/`react`             | Domain must be portable            | Move the concern behind a port; pass data in/out as plain values                                |
+| Need `Date.now()` in a use case              | Hidden non-determinism             | Inject the `Clock` port and call `clock.now()`                                                  |
+| Wrote a `class Repository`                   | ADR-0002                           | Convert to a `create…` factory returning a plain object                                         |
 
 ## Reviewer checklist
 

@@ -34,9 +34,12 @@ export const makeItemName = (
   }
   if (value.length > ITEM_NAME_MAX) {
     return err(
-      invalidItemName(`Item name must be at most ${ITEM_NAME_MAX} characters.`, {
-        details: { length: value.length, max: ITEM_NAME_MAX },
-      }),
+      invalidItemName(
+        `Item name must be at most ${ITEM_NAME_MAX} characters.`,
+        {
+          details: { length: value.length, max: ITEM_NAME_MAX },
+        },
+      ),
     );
   }
   return ok(value as ItemName);

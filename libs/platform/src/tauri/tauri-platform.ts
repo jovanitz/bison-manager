@@ -53,13 +53,15 @@ const tauriSecureStorage = (store: TauriApis['store']): SecureStorage => ({
 });
 
 const tauriFileSystem = (fs: TauriApis['fs']): FileSystem => ({
-  readText: async (
-    path,
-  ): Promise<Result<string, PlatformError>> => {
+  readText: async (path): Promise<Result<string, PlatformError>> => {
     try {
       return ok(await fs.readTextFile(path));
     } catch (cause) {
-      return err({ tag: 'platform/error', message: `Read failed: ${path}`, cause });
+      return err({
+        tag: 'platform/error',
+        message: `Read failed: ${path}`,
+        cause,
+      });
     }
   },
   writeText: async (path, contents): Promise<Result<void, PlatformError>> => {
@@ -67,7 +69,11 @@ const tauriFileSystem = (fs: TauriApis['fs']): FileSystem => ({
       await fs.writeTextFile(path, contents);
       return ok(undefined);
     } catch (cause) {
-      return err({ tag: 'platform/error', message: `Write failed: ${path}`, cause });
+      return err({
+        tag: 'platform/error',
+        message: `Write failed: ${path}`,
+        cause,
+      });
     }
   },
 });
@@ -83,7 +89,8 @@ export const createTauriPlatform = (
     fileSystem: tauriFileSystem(apis.fs),
     device: async (): Promise<DeviceInfo> => {
       const raw = await apis.os.platform();
-      const platform = raw === 'windows' ? 'windows' : raw === 'macos' ? 'macos' : 'web';
+      const platform =
+        raw === 'windows' ? 'windows' : raw === 'macos' ? 'macos' : 'web';
       return { platform, appVersion, model: raw };
     },
   };

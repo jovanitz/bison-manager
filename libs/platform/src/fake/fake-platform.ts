@@ -22,7 +22,10 @@ export const createFakePlatform = (
   const listeners = new Set<(s: NetworkState) => void>();
 
   const denied = (what: string): Result<never, PlatformError> =>
-    err({ tag: 'platform/unavailable', message: `${what} not available in fake platform.` });
+    err({
+      tag: 'platform/unavailable',
+      message: `${what} not available in fake platform.`,
+    });
 
   return {
     setOnline: (online: boolean) => {
@@ -56,6 +59,10 @@ export const createFakePlatform = (
     },
     printer: { print: async () => ok(undefined) },
     barcode: { scan: async () => ok('0000000000000') },
-    device: async () => ({ platform: 'web', appVersion: 'test', model: 'fake' }),
+    device: async () => ({
+      platform: 'web',
+      appVersion: 'test',
+      model: 'fake',
+    }),
   };
 };

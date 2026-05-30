@@ -1,8 +1,4 @@
-import {
-  createConsoleLogger,
-  systemClock,
-  uuidGenerator,
-} from '@acme/shared';
+import { createConsoleLogger, systemClock, uuidGenerator } from '@acme/shared';
 import { makeItemUseCases, nullEventPublisher } from '@acme/application';
 import {
   createApiItemRepository,

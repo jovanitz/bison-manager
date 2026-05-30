@@ -1,7 +1,12 @@
 import { type Result, err, ok } from '@acme/shared';
 import { itemAlreadyArchived, itemNotArchived } from './errors';
 import type { ItemDomainError } from './errors';
-import type { ItemArchived, ItemCreated, ItemRenamed, ItemRestored } from './events';
+import type {
+  ItemArchived,
+  ItemCreated,
+  ItemRenamed,
+  ItemRestored,
+} from './events';
 import type { ItemId, ItemName, ItemStatus } from './value-objects';
 import { makeItemName } from './value-objects';
 
@@ -98,6 +103,6 @@ export const restoreItem = (
 };
 
 /** A read-only predicate — pure domain rule with no side effects. */
-export const isEditable = (item: Item): boolean => item.status === 'active';
+export const isItemEditable = (item: Item): boolean => item.status === 'active';
 
 export type { ItemId, ItemName, ItemStatus };

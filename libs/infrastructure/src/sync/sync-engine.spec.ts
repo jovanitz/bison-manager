@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  fixedClock,
-  noopLogger,
-  sequentialIdGenerator,
-} from '@acme/shared';
+import { fixedClock, noopLogger, sequentialIdGenerator } from '@acme/shared';
 import { makeItemUseCases, nullEventPublisher } from '@acme/application';
 import { createInMemoryItemRepository } from '../persistence/in-memory-item-repository';
 import { createInMemoryOperationQueue } from './in-memory-operation-queue';
@@ -38,7 +34,12 @@ describe('offline sync loop', () => {
       logger: noopLogger,
     });
 
-    const engine = createSyncEngine({ queue, local, remote, logger: noopLogger });
+    const engine = createSyncEngine({
+      queue,
+      local,
+      remote,
+      logger: noopLogger,
+    });
     return { useCases, engine, local, remote, queue };
   };
 

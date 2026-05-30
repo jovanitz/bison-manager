@@ -3,6 +3,7 @@ export * from './ports/event-publisher';
 export * from './ports/auth';
 export * from './ports/api';
 export * from './ports/sync';
+export * from './ports/list-options';
 
 // Example module: DTOs, ports, use cases, errors
 export * from './example/dto';

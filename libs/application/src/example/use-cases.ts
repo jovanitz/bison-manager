@@ -17,7 +17,8 @@ import {
 import type { EventPublisher } from '../ports/event-publisher';
 import { type ItemDto, toItemDto } from './dto';
 import { type ItemUseCaseError, itemNotFound } from './errors';
-import type { ItemRepository, ListOptions } from './ports';
+import type { ItemRepository } from './ports';
+import type { ListOptions } from '../ports/list-options';
 
 /**
  * Use case dependencies.
@@ -36,13 +37,13 @@ export type ItemUseCaseDeps = {
   readonly logger: Logger;
 };
 
-export type UseCaseResult = Promise<Result<ItemDto, ItemUseCaseError>>;
+export type ItemUseCaseResult = Promise<Result<ItemDto, ItemUseCaseError>>;
 
 /* ---------- Commands ---------- */
 
 export const makeCreateItem =
   (deps: ItemUseCaseDeps) =>
-  async (input: { name: string }): UseCaseResult => {
+  async (input: { name: string }): ItemUseCaseResult => {
     const id = makeItemId(deps.ids.next());
     if (!id.ok) return err(id.error);
     const name = makeItemName(input.name);
@@ -63,7 +64,7 @@ export const makeCreateItem =
 
 export const makeRenameItem =
   (deps: ItemUseCaseDeps) =>
-  async (input: { id: string; name: string }): UseCaseResult => {
+  async (input: { id: string; name: string }): ItemUseCaseResult => {
     const id = makeItemId(input.id);
     if (!id.ok) return err(id.error);
 
@@ -84,7 +85,7 @@ export const makeRenameItem =
 
 export const makeArchiveItem =
   (deps: ItemUseCaseDeps) =>
-  async (input: { id: string }): UseCaseResult => {
+  async (input: { id: string }): ItemUseCaseResult => {
     const id = makeItemId(input.id);
     if (!id.ok) return err(id.error);
 
@@ -101,7 +102,7 @@ export const makeArchiveItem =
 
 export const makeRestoreItem =
   (deps: ItemUseCaseDeps) =>
-  async (input: { id: string }): UseCaseResult => {
+  async (input: { id: string }): ItemUseCaseResult => {
     const id = makeItemId(input.id);
     if (!id.ok) return err(id.error);
 
@@ -127,7 +128,7 @@ export const makeListItems =
 
 export const makeGetItem =
   (deps: ItemUseCaseDeps) =>
-  async (input: { id: string }): UseCaseResult => {
+  async (input: { id: string }): ItemUseCaseResult => {
     const id = makeItemId(input.id);
     if (!id.ok) return err(id.error);
     const item = await deps.repository.findById(id.value);

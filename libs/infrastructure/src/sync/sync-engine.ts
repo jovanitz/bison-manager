@@ -38,7 +38,9 @@ export type SyncReport = {
 };
 
 export const createSyncEngine = (deps: SyncEngineDeps) => {
-  const applyOperation = async (op: Operation): Promise<'synced' | 'conflict'> => {
+  const applyOperation = async (
+    op: Operation,
+  ): Promise<'synced' | 'conflict'> => {
     if (op.kind === 'item.deleted') {
       await deps.remote.remove(op.entityId as never);
       return 'synced';
