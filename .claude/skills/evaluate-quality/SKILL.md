@@ -20,9 +20,14 @@ pnpm harness quality --all    # the whole monorepo (use sparingly)
 Output is JSON on stdout:
 
 ```jsonc
-{ "tool":"quality", "ok":true, "mode":"affected",
-  "targets":["lint","typecheck","test"], "durationMs":1234,
-  "output":"" }   // on failure, `output` holds the captured failure log
+{
+  "tool": "quality",
+  "ok": true,
+  "mode": "affected",
+  "targets": ["lint", "typecheck", "test"],
+  "durationMs": 1234,
+  "output": "",
+} // on failure, `output` holds the captured failure log
 ```
 
 ## How to interpret

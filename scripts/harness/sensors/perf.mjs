@@ -53,13 +53,21 @@ function measureBundle() {
       env: { ...process.env, CI: 'true' },
     });
     if (res.status !== 0) {
-      return { app: APP, built: false, error: (res.stderr || res.stdout || '').trim().slice(0, 800) };
+      return {
+        app: APP,
+        built: false,
+        error: (res.stderr || res.stdout || '').trim().slice(0, 800),
+      };
     }
     built = true;
   }
 
   if (!existsSync(OUT_DIR)) {
-    return { app: APP, built, skipped: `no build output at ${rel(OUT_DIR)} (try without --skip-build)` };
+    return {
+      app: APP,
+      built,
+      skipped: `no build output at ${rel(OUT_DIR)} (try without --skip-build)`,
+    };
   }
 
   const files = walk(OUT_DIR);
@@ -80,7 +88,15 @@ function measureBundle() {
     perFile.push({ file: rel(f), bytes: buf.length, gzip: gz });
   }
   const largest = perFile.sort((a, b) => b.gzip - a.gzip).slice(0, 5);
-  return { app: APP, built, outDir: rel(OUT_DIR), totalBytes, gzipBytes, byType, largest };
+  return {
+    app: APP,
+    built,
+    outDir: rel(OUT_DIR),
+    totalBytes,
+    gzipBytes,
+    byType,
+    largest,
+  };
 }
 
 // ---- B) bench -------------------------------------------------------------
@@ -88,11 +104,15 @@ function measureBench() {
   if (has('no-bench')) return { skipped: 'disabled (--no-bench)' };
 
   const outJson = path.join(tmpdir(), `harness-bench-${process.pid}.json`);
-  const res = spawnSync(bin('vitest'), ['bench', '--run', '--outputJson', outJson], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: { ...process.env, CI: 'true' },
-  });
+  const res = spawnSync(
+    bin('vitest'),
+    ['bench', '--run', '--outputJson', outJson],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env, CI: 'true' },
+    },
+  );
 
   if (!existsSync(outJson)) {
     const msg = `${res.stdout || ''}${res.stderr || ''}`;
@@ -116,7 +136,7 @@ function measureBench() {
         name: b.name,
         hz: Math.round(b.hz),
         meanMs: Number(b.mean.toFixed(6)),
-        rmePct: Number((b.rme).toFixed(2)),
+        rmePct: Number(b.rme.toFixed(2)),
         p99Ms: Number((b.p99 ?? 0).toFixed(6)),
       })),
     ),

@@ -3,9 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/desktop/src",
   "projectType": "application",
-  "tags": [
-    "layer:app"
-  ],
+  "tags": ["layer:app"],
   "targets": {
     "lint": {
       "executor": "nx:run-commands",

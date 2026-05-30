@@ -33,15 +33,15 @@ These rules are enforced at lint time by `@nx/enforce-module-boundaries` in
 
 ### The rules in words
 
-| Layer            | Tag                  | May import                                  |
-| ---------------- | -------------------- | ------------------------------------------- |
-| `shared`         | `layer:shared`       | _nothing_ (only itself)                     |
-| `domain`         | `layer:domain`       | `shared`                                    |
-| `application`    | `layer:application`  | `domain`, `shared`                          |
-| `infrastructure` | `layer:infrastructure` | `application`, `domain`, `shared`         |
-| `platform`       | `layer:platform`     | `application`, `domain`, `shared`           |
-| `ui`             | `layer:ui`           | `application`, `shared`                      |
-| `apps/*`         | `layer:app`          | everything                                  |
+| Layer            | Tag                    | May import                        |
+| ---------------- | ---------------------- | --------------------------------- |
+| `shared`         | `layer:shared`         | _nothing_ (only itself)           |
+| `domain`         | `layer:domain`         | `shared`                          |
+| `application`    | `layer:application`    | `domain`, `shared`                |
+| `infrastructure` | `layer:infrastructure` | `application`, `domain`, `shared` |
+| `platform`       | `layer:platform`       | `application`, `domain`, `shared` |
+| `ui`             | `layer:ui`             | `application`, `shared`           |
+| `apps/*`         | `layer:app`            | everything                        |
 
 Key consequences:
 

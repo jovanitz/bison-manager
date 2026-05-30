@@ -16,7 +16,10 @@ import type {
 /** Browser/PWA implementation of every platform capability. */
 
 const unavailable = (what: string): Result<never, PlatformError> =>
-  err({ tag: 'platform/unavailable', message: `${what} is unavailable in the browser.` });
+  err({
+    tag: 'platform/unavailable',
+    message: `${what} is unavailable in the browser.`,
+  });
 
 const browserNetwork = (): NetworkStatus => ({
   current: async (): Promise<NetworkState> => ({
@@ -58,7 +61,10 @@ const browserNotifications = (): Notifications => ({
   },
   notify: async ({ title, body }) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
-      return err({ tag: 'platform/denied', message: 'Notifications not granted.' });
+      return err({
+        tag: 'platform/denied',
+        message: 'Notifications not granted.',
+      });
     }
     new Notification(title, { body });
     return ok(undefined);

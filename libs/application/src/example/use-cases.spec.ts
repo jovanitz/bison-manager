@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  fixedClock,
-  noopLogger,
-  sequentialIdGenerator,
-} from '@acme/shared';
+import { fixedClock, noopLogger, sequentialIdGenerator } from '@acme/shared';
 import type { Item, ItemId } from '@acme/domain';
 import { nullEventPublisher } from '../ports/event-publisher';
 import type { ItemRepository } from './ports';

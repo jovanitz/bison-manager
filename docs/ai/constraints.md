@@ -22,7 +22,7 @@ you break them. Treat anything here as a wall, not a guideline.
    React, no `window`/`document`, no Dexie, no `fetch`/HTTP client, no auth SDK,
    no Capacitor/Tauri. If you reach for one, you need a **port** instead.
 6. **Ports are `type`s; adapters are factory functions** (`createXxx(...) =>
-   Port`). No interfaces-as-classes, no inheritance. (ADR-0004)
+Port`). No interfaces-as-classes, no inheritance. (ADR-0004)
 7. **Dependency injection is explicit parameters.** No DI container, no service
    locator, no global singletons. The whole object graph is visible in
    `apps/*/composition-root.ts`. (ADR-0005)

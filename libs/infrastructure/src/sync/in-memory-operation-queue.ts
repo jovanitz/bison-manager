@@ -23,7 +23,8 @@ export const createInMemoryOperationQueue = (): OperationQueue => {
     },
     markFailed: async (id) => {
       const op = ops.get(id);
-      if (op) ops.set(id, { ...op, status: 'failed', attempts: op.attempts + 1 });
+      if (op)
+        ops.set(id, { ...op, status: 'failed', attempts: op.attempts + 1 });
     },
   };
 };

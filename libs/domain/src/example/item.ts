@@ -1,7 +1,12 @@
 import { type Result, err, ok } from '@acme/shared';
 import { itemAlreadyArchived, itemNotArchived } from './errors';
 import type { ItemDomainError } from './errors';
-import type { ItemArchived, ItemCreated, ItemRenamed, ItemRestored } from './events';
+import type {
+  ItemArchived,
+  ItemCreated,
+  ItemRenamed,
+  ItemRestored,
+} from './events';
 import type { ItemId, ItemName, ItemStatus } from './value-objects';
 import { makeItemName } from './value-objects';
 

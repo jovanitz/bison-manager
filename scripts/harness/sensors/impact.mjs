@@ -24,19 +24,23 @@ const base = getArg('base');
 const head = getArg('head');
 
 const fail = (msg) => {
-  process.stdout.write(JSON.stringify({ tool: 'impact', ok: false, error: msg }, null, 2) + '\n');
+  process.stdout.write(
+    JSON.stringify({ tool: 'impact', ok: false, error: msg }, null, 2) + '\n',
+  );
   process.exit(1);
 };
 
 const nx = path.join(ROOT, 'node_modules', '.bin', 'nx');
-if (!existsSync(nx)) fail('nx is not installed (node_modules/.bin/nx missing).');
+if (!existsSync(nx))
+  fail('nx is not installed (node_modules/.bin/nx missing).');
 
 // 1) Affected project names from Nx (authoritative — reads real imports).
 const nxArgs = ['show', 'projects', '--affected', '--json'];
 if (base) nxArgs.push(`--base=${base}`);
 if (head) nxArgs.push(`--head=${head}`);
 const res = spawnSync(nx, nxArgs, { cwd: ROOT, encoding: 'utf8' });
-if (res.status !== 0) fail(`nx failed: ${(res.stderr || res.stdout || '').trim().slice(0, 500)}`);
+if (res.status !== 0)
+  fail(`nx failed: ${(res.stderr || res.stdout || '').trim().slice(0, 500)}`);
 
 let affectedNames = [];
 try {
@@ -56,7 +60,9 @@ for (const group of ['libs', 'apps']) {
     try {
       const j = JSON.parse(readFileSync(pj, 'utf8'));
       const tag = (j.tags || []).find((t) => t.startsWith('layer:'));
-      layerByName[j.name || entry] = tag ? tag.slice('layer:'.length) : 'unknown';
+      layerByName[j.name || entry] = tag
+        ? tag.slice('layer:'.length)
+        : 'unknown';
     } catch {
       /* skip malformed */
     }
@@ -68,8 +74,13 @@ const affected = affectedNames.map((name) => {
   const layer = layerByName[name] || 'unknown';
   return { project: name, layer, type: layer === 'app' ? 'app' : 'lib' };
 });
-const platformsAffected = affected.filter((a) => a.type === 'app').map((a) => a.project);
-const byLayer = affected.reduce((acc, a) => ((acc[a.layer] = (acc[a.layer] || 0) + 1), acc), {});
+const platformsAffected = affected
+  .filter((a) => a.type === 'app')
+  .map((a) => a.project);
+const byLayer = affected.reduce(
+  (acc, a) => ((acc[a.layer] = (acc[a.layer] || 0) + 1), acc),
+  {},
+);
 
 // 4) Risk hint: the deeper (more foundational) the affected layer, the wider and
 //    more semantically central the blast radius. Platform count is a poor signal
@@ -84,14 +95,19 @@ const report = {
   tool: 'impact',
   generatedAt: new Date().toISOString(),
   ok: true,
-  range: base ? { base, head: head || 'working-tree' } : 'working-tree-vs-nx-base',
+  range: base
+    ? { base, head: head || 'working-tree' }
+    : 'working-tree-vs-nx-base',
   summary: {
     affectedCount: affected.length,
     platformsAffected,
     byLayer,
     riskHint,
   },
-  affected: affected.sort((a, b) => a.layer.localeCompare(b.layer) || a.project.localeCompare(b.project)),
+  affected: affected.sort(
+    (a, b) =>
+      a.layer.localeCompare(b.layer) || a.project.localeCompare(b.project),
+  ),
 };
 
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');

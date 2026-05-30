@@ -1,8 +1,4 @@
-import {
-  createConsoleLogger,
-  systemClock,
-  uuidGenerator,
-} from '@acme/shared';
+import { createConsoleLogger, systemClock, uuidGenerator } from '@acme/shared';
 import { makeItemUseCases, nullEventPublisher } from '@acme/application';
 import {
   createApiItemRepository,
@@ -14,7 +10,11 @@ import {
   createOfflineItemRepository,
   createSyncEngine,
 } from '@acme/infrastructure';
-import { createTauriPlatform, type Platform, type TauriApis } from '@acme/platform';
+import {
+  createTauriPlatform,
+  type Platform,
+  type TauriApis,
+} from '@acme/platform';
 import type { AppUseCases } from '@acme/ui';
 
 /**

@@ -19,7 +19,7 @@ is **a new platform adapter + a new composition root** — not a new application
 
 2. **Create the app** (`apps/<platform>/`).
    - `project.json` tagged `layer:app`, tsconfig, Vite config, `index.html`.
-   - A `native-*.ts` module that is the *only* place importing the native SDK
+   - A `native-*.ts` module that is the _only_ place importing the native SDK
      (real imports go here once installed; ship a typed stub for CI).
    - A **composition root** that mirrors `apps/web` but swaps in your platform
      adapter. Persistence/sync/auth/use-case wiring should be identical.

@@ -10,7 +10,7 @@ places that is allowed to.
 - **Pattern:** explicit DI by parameters — no container. Swap an adapter here, not
   in the inner layers.
 - **Forbidden:** putting business logic, I/O details, or adapter internals here.
-  The root only *wires*; logic lives in `application`/`domain`.
+  The root only _wires_; logic lives in `application`/`domain`.
 
 `mobile` and `desktop` mirror this file with Capacitor/Tauri adapters; native
 imports stay isolated in their `native-*.ts`. Rationale:

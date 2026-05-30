@@ -4,9 +4,5 @@
     "outDir": "../../dist/out-tsc/shared-spec",
     "types": ["node", "vitest/globals"]
   },
-  "include": [
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "vitest.config.ts"]
 }

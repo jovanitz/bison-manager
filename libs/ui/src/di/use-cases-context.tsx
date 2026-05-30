@@ -24,7 +24,9 @@ export const UseCasesProvider = ({
   useCases: AppUseCases;
   children: ReactNode;
 }) => (
-  <UseCasesContext.Provider value={useCases}>{children}</UseCasesContext.Provider>
+  <UseCasesContext.Provider value={useCases}>
+    {children}
+  </UseCasesContext.Provider>
 );
 
 export const useUseCases = (): AppUseCases => {

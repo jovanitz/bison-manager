@@ -15,7 +15,8 @@ import { ItemScreen } from './item-screen';
  * injected ports.
  */
 const makeMockUseCases = (): AppUseCases => {
-  const store: { id: string; name: string; status: 'active' | 'archived' }[] = [];
+  const store: { id: string; name: string; status: 'active' | 'archived' }[] =
+    [];
   let n = 0;
   return {
     items: {
@@ -44,7 +45,9 @@ const makeMockUseCases = (): AppUseCases => {
 };
 
 const renderScreen = () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={client}>
       <UseCasesProvider useCases={makeMockUseCases()}>

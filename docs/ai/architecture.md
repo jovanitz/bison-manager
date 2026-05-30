@@ -7,22 +7,22 @@ the machine-readable form is [capabilities.json](capabilities.json).
 
 ## Layers, in dependency order
 
-| Layer            | Tag                    | Lives in                 | Responsibility | May import |
-| ---------------- | ---------------------- | ------------------------ | -------------- | ---------- |
-| `shared`         | `layer:shared`         | `libs/shared`            | `Result`/`Either`, branded types, clock & logger contracts | _nothing_ |
-| `domain`         | `layer:domain`         | `libs/domain`            | Entities, value objects, business rules, domain events — pure | `shared` |
-| `application`    | `layer:application`    | `libs/application`       | Use cases, **port types**, DTOs — orchestration | `domain`, `shared` |
-| `infrastructure` | `layer:infrastructure` | `libs/infrastructure`    | Adapters: Dexie, REST, JWT auth, sync engine | `application`, `domain`, `shared` |
-| `platform`       | `layer:platform`       | `libs/platform`          | Device ports + browser/Capacitor/Tauri adapters | `application`, `domain`, `shared` |
-| `ui`             | `layer:ui`             | `libs/ui`                | Design system + feature screens (consume use cases) | `application`, `shared` |
-| `apps/*`         | `layer:app`            | `apps/{web,mobile,desktop}` | Composition roots — wire concrete adapters | everything |
+| Layer            | Tag                    | Lives in                    | Responsibility                                                | May import                        |
+| ---------------- | ---------------------- | --------------------------- | ------------------------------------------------------------- | --------------------------------- |
+| `shared`         | `layer:shared`         | `libs/shared`               | `Result`/`Either`, branded types, clock & logger contracts    | _nothing_                         |
+| `domain`         | `layer:domain`         | `libs/domain`               | Entities, value objects, business rules, domain events — pure | `shared`                          |
+| `application`    | `layer:application`    | `libs/application`          | Use cases, **port types**, DTOs — orchestration               | `domain`, `shared`                |
+| `infrastructure` | `layer:infrastructure` | `libs/infrastructure`       | Adapters: Dexie, REST, JWT auth, sync engine                  | `application`, `domain`, `shared` |
+| `platform`       | `layer:platform`       | `libs/platform`             | Device ports + browser/Capacitor/Tauri adapters               | `application`, `domain`, `shared` |
+| `ui`             | `layer:ui`             | `libs/ui`                   | Design system + feature screens (consume use cases)           | `application`, `shared`           |
+| `apps/*`         | `layer:app`            | `apps/{web,mobile,desktop}` | Composition roots — wire concrete adapters                    | everything                        |
 
 ## Where does my change go?
 
 - **A business rule / invariant / calculation** → `domain`. No I/O, no async needed.
 - **Orchestrating a workflow across repos/services** → `application` (a use case).
 - **A new capability the app needs from the outside world** → add a **port type**
-  in `application` *first*, then an adapter in `infrastructure` (data/network) or
+  in `application` _first_, then an adapter in `infrastructure` (data/network) or
   `platform` (device).
 - **Reading/writing a DB, calling an API, tokens** → `infrastructure`.
 - **Camera, storage, notifications, native shell** → `platform`.

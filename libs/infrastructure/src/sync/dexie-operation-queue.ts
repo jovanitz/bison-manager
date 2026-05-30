@@ -8,18 +8,13 @@ import type { AppDatabase } from '../persistence/dexie-db';
  * sync engine drains it when connectivity returns. Persisting to IndexedDB
  * means the queue survives reloads and crashes — true offline-first.
  */
-export const createDexieOperationQueue = (
-  db: AppDatabase,
-): OperationQueue => ({
+export const createDexieOperationQueue = (db: AppDatabase): OperationQueue => ({
   enqueue: async (op) => {
     const full: Operation = { ...op, status: 'pending', attempts: 0 };
     await db.outbox.put(full);
   },
   pending: async () =>
-    db.outbox
-      .where('status')
-      .anyOf('pending', 'failed')
-      .sortBy('createdAt'),
+    db.outbox.where('status').anyOf('pending', 'failed').sortBy('createdAt'),
   markSyncing: async (id) => {
     await db.outbox.update(id, { status: 'syncing' });
   },

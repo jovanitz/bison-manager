@@ -48,7 +48,9 @@ export const unwrapOr =
  * Collapse an array of results into a single result of an array.
  * Short-circuits on the first error — useful for validating many fields.
  */
-export const all = <T, E>(results: ReadonlyArray<Result<T, E>>): Result<T[], E> => {
+export const all = <T, E>(
+  results: ReadonlyArray<Result<T, E>>,
+): Result<T[], E> => {
   const values: T[] = [];
   for (const r of results) {
     if (!r.ok) return r;
@@ -58,9 +60,7 @@ export const all = <T, E>(results: ReadonlyArray<Result<T, E>>): Result<T[], E> 
 };
 
 /** Run a throwing function and capture the throw as an `Err`. */
-export const fromThrowable = <T>(
-  fn: () => T,
-): Result<T, unknown> => {
+export const fromThrowable = <T>(fn: () => T): Result<T, unknown> => {
   try {
     return ok(fn());
   } catch (e) {

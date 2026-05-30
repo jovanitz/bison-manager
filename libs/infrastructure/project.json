@@ -3,9 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/infrastructure/src",
   "projectType": "library",
-  "tags": [
-    "layer:infrastructure"
-  ],
+  "tags": ["layer:infrastructure"],
   "targets": {
     "lint": {
       "executor": "nx:run-commands",

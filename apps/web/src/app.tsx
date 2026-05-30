@@ -7,9 +7,7 @@ import { ItemScreen, UseCasesProvider, type AppUseCases } from '@acme/ui';
  * interesting wiring happened in the composition root, and all the behaviour
  * lives in the reusable `@acme/ui` feature screens.
  */
-const router = createBrowserRouter([
-  { path: '/', element: <ItemScreen /> },
-]);
+const router = createBrowserRouter([{ path: '/', element: <ItemScreen /> }]);
 
 export const App = ({ useCases }: { useCases: AppUseCases }) => {
   const queryClient = new QueryClient();

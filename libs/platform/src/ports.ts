@@ -17,7 +17,12 @@ export type PlatformError = {
 
 export type NetworkState = {
   readonly online: boolean;
-  readonly connectionType: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
+  readonly connectionType:
+    | 'wifi'
+    | 'cellular'
+    | 'ethernet'
+    | 'none'
+    | 'unknown';
 };
 
 export type NetworkStatus = {
