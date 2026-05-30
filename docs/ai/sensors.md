@@ -14,13 +14,14 @@ it — none re-implement it.
 
 ## Catalog
 
-| Sensor      | Answers                                                                                 | CLI                                                                         | Skill                  |
-| ----------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------- |
-| **gaps**    | Untested adapters/use-cases/screens/domain logic, TODOs                                 | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
-| **impact**  | Blast radius: affected projects, platforms, risk                                        | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
-| **perf**    | Bundle size (raw+gzip) + benchmarks of the pure core                                    | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
-| **quality** | Quality gate: lint + typecheck + test (`--build` to match CI)                           | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
-| **doctor**  | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
+| Sensor        | Answers                                                                                 | CLI                                                                         | Skill                  |
+| ------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------- |
+| **gaps**      | Untested adapters/use-cases/screens/domain logic, TODOs                                 | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
+| **impact**    | Blast radius: affected projects, platforms, risk                                        | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
+| **perf**      | Bundle size (raw+gzip) + benchmarks of the pure core                                    | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
+| **quality**   | Quality gate: lint + typecheck + test (`--build` to match CI)                           | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
+| **structure** | File/folder organization: files-per-folder (≤8), oversized files; screaming arch        | `pnpm harness structure`                                                    | —                      |
+| **doctor**    | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
 
 ## When to reach for which
 
@@ -34,6 +35,8 @@ it — none re-implement it.
   here: because ports are types, an adapter with no contract test is a
   _mechanically detectable_ gap. Silence intentional gaps via
   `scripts/harness/harness-ignore.json` or an inline `// harness-ignore`.
+- **To keep files small / folders organized** → `structure` (also part of the
+  Stop guardrail). See [structure.md](structure.md).
 - **After touching the harness / before starting real work** → `doctor`.
 
 > **Inferential sensor:** for logic-level review (e.g. auth flaws) the
@@ -47,6 +50,7 @@ it — none re-implement it.
 - ✅ `perf` — `scripts/harness/sensors/perf.mjs` (benchmarks in `*.bench.ts`; seed:
   `libs/domain/src/example/item.bench.ts`)
 - ✅ `quality` — `scripts/harness/sensors/quality.mjs` (also the Stop-hook guardrail)
+- ✅ `structure` — `scripts/harness/sensors/structure.mjs` (also the Stop-hook guardrail)
 - ✅ `doctor` — `scripts/harness/sensors/doctor.mjs`
 
 ## Not a sensor
