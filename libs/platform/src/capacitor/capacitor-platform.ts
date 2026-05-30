@@ -113,11 +113,10 @@ const capacitorCamera = (CameraPlugin: CapacitorPlugins['Camera']): Camera => ({
         return err({ tag: 'platform/error', message: 'No image captured.' });
       }
       return ok({ dataUrl: photo.dataUrl, format: photo.format });
-    } catch (cause) {
+    } catch {
       return err({
         tag: 'platform/denied',
         message: 'Camera capture failed.',
-        ...(cause ? {} : {}),
       });
     }
   },

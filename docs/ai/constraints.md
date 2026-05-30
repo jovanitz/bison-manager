@@ -13,6 +13,11 @@ you break them. Treat anything here as a wall, not a guideline.
 3. **`strict` TypeScript**, plus `exactOptionalPropertyTypes`,
    `noUncheckedIndexedAccess`-style rigor, `noUnusedLocals/Parameters`,
    `noImplicitReturns`. Code that doesn't typecheck doesn't merge.
+4. **Clean-code limits** (ESLint + `eslint-plugin-sonarjs` + the `structure`
+   sensor): file ≤ 200 lines, function ≤ 70, complexity ≤ 10, cognitive ≤ 15,
+   depth ≤ 3, params ≤ 4, **≤ 8 files per folder**. Keep files small and folders
+   organized by feature (screaming architecture). See
+   [structure.md](structure.md).
 
 ## Enforced by convention + review (don't rely on the model "remembering")
 

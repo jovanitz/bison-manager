@@ -35,5 +35,8 @@ export const defineError =
     makeError(tag, message, extra);
 
 /** Narrow an `unknown` thrown value into a readable string. */
-export const toMessage = (e: unknown): string =>
-  e instanceof Error ? e.message : typeof e === 'string' ? e : String(e);
+export const toMessage = (e: unknown): string => {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  return String(e);
+};

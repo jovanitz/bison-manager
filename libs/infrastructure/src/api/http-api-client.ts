@@ -17,34 +17,53 @@ export type HttpApiClientConfig = {
   readonly fetchImpl?: typeof fetch;
 };
 
+/** Resolve the request path + query into an absolute URL. */
+const buildUrl = <TBody>(req: ApiRequest<TBody>, baseUrl: string): URL => {
+  const url = new URL(req.path ?? '', baseUrl);
+  for (const [k, v] of Object.entries(req.query ?? {})) {
+    url.searchParams.set(k, String(v));
+  }
+  return url;
+};
+
+/** Base headers plus a bearer token when an auth provider is wired. */
+const buildHeaders = async (
+  auth?: AuthProvider,
+): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+  if (!auth) return headers;
+  const token = await auth.getAccessToken();
+  if (token.ok) headers['authorization'] = `Bearer ${token.value}`;
+  return headers;
+};
+
+/**
+ * Build the init incrementally so optional fields are omitted rather than set to
+ * `undefined` (required by `exactOptionalPropertyTypes`).
+ */
+const buildInit = <TBody>(
+  req: ApiRequest<TBody>,
+  headers: Record<string, string>,
+): RequestInit => {
+  const init: RequestInit = { method: req.method ?? 'GET', headers };
+  if (req.body !== undefined) init.body = JSON.stringify(req.body);
+  if (req.signal !== undefined) init.signal = req.signal;
+  return init;
+};
+
 export const createHttpApiClient = (config: HttpApiClientConfig): ApiClient => {
   const doFetch = config.fetchImpl ?? fetch;
 
   const request = async <TResponse, TBody>(
     req: ApiRequest<TBody>,
   ): Promise<Result<TResponse, ApiError>> => {
-    const url = new URL(req.path ?? '', config.baseUrl);
-    for (const [k, v] of Object.entries(req.query ?? {})) {
-      url.searchParams.set(k, String(v));
-    }
-
-    const headers: Record<string, string> = {
-      'content-type': 'application/json',
-    };
-    if (config.auth) {
-      const token = await config.auth.getAccessToken();
-      if (token.ok) headers['authorization'] = `Bearer ${token.value}`;
-    }
-
-    // Build the init incrementally so optional fields are omitted rather than
-    // set to `undefined` (required by `exactOptionalPropertyTypes`).
-    const init: RequestInit = { method: req.method ?? 'GET', headers };
-    if (req.body !== undefined) init.body = JSON.stringify(req.body);
-    if (req.signal !== undefined) init.signal = req.signal;
+    const url = buildUrl(req, config.baseUrl);
+    const init = buildInit(req, await buildHeaders(config.auth));
 
     try {
       const res = await doFetch(url.toString(), init);
-
       if (!res.ok) {
         return err({
           tag: 'api/status',
@@ -52,8 +71,7 @@ export const createHttpApiClient = (config: HttpApiClientConfig): ApiClient => {
           status: res.status,
         });
       }
-      const data = (await res.json()) as TResponse;
-      return ok(data);
+      return ok((await res.json()) as TResponse);
     } catch (cause) {
       const isAbort = cause instanceof Error && cause.name === 'AbortError';
       return err({

@@ -29,6 +29,7 @@ const COMMANDS = {
   impact: 'sensors/impact.mjs',
   perf: 'sensors/perf.mjs',
   quality: 'sensors/quality.mjs',
+  structure: 'sensors/structure.mjs',
   doctor: 'sensors/doctor.mjs',
   // Generators (write code — not controls)
   'generate-feature': 'generators/generate-feature.mjs',
@@ -42,6 +43,7 @@ function help() {
       '  impact    Blast radius of a change (affected projects, platforms, risk)\n' +
       '  perf      Bundle size (raw+gzip) + benchmarks of the pure core\n' +
       '  quality   Quality gate: lint + typecheck + test (--build, --all)\n' +
+      '  structure Folder/file organization (files-per-folder, oversized files)\n' +
       '  doctor    Self-check the harness (hooks, scripts, capabilities↔eslint)\n\n' +
       'Generators (write code):\n' +
       '  generate-feature <name>   Copy the example slice into a new feature\n',

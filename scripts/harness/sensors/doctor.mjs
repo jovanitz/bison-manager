@@ -59,6 +59,7 @@ const EXPECTED = {
   impact: 'sensors/impact.mjs',
   perf: 'sensors/perf.mjs',
   quality: 'sensors/quality.mjs',
+  structure: 'sensors/structure.mjs',
   doctor: 'sensors/doctor.mjs',
   'generate-feature': 'generators/generate-feature.mjs',
 };
