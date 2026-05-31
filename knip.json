@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "apps/*/src/main.{ts,tsx}",
+    "apps/*/vite.config.ts",
+    "apps/*/capacitor.config.ts",
+    "**/*.spec.{ts,tsx}"
+  ],
+  "project": ["apps/**/*.{ts,tsx}", "libs/**/*.{ts,tsx}"],
+  "ignore": ["scripts/**", "**/*.bench.ts", "**/test-setup.ts"],
+  "rules": {
+    "files": "error",
+    "exports": "error",
+    "types": "error",
+    "nsExports": "error",
+    "nsTypes": "error",
+    "duplicates": "error",
+    "dependencies": "off",
+    "devDependencies": "off",
+    "optionalPeerDependencies": "off",
+    "unlisted": "off",
+    "unresolved": "off",
+    "binaries": "off",
+    "enumMembers": "off"
+  }
+}

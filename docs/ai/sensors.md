@@ -23,6 +23,8 @@ it — none re-implement it.
 | **structure** | File/folder organization: files-per-folder (≤8), oversized files; screaming arch        | `pnpm harness structure`                                                    | —                      |
 | **cycles**    | Circular import dependencies (file level, via madge)                                    | `pnpm harness cycles`                                                       | —                      |
 | **consumers** | File-level blast radius: who imports the changed/named files (direct + transitive)      | `pnpm harness consumers [<file>…]`                                          | —                      |
+| **dead-code** | Unused files / exports / types (knip)                                                   | `pnpm harness dead-code`                                                    | —                      |
+| **coverage**  | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)            | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
 | **doctor**    | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
 
 ## When to reach for which
@@ -43,6 +45,9 @@ it — none re-implement it.
 - **To keep files small / folders organized** → `structure` (also part of the
   Stop guardrail). See [structure.md](structure.md).
 - **Suspect a circular import** → `cycles` (also part of the Stop guardrail).
+- **Auditing unused/orphaned code** → `dead-code` (knip; finds what nothing imports).
+- **Checking the core stays well-tested** → `coverage` (domain/application floor;
+  enforced in CI — slower, so not in the local Stop hook).
 - **After touching the harness / before starting real work** → `doctor`.
 
 > **Inferential sensor:** for logic-level review (e.g. auth flaws) the
@@ -59,7 +64,17 @@ it — none re-implement it.
 - ✅ `structure` — `scripts/harness/sensors/structure.mjs` (also the Stop-hook guardrail)
 - ✅ `cycles` — `scripts/harness/sensors/cycles.mjs` (madge; also the Stop-hook guardrail)
 - ✅ `consumers` — `scripts/harness/sensors/consumers.mjs` (file-level blast radius)
-- ✅ `doctor` — `scripts/harness/sensors/doctor.mjs`
+- ✅ `dead-code` — `scripts/harness/sensors/dead-code.mjs` (knip; advisory in CI)
+- ✅ `coverage` — `scripts/harness/sensors/coverage.mjs` (CI gate; not in Stop hook)
+- ✅ `doctor` — `scripts/harness/sensors/doctor.mjs` (smoke-tests the fast sensors)
+
+## Where each runs
+
+- **Local Stop hook (guardrail, blocks "done")**: `quality` (+build), `structure`,
+  `cycles`.
+- **CI (blocks merge)**: the Stop-hook set + `coverage`; `gaps` and `dead-code`
+  run **advisory** (visible, non-blocking).
+- **On-demand only**: `impact`, `consumers`, `perf`, `doctor`.
 
 ## Not a sensor
 

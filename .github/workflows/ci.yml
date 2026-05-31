@@ -50,6 +50,21 @@ jobs:
       # One pipeline; each target is cached and only re-runs for affected projects.
       - run: pnpm exec nx affected -t lint typecheck test build --parallel=3
 
+      # Harness guardrails — the same checks the local Stop hook enforces.
+      - name: Harness structure & cycles
+        run: |
+          pnpm harness structure
+          pnpm harness cycles
+      # Core test-coverage floor (domain + application).
+      - name: Harness coverage
+        run: pnpm harness coverage
+      # Advisory: surface development gaps & dead code without failing the build.
+      - name: Harness gaps & dead-code (advisory)
+        continue-on-error: true
+        run: |
+          pnpm harness gaps
+          pnpm harness dead-code
+
   # Full (non-affected) gate on main, so the cache and main branch stay healthy.
   full-on-main:
     if: github.ref == 'refs/heads/main'
@@ -65,3 +80,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec nx run-many -t lint typecheck test build --parallel=3
+      - name: Harness structure & cycles
+        run: |
+          pnpm harness structure
+          pnpm harness cycles
+      - name: Harness coverage
+        run: pnpm harness coverage
