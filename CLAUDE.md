@@ -18,6 +18,7 @@ only when the task needs it (progressive disclosure).
 | Check what is **forbidden** (hard rules)                 | [docs/ai/constraints.md](docs/ai/constraints.md)   |
 | Build something sensitive (auth, tokens, perms)          | [docs/ai/security.md](docs/ai/security.md)         |
 | Build a feature end-to-end (the agent loop)              | [docs/ai/workflow.md](docs/ai/workflow.md)         |
+| Model the domain & work test-first (DDD/TDD)             | [docs/ai/methodology.md](docs/ai/methodology.md)   |
 | Organize files/folders (small, screaming arch)           | [docs/ai/structure.md](docs/ai/structure.md)       |
 | Measure quality / impact / perf / gaps (sensors)         | [docs/ai/sensors.md](docs/ai/sensors.md)           |
 | Know a layer's local rules                               | the `CLAUDE.md` inside that `libs/<layer>/`        |

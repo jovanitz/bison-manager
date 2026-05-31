@@ -74,8 +74,8 @@ Harness
 │   └── hook: post-edit-check (lint the touched file)
 ├── Guardrails (vetoing sensors)
 │   ├── hook: pre-edit-guard (PreToolUse) — blocks protected files + project.json tags
-│   ├── hook: quality-gate (Stop) — blocks finishing (quality+structure+cycles; build = CI)
-│   └── CI (.github/workflows/ci.yml) — Stop-hook set + coverage block; gaps/dead-code advisory
+│   ├── hook: quality-gate (Stop) — blocks finishing (quality+structure+cycles+gaps; build = CI)
+│   └── CI (.github/workflows/ci.yml) — Stop-hook set + coverage block; dead-code advisory
 ├── Generators (write code) → scripts/harness/generators/generate-feature.mjs (CRUD only)
 └── Runtime  → Claude Code (loop, tool routing, stop) — not ours to build
 ```
