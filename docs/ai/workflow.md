@@ -5,6 +5,10 @@ architecture is optimised for; following it keeps every step runnable and
 verifiable in isolation. The deeper rationale is in
 [ai-assisted-development.md](../guidelines/ai-assisted-development.md).
 
+Work **test-first (red → green → refactor)** and model with **DDD** tactical
+patterns — see [methodology.md](methodology.md). The `gaps` gate blocks finishing
+if a use case or adapter has no test.
+
 ## The loop
 
 1. **Locate the layer.** Map the task with
