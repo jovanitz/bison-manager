@@ -84,4 +84,17 @@ if (!c.ok) {
   );
 }
 
+// 4) TDD enforcement: no untested use case / adapter (high-severity gaps).
+const g = runSensor('gaps.mjs');
+if (!g.ok) {
+  const lines = (g.report?.gaps || [])
+    .filter((x) => x.severity === 'high')
+    .map((x) => `- ${x.type}: ${x.file} — ${x.suggestion}`)
+    .join('\n');
+  veto(
+    `Untested core code (TDD gate). Add the missing test before finishing:\n\n` +
+      `${lines || g.res?.stderr || 'high-severity gaps'}`,
+  );
+}
+
 process.exit(0);

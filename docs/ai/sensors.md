@@ -38,9 +38,10 @@ it — none re-implement it.
   (file level — exactly which files import what you changed, direct + transitive).
   Complements `impact`; it does not drive the gate.
 - **After touching domain/application hot paths or adding a screen** → `perf`.
-- **When asked "what's missing?" / auditing a feature** → `gaps`. Uniquely cheap
-  here: because ports are types, an adapter with no contract test is a
-  _mechanically detectable_ gap. Silence intentional gaps via
+- **What's missing / TDD gate** → `gaps`. Blocks the Stop hook & CI on a
+  high-severity gap (untested use case or adapter) — this is the TDD enforcement.
+  Uniquely cheap here: because ports are types, an adapter with no contract test
+  is a _mechanically detectable_ gap. Silence intentional ones via
   `scripts/harness/harness-ignore.json` or an inline `// harness-ignore`.
 - **To keep files small / folders organized** → `structure` (also part of the
   Stop guardrail). See [structure.md](structure.md).
@@ -71,9 +72,9 @@ it — none re-implement it.
 ## Where each runs
 
 - **Local Stop hook (guardrail, blocks "done")**: `quality` (+build), `structure`,
-  `cycles`.
-- **CI (blocks merge)**: the Stop-hook set + `coverage`; `gaps` and `dead-code`
-  run **advisory** (visible, non-blocking).
+  `cycles`, `gaps` (TDD gate — no untested use case/adapter).
+- **CI (blocks merge)**: the Stop-hook set + `coverage`; `dead-code` runs
+  **advisory** (visible, non-blocking).
 - **On-demand only**: `impact`, `consumers`, `perf`, `doctor`.
 
 ## Not a sensor

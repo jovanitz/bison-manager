@@ -51,19 +51,19 @@ jobs:
       - run: pnpm exec nx affected -t lint typecheck test build --parallel=3
 
       # Harness guardrails — the same checks the local Stop hook enforces.
-      - name: Harness structure & cycles
+      # gaps blocks too: TDD gate (no untested use case / adapter).
+      - name: Harness structure, cycles & gaps
         run: |
           pnpm harness structure
           pnpm harness cycles
+          pnpm harness gaps
       # Core test-coverage floor (domain + application).
       - name: Harness coverage
         run: pnpm harness coverage
-      # Advisory: surface development gaps & dead code without failing the build.
-      - name: Harness gaps & dead-code (advisory)
+      # Advisory: surface dead code without failing the build.
+      - name: Harness dead-code (advisory)
         continue-on-error: true
-        run: |
-          pnpm harness gaps
-          pnpm harness dead-code
+        run: pnpm harness dead-code
 
   # Full (non-affected) gate on main, so the cache and main branch stay healthy.
   full-on-main:
@@ -80,9 +80,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec nx run-many -t lint typecheck test build --parallel=3
-      - name: Harness structure & cycles
+      - name: Harness structure, cycles & gaps
         run: |
           pnpm harness structure
           pnpm harness cycles
+          pnpm harness gaps
       - name: Harness coverage
         run: pnpm harness coverage

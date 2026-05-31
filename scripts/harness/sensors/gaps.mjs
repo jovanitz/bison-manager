@@ -248,4 +248,6 @@ const report = {
 };
 
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-process.exit(0);
+// Exit non-zero on a high-severity gap (untested use case/adapter) so the Stop
+// guardrail and CI can block on it — this is the TDD enforcement.
+process.exit(report.ok ? 0 : 1);
