@@ -11,6 +11,7 @@
  * Usage: node scripts/harness/sensors/doctor.mjs [--root=<dir>]
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -62,6 +63,8 @@ const EXPECTED = {
   structure: 'sensors/structure.mjs',
   cycles: 'sensors/cycles.mjs',
   consumers: 'sensors/consumers.mjs',
+  'dead-code': 'sensors/dead-code.mjs',
+  coverage: 'sensors/coverage.mjs',
   doctor: 'sensors/doctor.mjs',
   'generate-feature': 'generators/generate-feature.mjs',
 };
@@ -111,6 +114,41 @@ try {
 
 // 4) git available (affected-based sensors need it).
 check('git repo present', exists('.git'));
+
+// 5) Smoke-test the fast, read-only sensors: each must run and emit valid JSON
+//    tagged with its own name. Catches a silently-broken sensor (e.g. a syntax
+//    error or a bad byte) that no other gate would notice. Exit code is ignored
+//    on purpose — ok:false is a finding, not a broken sensor.
+const SMOKE = [
+  'gaps',
+  'impact',
+  'structure',
+  'cycles',
+  'consumers',
+  'dead-code',
+];
+for (const name of SMOKE) {
+  const script = path.join(ROOT, 'scripts/harness/sensors', `${name}.mjs`);
+  if (!existsSync(script)) {
+    check(`sensor ${name} runs`, false, 'script missing');
+    continue;
+  }
+  const res = spawnSync(process.execPath, [script, `--root=${ROOT}`], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  let parsed = null;
+  try {
+    parsed = JSON.parse(res.stdout);
+  } catch {
+    /* invalid */
+  }
+  check(
+    `sensor ${name} runs`,
+    !!parsed && parsed.tool === name,
+    parsed ? '' : (res.stderr || 'no valid JSON output').slice(0, 120),
+  );
+}
 
 const failed = checks.filter((c) => !c.ok);
 process.stdout.write(
