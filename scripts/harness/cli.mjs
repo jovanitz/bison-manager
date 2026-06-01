@@ -34,6 +34,7 @@ const COMMANDS = {
   consumers: 'sensors/consumers.mjs',
   'dead-code': 'sensors/dead-code.mjs',
   coverage: 'sensors/coverage.mjs',
+  e2e: 'sensors/e2e.mjs',
   doctor: 'sensors/doctor.mjs',
   // Generators (write code — not controls)
   'generate-feature': 'generators/generate-feature.mjs',
@@ -52,6 +53,7 @@ function help() {
       '  consumers File-level blast radius: who imports the changed/named files\n' +
       '  dead-code Unused files/exports/types (knip)\n' +
       '  coverage  Per-layer line coverage floor on the pure core (domain/application)\n' +
+      '  e2e       Browser-level verification (Playwright) + runtime bridge introspection\n' +
       '  doctor    Self-check the harness (hooks, scripts, capabilities↔eslint)\n\n' +
       'Generators (write code):\n' +
       '  generate-feature <name>   Copy the example slice into a new feature\n',

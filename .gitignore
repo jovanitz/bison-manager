@@ -17,3 +17,9 @@ apps/mobile/android/.gradle
 apps/mobile/android/app/build
 # Tauri
 apps/desktop/src-tauri/target
+
+# Playwright
+test-results
+playwright-report
+blob-report
+.last-run.json

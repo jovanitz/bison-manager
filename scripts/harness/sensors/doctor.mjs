@@ -65,6 +65,7 @@ const EXPECTED = {
   consumers: 'sensors/consumers.mjs',
   'dead-code': 'sensors/dead-code.mjs',
   coverage: 'sensors/coverage.mjs',
+  e2e: 'sensors/e2e.mjs',
   doctor: 'sensors/doctor.mjs',
   'generate-feature': 'generators/generate-feature.mjs',
 };
