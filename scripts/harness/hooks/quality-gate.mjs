@@ -97,4 +97,15 @@ if (!g.ok) {
   );
 }
 
+// 5) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
+// needing runtime validation (.harness/require-e2e) and no passing `e2e` run has
+// cleared it, nudge — but allow delivery (the user chose warn, not block).
+if (existsSync(path.join(cwd, '.harness', 'require-e2e'))) {
+  process.stderr.write(
+    `Reminder: this task is marked as requiring runtime validation but no passing ` +
+      `e2e run has cleared it. Run \`pnpm harness e2e\` to validate the running app ` +
+      `(reads window.__app__). This is a nudge, not a block.`,
+  );
+}
+
 process.exit(0);

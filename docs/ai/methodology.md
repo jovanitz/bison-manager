@@ -74,4 +74,18 @@ TDD-the-process can't be mechanically proven, but its **outcomes are gated**:
 - **`coverage`** holds a per-layer floor (domain ≥ 90 %, application ≥ 75 %) in CI.
 - **contract tests** prove every adapter satisfies its port.
 
+### The test pyramid (and its runtime top)
+
+```
+        e2e (browser, runtime-state aware)   ← complex / user-facing tasks only
+      component (screens vs mock use cases)
+    contract (adapters satisfy their port)
+  unit (domain rules, use cases) ← the wide base, where TDD lives
+```
+
+Most work lives in the base (fast, deterministic, TDD). The **e2e top is opt-in**
+and only for tasks that change user-observable behavior: drive it as a user and
+assert on internal state via the runtime bridge (`window.__app__`). See the
+**verify-runtime** skill and [sensors.md](sensors.md) (`e2e`).
+
 See [sensors.md](sensors.md) and [workflow.md](workflow.md).

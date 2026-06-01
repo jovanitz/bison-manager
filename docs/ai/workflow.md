@@ -39,6 +39,14 @@ if a use case or adapter has no test.
    the other **sensors** in [sensors.md](sensors.md) (`impact`, `perf`, `gaps`) to
    check reach, performance and gaps before declaring done.
 
+8. **Validate at runtime (complex / user-facing tasks only).** If the task changes
+   user-observable behavior (a flow, screen, routing, auth, data rendering), prove
+   it in a real browser **before delivering**: write/extend an `e2e` that drives it
+   as a user and asserts on internal state via the bridge (`window.__app__`), then
+   run `pnpm harness e2e`. Use the **verify-runtime** skill — it's opt-in (mark with
+   `.harness/require-e2e`), and the Stop hook reminds you if you forget. Pure
+   `domain`/`application` changes skip this (unit/contract tests suffice).
+
 > **Sensitive feature?** (auth, tokens, permissions, payments) Don't use
 > `generate-feature` (CRUD-only). Follow [security.md](security.md) and run
 > `/security-review` before merging.

@@ -67,6 +67,7 @@ it — none re-implement it.
 - ✅ `consumers` — `scripts/harness/sensors/consumers.mjs` (file-level blast radius)
 - ✅ `dead-code` — `scripts/harness/sensors/dead-code.mjs` (knip; advisory in CI)
 - ✅ `coverage` — `scripts/harness/sensors/coverage.mjs` (CI gate; not in Stop hook)
+- ✅ `e2e` — `scripts/harness/sensors/e2e.mjs` (Playwright; runtime validation)
 - ✅ `doctor` — `scripts/harness/sensors/doctor.mjs` (smoke-tests the fast sensors)
 
 ## Where each runs
@@ -76,6 +77,10 @@ it — none re-implement it.
 - **CI (blocks merge)**: the Stop-hook set + `coverage`; `dead-code` runs
   **advisory** (visible, non-blocking).
 - **On-demand only**: `impact`, `consumers`, `perf`, `doctor`.
+- **Runtime validation (opt-in, complex/user-facing tasks)**: `e2e`. Mark the task
+  (`.harness/require-e2e`), build/run it; a pass clears the mark. The Stop hook
+  **nudges (non-blocking)** if the mark is still set. See the **verify-runtime**
+  skill and [workflow.md](workflow.md) step 8.
 
 ## Not a sensor
 

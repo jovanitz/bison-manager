@@ -10,7 +10,7 @@
  * Usage: node scripts/harness/sensors/e2e.mjs [-- <extra playwright args>]
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -39,11 +39,22 @@ const res = spawnSync(pw, ['test', ...passthrough], {
 
 const ok = res.status === 0;
 const output = `${res.stdout || ''}${res.stderr || ''}`.trim();
+
+// A passing run clears the opt-in runtime-validation marker (see verify-runtime
+// skill): this is the "validated at runtime" signal the Stop hook checks.
+let markerCleared = false;
+const marker = path.join(ROOT, '.harness', 'require-e2e');
+if (ok && existsSync(marker)) {
+  rmSync(marker);
+  markerCleared = true;
+}
+
 emit(
   {
     tool: 'e2e',
     generatedAt: new Date().toISOString(),
     ok,
+    markerCleared,
     output: ok ? output.slice(-600) : output.slice(-4000),
   },
   ok ? 0 : 1,
