@@ -1,6 +1,12 @@
+import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
-import { ItemScreen, UseCasesProvider, type AppUseCases } from '@acme/ui';
+import {
+  ItemScreen,
+  UseCasesProvider,
+  installDebugBridge,
+  type AppUseCases,
+} from '@acme/ui';
 
 /**
  * The web app shell: providers + routing. It is deliberately thin — all the
@@ -10,7 +16,16 @@ import { ItemScreen, UseCasesProvider, type AppUseCases } from '@acme/ui';
 const router = createBrowserRouter([{ path: '/', element: <ItemScreen /> }]);
 
 export const App = ({ useCases }: { useCases: AppUseCases }) => {
-  const queryClient = new QueryClient();
+  // One stable client for the app's lifetime.
+  const [queryClient] = useState(() => new QueryClient());
+
+  // DEV-only runtime introspection bridge (window.__app__) — tree-shaken in prod.
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      installDebugBridge({ queryClient, useCases });
+    }
+  }, [queryClient, useCases]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <UseCasesProvider useCases={useCases}>
