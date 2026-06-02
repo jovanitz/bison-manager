@@ -62,13 +62,14 @@ Harness
 │   ├── docs/ai/capabilities.json   (machine-readable rules; verified by `doctor`)
 │   └── hooks: session-context, prompt-reminder   (inject guides at runtime)
 ├── Sensors (feedback)            → catalog: docs/ai/sensors.md
-│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,cycles,consumers,dead-code,coverage,doctor}.mjs
+│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,cycles,consumers,dead-code,coverage,e2e,audit,skill-scan,doctor}.mjs
 │   │   (gaps respects scripts/harness/harness-ignore.json + // harness-ignore)
 │   │   (impact = project-level, drives the gate; consumers = file-level review aid)
 │   ├── clean-code: eslint.config.mjs (max-lines/complexity/… + eslint-plugin-sonarjs)
 │   ├── cycles: madge (circular imports ESLint's layer rules can't see)
 │   ├── dead-code: knip (knip.json) · coverage: vitest v8 (domain/application floor)
-│   ├── inferential: /security-review (built-in skill, for logic/auth review)
+│   ├── runtime: e2e (Playwright + window.__app__ bridge) — opt-in, complex tasks
+│   ├── security: audit (pnpm/OSV deps) · skill-scan (SkillSpector skills/MCP) · /security-review (app-code, inferential)
 │   ├── exposed as CLI: pnpm harness <sensor>
 │   ├── exposed as skills: find-gaps, evaluate-impact, evaluate-performance, …
 │   └── hook: post-edit-check (lint the touched file)

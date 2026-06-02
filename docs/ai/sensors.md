@@ -14,18 +14,21 @@ it — none re-implement it.
 
 ## Catalog
 
-| Sensor        | Answers                                                                                 | CLI                                                                         | Skill                  |
-| ------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------- |
-| **gaps**      | Untested adapters/use-cases/screens/domain logic, TODOs                                 | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
-| **impact**    | Blast radius: affected projects, platforms, risk                                        | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
-| **perf**      | Bundle size (raw+gzip) + benchmarks of the pure core                                    | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
-| **quality**   | Quality gate: lint + typecheck + test (`--build` to match CI)                           | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
-| **structure** | File/folder organization: files-per-folder (≤8), oversized files; screaming arch        | `pnpm harness structure`                                                    | —                      |
-| **cycles**    | Circular import dependencies (file level, via madge)                                    | `pnpm harness cycles`                                                       | —                      |
-| **consumers** | File-level blast radius: who imports the changed/named files (direct + transitive)      | `pnpm harness consumers [<file>…]`                                          | —                      |
-| **dead-code** | Unused files / exports / types (knip)                                                   | `pnpm harness dead-code`                                                    | —                      |
-| **coverage**  | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)            | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
-| **doctor**    | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
+| Sensor         | Answers                                                                                 | CLI                                                                         | Skill                  |
+| -------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------- |
+| **gaps**       | Untested adapters/use-cases/screens/domain logic, TODOs                                 | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
+| **impact**     | Blast radius: affected projects, platforms, risk                                        | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
+| **perf**       | Bundle size (raw+gzip) + benchmarks of the pure core                                    | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
+| **quality**    | Quality gate: lint + typecheck + test (`--build` to match CI)                           | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
+| **structure**  | File/folder organization: files-per-folder (≤8), oversized files; screaming arch        | `pnpm harness structure`                                                    | —                      |
+| **cycles**     | Circular import dependencies (file level, via madge)                                    | `pnpm harness cycles`                                                       | —                      |
+| **consumers**  | File-level blast radius: who imports the changed/named files (direct + transitive)      | `pnpm harness consumers [<file>…]`                                          | —                      |
+| **dead-code**  | Unused files / exports / types (knip)                                                   | `pnpm harness dead-code`                                                    | —                      |
+| **coverage**   | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)            | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
+| **e2e**        | Browser-level verification (Playwright) + runtime bridge introspection                  | `pnpm harness e2e`                                                          | `verify-runtime`       |
+| **audit**      | Dependency CVE scan (`pnpm audit` / OSV) — software supply chain                        | `pnpm harness audit [--level=high]`                                         | —                      |
+| **skill-scan** | Agent-surface security scan of skills/MCP (NVIDIA SkillSpector; skips if not installed) | `pnpm harness skill-scan`                                                   | —                      |
+| **doctor**     | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git) | `pnpm harness doctor`                                                       | —                      |
 
 ## When to reach for which
 
@@ -68,15 +71,21 @@ it — none re-implement it.
 - ✅ `dead-code` — `scripts/harness/sensors/dead-code.mjs` (knip; advisory in CI)
 - ✅ `coverage` — `scripts/harness/sensors/coverage.mjs` (CI gate; not in Stop hook)
 - ✅ `e2e` — `scripts/harness/sensors/e2e.mjs` (Playwright; runtime validation)
+- ✅ `audit` — `scripts/harness/sensors/audit.mjs` (pnpm audit; advisory in CI)
+- ✅ `skill-scan` — `scripts/harness/sensors/skill-scan.mjs` (SkillSpector; skips if absent)
 - ✅ `doctor` — `scripts/harness/sensors/doctor.mjs` (smoke-tests the fast sensors)
 
 ## Where each runs
 
 - **Local Stop hook (guardrail, blocks "done")**: `quality` (+build), `structure`,
   `cycles`, `gaps` (TDD gate — no untested use case/adapter).
-- **CI (blocks merge)**: the Stop-hook set + `coverage`; `dead-code` runs
-  **advisory** (visible, non-blocking).
+- **CI (blocks merge)**: the Stop-hook set + `coverage`; `dead-code`, `audit`,
+  `skill-scan` run **advisory** (visible, non-blocking — security baseline to
+  promote to blocking once the tree is clean).
 - **On-demand only**: `impact`, `consumers`, `perf`, `doctor`.
+- **Security**: `audit` = dependency CVEs (software supply chain); `skill-scan` =
+  agent surface (skills/MCP). Complement `/security-review` (app-code semantics).
+  See [security.md](security.md).
 - **Runtime validation (opt-in, complex/user-facing tasks)**: `e2e`. Mark the task
   (`.harness/require-e2e`), build/run it; a pass clears the mark. The Stop hook
   **nudges (non-blocking)** if the mark is still set. See the **verify-runtime**

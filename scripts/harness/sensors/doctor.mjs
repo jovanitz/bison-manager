@@ -66,6 +66,8 @@ const EXPECTED = {
   'dead-code': 'sensors/dead-code.mjs',
   coverage: 'sensors/coverage.mjs',
   e2e: 'sensors/e2e.mjs',
+  audit: 'sensors/audit.mjs',
+  'skill-scan': 'sensors/skill-scan.mjs',
   doctor: 'sensors/doctor.mjs',
   'generate-feature': 'generators/generate-feature.mjs',
 };
@@ -127,6 +129,7 @@ const SMOKE = [
   'cycles',
   'consumers',
   'dead-code',
+  'skill-scan',
 ];
 for (const name of SMOKE) {
   const script = path.join(ROOT, 'scripts/harness/sensors', `${name}.mjs`);

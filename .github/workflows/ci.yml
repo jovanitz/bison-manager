@@ -60,10 +60,14 @@ jobs:
       # Core test-coverage floor (domain + application).
       - name: Harness coverage
         run: pnpm harness coverage
-      # Advisory: surface dead code without failing the build.
-      - name: Harness dead-code (advisory)
+      # Advisory: surface dead code, dependency CVEs and skill risks without
+      # failing the build (security baseline; promote to blocking once clean).
+      - name: Harness dead-code, audit & skill-scan (advisory)
         continue-on-error: true
-        run: pnpm harness dead-code
+        run: |
+          pnpm harness dead-code
+          pnpm harness audit
+          pnpm harness skill-scan
 
   # Full (non-affected) gate on main, so the cache and main branch stay healthy.
   full-on-main:

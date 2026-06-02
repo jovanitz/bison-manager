@@ -43,3 +43,15 @@ help; this adds the security-specific controls.
 > `/security-review` is an _inferential_ sensor (AI semantic review). The harness's
 > other sensors are computational and won't catch logic-level auth flaws — this
 > one is the gap-filler for sensitive work. See [harness.md](harness.md).
+
+## Automated security sensors (three complementary layers)
+
+| Layer                 | Sensor                           | Covers                                                                          |
+| --------------------- | -------------------------------- | ------------------------------------------------------------------------------- |
+| App-code logic        | `/security-review` (inferential) | auth/permission flaws in your code                                              |
+| Software supply chain | `pnpm harness audit`             | known CVEs in dependencies (OSV)                                                |
+| Agent surface         | `pnpm harness skill-scan`        | malicious/vulnerable skills & MCP (NVIDIA SkillSpector; skips if not installed) |
+
+`audit` and `skill-scan` run **advisory** in CI today (a security baseline). Once
+the dependency tree is clean, promote `audit` to blocking on `--level=high`. Run
+`skill-scan` before trusting any **third-party** skill or MCP server.
