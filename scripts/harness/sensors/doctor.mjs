@@ -10,7 +10,7 @@
  *
  * Usage: node scripts/harness/sensors/doctor.mjs [--root=<dir>]
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -152,6 +152,28 @@ for (const name of SMOKE) {
     !!parsed && parsed.tool === name,
     parsed ? '' : (res.stderr || 'no valid JSON output').slice(0, 120),
   );
+}
+
+// 6) Portability — the harness must work for non-Claude agents (e.g. Codex) too.
+//    Codex reads AGENTS.md; and no capability may be Claude-only — every skill
+//    must map to a `pnpm harness <cmd>` so it is reachable from the plain CLI.
+check('AGENTS.md present (Codex entry point)', exists('AGENTS.md'));
+const agents = exists('AGENTS.md') ? read('AGENTS.md') : '';
+check('AGENTS.md documents the CLI gate', agents.includes('pnpm harness'));
+check('AGENTS.md points to shared rules (docs/ai)', agents.includes('docs/ai'));
+
+const skillsDir = path.join(ROOT, '.claude/skills');
+if (existsSync(skillsDir)) {
+  for (const name of readdirSync(skillsDir)) {
+    const skill = path.join(skillsDir, name, 'SKILL.md');
+    if (!existsSync(skill)) continue;
+    const body = readFileSync(skill, 'utf8');
+    check(
+      `skill "${name}" maps to a CLI command (Codex-portable)`,
+      /pnpm harness/.test(body),
+      'add a `pnpm harness <cmd>` the skill wraps, so it is not Claude-only',
+    );
+  }
 }
 
 const failed = checks.filter((c) => !c.ok);

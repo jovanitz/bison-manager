@@ -88,3 +88,25 @@ and skills are just _surfaces_ that invoke it — they never re-implement it. (E
 the `quality-gate` guardrail calls the `quality` sensor.)
 
 See [sensors.md](sensors.md) for the sensor catalog and how to run each.
+
+## Portability (Claude + Codex)
+
+The harness is **agent-agnostic by design** — the substance lives in the Node CLI
+(`scripts/harness/`) and CI, not in any one assistant. Only the _delivery surface_
+differs per agent:
+
+| Layer       | Claude Code                     | Codex / others                               |
+| ----------- | ------------------------------- | -------------------------------------------- |
+| Context     | auto-loads `CLAUDE.md` + nested | reads `AGENTS.md` (same rules)               |
+| Run checks  | hooks + skills fire             | run `pnpm harness <cmd>` (AGENTS.md says so) |
+| Enforcement | local Stop hook **+ CI**        | **CI** (+ run the gate manually)             |
+
+**Rule when changing the harness:** keep it working for **both**.
+
+1. New logic goes in the **engine** (`scripts/harness/`), never embedded in a hook
+   or skill — those stay thin surfaces.
+2. **Every skill must map to a `pnpm harness <cmd>`** (no Claude-only capability).
+3. Update **`AGENTS.md`** if you add a capability or a rule.
+
+`pnpm harness doctor` enforces 1–3 mechanically (AGENTS.md present, each skill maps
+to the CLI) and runs in CI, so portability can't silently rot.

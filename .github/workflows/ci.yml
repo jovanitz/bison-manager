@@ -60,6 +60,10 @@ jobs:
       # Core test-coverage floor (domain + application).
       - name: Harness coverage
         run: pnpm harness coverage
+      # Self-check: harness wiring is healthy AND portable to non-Claude agents
+      # (AGENTS.md present, every skill maps to a CLI command, capabilities↔eslint).
+      - name: Harness doctor (health + Claude/Codex portability)
+        run: pnpm harness doctor
       # Advisory: surface dead code, dependency CVEs and skill risks without
       # failing the build (security baseline; promote to blocking once clean).
       - name: Harness dead-code, audit & skill-scan (advisory)
@@ -91,3 +95,5 @@ jobs:
           pnpm harness gaps
       - name: Harness coverage
         run: pnpm harness coverage
+      - name: Harness doctor (health + Claude/Codex portability)
+        run: pnpm harness doctor
