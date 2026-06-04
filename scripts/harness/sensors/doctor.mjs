@@ -55,25 +55,28 @@ try {
   /* missing */
 }
 check('cli.mjs present', !!cli);
-const EXPECTED = {
-  gaps: 'sensors/gaps.mjs',
-  impact: 'sensors/impact.mjs',
-  perf: 'sensors/perf.mjs',
-  quality: 'sensors/quality.mjs',
-  structure: 'sensors/structure.mjs',
-  cycles: 'sensors/cycles.mjs',
-  consumers: 'sensors/consumers.mjs',
-  'dead-code': 'sensors/dead-code.mjs',
-  coverage: 'sensors/coverage.mjs',
-  e2e: 'sensors/e2e.mjs',
-  audit: 'sensors/audit.mjs',
-  'skill-scan': 'sensors/skill-scan.mjs',
-  doctor: 'sensors/doctor.mjs',
-  'generate-feature': 'generators/generate-feature.mjs',
-};
-for (const [cmd, rel] of Object.entries(EXPECTED)) {
-  check(`command "${cmd}" script exists`, exists(`scripts/harness/${rel}`));
-  check(`command "${cmd}" registered`, cli.includes(rel));
+// Auto-discovered (no hardcoded list to drift): every sensor/generator file must
+// be wired into the CLI — so it's reachable from `pnpm harness` (Codex/CI/humans,
+// not Claude-only) — and every CLI command must point to a script that exists.
+const discovered = [];
+for (const group of ['sensors', 'generators']) {
+  const dir = path.join(ROOT, 'scripts/harness', group);
+  if (!existsSync(dir)) continue;
+  for (const f of readdirSync(dir))
+    if (f.endsWith('.mjs')) discovered.push(`${group}/${f}`);
+}
+const registered = [
+  ...cli.matchAll(/'((?:sensors|generators)\/[\w-]+\.mjs)'/g),
+].map((m) => m[1]);
+for (const rel of discovered) {
+  check(
+    `script ${rel} is wired into the CLI`,
+    registered.includes(rel),
+    'register it in scripts/harness/cli.mjs — else it is not reachable by Codex/CI',
+  );
+}
+for (const rel of registered) {
+  check(`CLI command script ${rel} exists`, exists(`scripts/harness/${rel}`));
 }
 
 // 3) capabilities.json in sync with ESLint enforce-module-boundaries.
@@ -161,6 +164,24 @@ check('AGENTS.md present (Codex entry point)', exists('AGENTS.md'));
 const agents = exists('AGENTS.md') ? read('AGENTS.md') : '';
 check('AGENTS.md documents the CLI gate', agents.includes('pnpm harness'));
 check('AGENTS.md points to shared rules (docs/ai)', agents.includes('docs/ai'));
+
+// Agent-agnostic git hooks (fire for Codex/humans too) + their wiring.
+check('git hook .githooks/pre-commit present', exists('.githooks/pre-commit'));
+check('git hook .githooks/pre-push present', exists('.githooks/pre-push'));
+let pkg = {};
+try {
+  pkg = JSON.parse(read('package.json'));
+} catch {
+  /* ignore */
+}
+check(
+  'package.json wires git hooks (prepare → core.hooksPath)',
+  /core\.hooksPath\s+\.githooks/.test(pkg.scripts?.prepare ?? ''),
+);
+check(
+  'package.json has a `gate` script',
+  typeof pkg.scripts?.gate === 'string',
+);
 
 const skillsDir = path.join(ROOT, '.claude/skills');
 if (existsSync(skillsDir)) {

@@ -97,7 +97,37 @@ if (!g.ok) {
   );
 }
 
-// 5) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
+// 5) If THIS change touched the harness itself, validate it stays portable across
+// Claude / Codex / git / CI (doctor). Only fires when harness files changed, so
+// normal app work doesn't pay for it.
+const changed = [
+  spawnSync('git', ['diff', '--name-only', 'HEAD'], { cwd, encoding: 'utf8' })
+    .stdout || '',
+  spawnSync('git', ['ls-files', '--others', '--exclude-standard'], {
+    cwd,
+    encoding: 'utf8',
+  }).stdout || '',
+]
+  .join('\n')
+  .split('\n')
+  .filter(Boolean);
+const HARNESS_RE =
+  /^(scripts\/harness\/|\.claude\/|\.githooks\/|AGENTS\.md|CLAUDE\.md|package\.json|eslint\.config\.mjs|docs\/ai\/capabilities\.json)/;
+if (changed.some((f) => HARNESS_RE.test(f))) {
+  const d = runSensor('doctor.mjs');
+  if (!d.ok) {
+    const fails = (d.report?.checks || [])
+      .filter((c) => !c.ok)
+      .map((c) => `- ${c.name}${c.detail ? `: ${c.detail}` : ''}`)
+      .join('\n');
+    veto(
+      `Harness changed but \`doctor\` failed — keep it portable across ` +
+        `Claude/Codex/git/CI before finishing:\n\n${fails || d.res?.stderr || 'doctor failed'}`,
+    );
+  }
+}
+
+// 6) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
 // needing runtime validation (.harness/require-e2e) and no passing `e2e` run has
 // cleared it, nudge — but allow delivery (the user chose warn, not block).
 if (existsSync(path.join(cwd, '.harness', 'require-e2e'))) {
