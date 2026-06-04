@@ -1,0 +1,6 @@
+#!/bin/sh
+# Agent-agnostic guard: protected files + lint of staged source.
+# Same logic the Claude pre-edit/post-edit hooks run — here driven by git, so it
+# fires for Codex, Cursor and humans too. Bypass intentional changes with
+# `git commit --no-verify`.
+exec node "$(git rev-parse --show-toplevel)/scripts/harness/hooks/git/pre-commit.mjs"

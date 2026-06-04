@@ -6,17 +6,16 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** Files the agent may not edit without explicit human confirmation. */
-const PROTECTED = new Set([
-  'eslint.config.mjs',
-  'docs/ai/capabilities.json',
-  'nx.json',
-  'tsconfig.base.json',
-  'pnpm-lock.yaml',
-  'pnpm-workspace.yaml',
-  '.claude/settings.json',
-]);
+// Shared with the git pre-commit hook — one source of truth for protected files.
+const { isProtected } = await import(
+  path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'protected-files.mjs',
+  )
+);
 
 let payload = {};
 try {
@@ -34,11 +33,7 @@ const rel = path
   .split(path.sep)
   .join('/');
 
-// `project.json` files carry the `layer:*` tags that ARE the architecture
-// boundaries — editing one silently rewrites the rules ESLint enforces.
-const isProjectConfig = /(^|\/)project\.json$/.test(rel);
-
-if (PROTECTED.has(rel) || isProjectConfig) {
+if (isProtected(rel)) {
   process.stderr.write(
     `Blocked by harness: "${rel}" is a protected config file (it defines the ` +
       `architecture rules — layer tags / boundaries — the harness enforces). Do ` +

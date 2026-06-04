@@ -1,0 +1,4 @@
+#!/bin/sh
+# Agent-agnostic gate before pushing — the same checks as Claude's Stop hook and
+# CI. Bypass with `git push --no-verify` (CI still enforces it).
+exec pnpm gate
