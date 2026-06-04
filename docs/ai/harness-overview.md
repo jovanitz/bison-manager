@@ -7,17 +7,23 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 
 ## When each part activates (by phase)
 
-| Phase                          | What fires                                                            | Type             | Blocks?                                |
-| ------------------------------ | --------------------------------------------------------------------- | ---------------- | -------------------------------------- |
-| **Session start**              | loads `CLAUDE.md` + `session-context` hook injects orientation        | Guide            | no                                     |
-| **You send a prompt**          | `prompt-reminder` hook injects the rules                              | Guide            | no                                     |
-| **Planning / coding**          | reads `docs/ai/*` + the layer's `CLAUDE.md` as needed                 | Guide            | no                                     |
-| **Before editing a file**      | `pre-edit-guard` hook                                                 | Guardrail        | **yes** — protected files / layer tags |
-| **After editing a file**       | `post-edit-check` hook → prettier + eslint (+SonarJS)                 | Guardrail        | **yes** — on lint/boundary error       |
-| **While building (on demand)** | `impact`, `consumers`, `perf`, `gaps`, `dead-code`, `doctor`          | Sensor           | no                                     |
-| **Complex / user-facing task** | `e2e` (browser + `window.__app__`), via verify-runtime skill          | Sensor           | nudge only                             |
-| **Before delivering (Stop)**   | `quality`(+build) · `structure` · `cycles` · `gaps`                   | Guardrail        | **yes**                                |
-| **In CI (merge)**              | Stop-hook set + `coverage`; `dead-code`/`audit`/`skill-scan` advisory | Guardrail/Sensor | **yes** (advisory ones don't)          |
+| Phase                            | What fires                                                                       | Type             | Blocks?                                |
+| -------------------------------- | -------------------------------------------------------------------------------- | ---------------- | -------------------------------------- |
+| **Session start**                | loads `CLAUDE.md` + `session-context` hook injects orientation                   | Guide            | no                                     |
+| **You send a prompt**            | `prompt-reminder` hook injects the rules                                         | Guide            | no                                     |
+| **Planning / coding**            | reads `docs/ai/*` + the layer's `CLAUDE.md` as needed                            | Guide            | no                                     |
+| **Before editing a file**        | `pre-edit-guard` hook                                                            | Guardrail        | **yes** — protected files / layer tags |
+| **After editing a file**         | `post-edit-check` hook → prettier + eslint (+SonarJS)                            | Guardrail        | **yes** — on lint/boundary error       |
+| **While building (on demand)**   | `impact`, `consumers`, `perf`, `gaps`, `dead-code`, `doctor`                     | Sensor           | no                                     |
+| **Complex / user-facing task**   | `e2e` (browser + `window.__app__`), via verify-runtime skill                     | Sensor           | nudge only                             |
+| **Before delivering (Stop)**     | `quality`(+build) · `structure` · `cycles` · `gaps`                              | Guardrail        | **yes**                                |
+| **git commit** (any agent/human) | `.githooks/pre-commit` → protected-files guard + lint staged                     | Guardrail        | **yes** (`--no-verify` to bypass)      |
+| **git push** (any agent/human)   | `.githooks/pre-push` → `pnpm gate`                                               | Guardrail        | **yes** (`--no-verify` to bypass)      |
+| **In CI (merge)**                | Stop-hook set + `coverage` + `doctor`; `dead-code`/`audit`/`skill-scan` advisory | Guardrail/Sensor | **yes** (advisory ones don't)          |
+
+> The git-commit/push rows are **agent-independent** — they fire for Claude,
+> Codex, Cursor and humans alike (wired by `package.json`'s `prepare` →
+> `core.hooksPath .githooks`). Same scripts, just triggered by git.
 
 ## What each tool does (one line)
 

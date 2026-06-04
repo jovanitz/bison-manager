@@ -95,18 +95,35 @@ The harness is **agent-agnostic by design** — the substance lives in the Node 
 (`scripts/harness/`) and CI, not in any one assistant. Only the _delivery surface_
 differs per agent:
 
-| Layer       | Claude Code                     | Codex / others                               |
-| ----------- | ------------------------------- | -------------------------------------------- |
-| Context     | auto-loads `CLAUDE.md` + nested | reads `AGENTS.md` (same rules)               |
-| Run checks  | hooks + skills fire             | run `pnpm harness <cmd>` (AGENTS.md says so) |
-| Enforcement | local Stop hook **+ CI**        | **CI** (+ run the gate manually)             |
+| Layer       | Claude Code                          | Codex / others                         |
+| ----------- | ------------------------------------ | -------------------------------------- |
+| Context     | auto-loads `CLAUDE.md` + nested      | reads `AGENTS.md` (same rules)         |
+| Run checks  | hooks + skills fire                  | run `pnpm harness <cmd>` / `pnpm gate` |
+| Enforcement | local Stop hook **+ git hooks + CI** | **git hooks** (commit/push) **+ CI**   |
 
-**Rule when changing the harness:** keep it working for **both**.
+The same checks run from **four triggers, one engine**: Claude hooks · git hooks
+(`.githooks/`, wired by the `prepare` script → `core.hooksPath`) · the
+`pnpm harness`/`pnpm gate` CLI · CI. Git hooks make local enforcement
+agent-independent (Codex/Cursor/humans), not just Claude.
 
-1. New logic goes in the **engine** (`scripts/harness/`), never embedded in a hook
-   or skill — those stay thin surfaces.
-2. **Every skill must map to a `pnpm harness <cmd>`** (no Claude-only capability).
-3. Update **`AGENTS.md`** if you add a capability or a rule.
+### Checklist when changing the harness
 
-`pnpm harness doctor` enforces 1–3 mechanically (AGENTS.md present, each skill maps
-to the CLI) and runs in CI, so portability can't silently rot.
+1. **Logic goes in the engine** (`scripts/harness/sensors/` or `generators/`),
+   never embedded in a hook or skill — those stay thin surfaces.
+2. **New sensor/generator → register it in `scripts/harness/cli.mjs`** so it's
+   reachable as `pnpm harness <cmd>` (i.e. by Codex/CI/humans, not Claude-only).
+3. **New skill → it must wrap a `pnpm harness <cmd>`** (a skill is never the only
+   way to run something).
+4. **Update `AGENTS.md`** when you add a capability or a rule (Codex's entry point).
+5. **Run `pnpm harness doctor`** — green means it's still portable.
+
+This is **self-enforcing**, so it can't silently rot:
+
+- `doctor` is **auto-discovering** — it scans `sensors/`+`generators/` and fails if
+  any script isn't wired into the CLI (and vice-versa), plus checks `AGENTS.md`,
+  skill→CLI mapping, git hooks, and `capabilities.json`↔ESLint.
+- The **Stop hook runs `doctor` automatically when the diff touches the harness**
+  (`scripts/harness/`, `.claude/`, `.githooks/`, `AGENTS.md`, `CLAUDE.md`,
+  `package.json`, `eslint.config.mjs`, `capabilities.json`) — so a portability
+  break blocks delivery locally.
+- **CI runs `doctor` on every push** — the backstop for any agent.
