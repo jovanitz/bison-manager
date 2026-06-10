@@ -7,6 +7,10 @@ export * from './persistence/dexie-item-repository';
 export * from './api/http-api-client';
 export * from './api/api-item-repository';
 
+// Access adapters (in-memory until the Supabase adapters land in phase 4)
+export * from './access/in-memory-access-seed';
+export * from './access/in-memory-access-store';
+
 // Auth adapters
 export * from './auth/jwt-auth-provider';
 export * from './auth/fake-auth-provider';
