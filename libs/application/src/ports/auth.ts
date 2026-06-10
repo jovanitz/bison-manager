@@ -9,11 +9,16 @@ import type { Result } from '@acme/shared';
  * infrastructure layer that satisfies this type; swapping providers is a
  * composition-root change, not an application change.
  */
+/**
+ * Identity only — deliberately no roles or permissions here. A session proves
+ * *who* is calling; what they may do is resolved fresh from persisted state
+ * via `getCurrentAccess` (see the access module), so revocation and permission
+ * changes take effect immediately instead of riding inside a token.
+ */
 export type AuthUser = {
   readonly id: string;
   readonly email: string | null;
   readonly displayName: string | null;
-  readonly roles: ReadonlyArray<string>;
 };
 
 export type AuthSession = {

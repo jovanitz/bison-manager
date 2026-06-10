@@ -14,7 +14,6 @@ export const createFakeAuthProvider = (
       id: 'user-fake',
       email: 'dev@example.com',
       displayName: 'Dev User',
-      roles: ['admin'],
     },
     accessToken: 'fake-token',
     expiresAt: Number.MAX_SAFE_INTEGER,
