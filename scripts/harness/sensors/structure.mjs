@@ -101,4 +101,5 @@ process.stdout.write(
     2,
   ) + '\n',
 );
-process.exit(high ? 1 : 0);
+// exitCode (not exit()) lets stdout drain — exit() truncates pipes at ~8 KB.
+process.exitCode = high ? 1 : 0;

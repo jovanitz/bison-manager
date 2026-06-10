@@ -211,4 +211,5 @@ process.stdout.write(
     2,
   ) + '\n',
 );
-process.exit(failed.length ? 1 : 0);
+// exitCode (not exit()) lets stdout drain — exit() truncates pipes at ~8 KB.
+process.exitCode = failed.length ? 1 : 0;

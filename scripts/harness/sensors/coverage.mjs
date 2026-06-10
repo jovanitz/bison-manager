@@ -13,7 +13,7 @@
  *
  * Usage: node scripts/harness/sensors/coverage.mjs [--min-domain=90] [--min-application=75] [--root=<dir>]
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -30,7 +30,9 @@ const floors = {
 };
 
 const emit = (obj, code) => {
-  process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
+  // writeSync(1, …): process.exit() truncates async pipe writes at ~8 KB, so a
+  // large report would reach doctor/CI as invalid JSON. Sync write can't.
+  writeSync(1, JSON.stringify(obj, null, 2) + '\n');
   process.exit(code);
 };
 

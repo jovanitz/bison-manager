@@ -156,4 +156,5 @@ const report = {
 };
 
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-process.exit(report.ok ? 0 : 1);
+// exitCode (not exit()) lets stdout drain — exit() truncates pipes at ~8 KB.
+process.exitCode = report.ok ? 0 : 1;

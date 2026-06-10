@@ -10,7 +10,7 @@
  * Usage: node scripts/harness/sensors/cycles.mjs [--root=<dir>]
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeSync } from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -21,7 +21,9 @@ const getArg = (n) => {
 const ROOT = path.resolve(getArg('root') || process.cwd());
 
 const emit = (obj, code) => {
-  process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
+  // writeSync(1, …): process.exit() truncates async pipe writes at ~8 KB, so a
+  // large report would reach doctor/CI as invalid JSON. Sync write can't.
+  writeSync(1, JSON.stringify(obj, null, 2) + '\n');
   process.exit(code);
 };
 

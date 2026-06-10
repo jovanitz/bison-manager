@@ -10,7 +10,7 @@
  *   No flags  → impact of the current working-tree changes vs the Nx base.
  *   --base/--head → impact of a commit range (e.g. a PR).
  */
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, writeSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -24,7 +24,9 @@ const base = getArg('base');
 const head = getArg('head');
 
 const fail = (msg) => {
-  process.stdout.write(
+  // Sync write: process.exit() would truncate a pipe-bound report mid-flush.
+  writeSync(
+    1,
     JSON.stringify({ tool: 'impact', ok: false, error: msg }, null, 2) + '\n',
   );
   process.exit(1);
@@ -111,4 +113,5 @@ const report = {
 };
 
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-process.exit(0);
+// exitCode (not exit()) lets stdout drain — exit() truncates pipes at ~8 KB.
+process.exitCode = 0;
