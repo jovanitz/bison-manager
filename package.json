@@ -7,7 +7,7 @@
   "description": "Reusable cross-platform application architecture (web, PWA, iOS, Android, Windows, macOS).",
   "packageManager": "pnpm@10.6.1",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "lint": "nx run-many -t lint",
@@ -23,6 +23,10 @@
     "gate": "pnpm harness quality --build && pnpm harness structure && pnpm harness cycles && pnpm harness gaps",
     "verify": "pnpm harness e2e",
     "web": "nx serve web",
+    "api": "nx serve api",
+    "stack": "supabase start",
+    "stack:stop": "supabase stop",
+    "db:reset": "supabase db reset",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "git config core.hooksPath .githooks || true"

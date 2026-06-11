@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+  <!-- Dev console (DEV_CONSOLE=true only): exercises the auth arc and every
+     /rpc procedure with plain HTML — no build, no framework. Served by the
+     api itself (same origin), so the only moving parts are GoTrue + /rpc. -->
+  <head>
+    <meta charset="utf-8" />
+    <title>acme · dev console</title>
+    <style>
+      body {
+        font: 14px/1.4 monospace;
+        margin: 2rem auto;
+        max-width: 60rem;
+      }
+      fieldset {
+        margin-bottom: 1rem;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+        margin: 0.15rem;
+      }
+      textarea {
+        width: 100%;
+        height: 5rem;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 1rem;
+        overflow: auto;
+      }
+      .who {
+        color: #060;
+      }
+      .err {
+        color: #a00;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>dev console</h1>
+
+    <fieldset>
+      <legend>1 · identidad (GoTrue local)</legend>
+      <input
+        id="email"
+        type="email"
+        placeholder="email"
+        value="owner@local.dev"
+      />
+      <input
+        id="password"
+        type="password"
+        placeholder="password"
+        value="secret-password-1!"
+      />
+      <button onclick="auth('signup')">Sign up</button>
+      <button onclick="auth('token?grant_type=password')">Sign in</button>
+      <button onclick="signOut()">Sign out</button>
+      <div id="who" class="who">(sin sesión)</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2 · procedure</legend>
+      <select id="proc" onchange="prefill()"></select>
+      <textarea id="body">{}</textarea>
+      <button onclick="call()">Llamar</button>
+    </fieldset>
+
+    <pre id="out">—</pre>
+
+    <script>
+      const SUPABASE_URL = 'http://127.0.0.1:54321';
+      const ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+      let token = null;
+
+      const PROCS = {
+        'access.current': {},
+        'audit.list': {},
+        'customer.search': { query: '' },
+        'customer.read': { accountId: '' },
+        'impersonation.start': { targetAccountId: '', reason: '' },
+        'impersonation.end': { grantId: '' },
+        'account.disable': { accountId: '', reason: '' },
+        'permissions.update': {
+          membershipId: '',
+          permissions: [{ action: 'customer.read', scope: 'own' }],
+        },
+        'sessions.revoke': { sessionId: '' },
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const show = (status, data) => {
+        $('out').textContent =
+          'HTTP ' + status + '\n' + JSON.stringify(data, null, 2);
+      };
+
+      for (const name of Object.keys(PROCS)) {
+        const option = document.createElement('option');
+        option.value = option.textContent = name;
+        $('proc').appendChild(option);
+      }
+      function prefill() {
+        $('body').value = JSON.stringify(PROCS[$('proc').value], null, 2);
+      }
+      prefill();
+
+      async function auth(path) {
+        const res = await fetch(SUPABASE_URL + '/auth/v1/' + path, {
+          method: 'POST',
+          headers: { apikey: ANON_KEY, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: $('email').value,
+            password: $('password').value,
+          }),
+        });
+        const data = await res.json();
+        if (data.access_token) {
+          token = data.access_token;
+          $('who').textContent =
+            'sesión: ' + (data.user?.email ?? '?') + ' · token ok';
+          $('who').className = 'who';
+        } else {
+          token = null;
+          $('who').textContent = data.error_description ?? data.msg ?? 'error';
+          $('who').className = 'err';
+        }
+        show(res.status, data);
+      }
+
+      function signOut() {
+        token = null;
+        $('who').textContent = '(sin sesión)';
+      }
+
+      async function call() {
+        let body;
+        try {
+          body = JSON.parse($('body').value);
+        } catch {
+          return show(0, { error: 'body no es JSON válido' });
+        }
+        const res = await fetch('/rpc/' + $('proc').value, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(token ? { authorization: 'Bearer ' + token } : {}),
+          },
+          body: JSON.stringify(body),
+        });
+        show(res.status, await res.json());
+      }
+    </script>
+  </body>
+</html>

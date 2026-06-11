@@ -35,16 +35,30 @@ Dependencies point inward and are enforced by Nx tags — see
 
 ## Quick start
 
+Prerequisites (one-time, machine-level): **Node ≥22**, **pnpm**
+(`corepack enable`), **Docker Desktop** (running) and the
+**Supabase CLI** (`brew install supabase/tap/supabase`).
+
 ```bash
 pnpm install
 
-# Run the web app (PWA)
-pnpm web                # http://localhost:4200
+pnpm stack              # local Supabase in Docker (Postgres/Auth/Studio;
+                        #   applies migrations + seed — first run pulls images)
+pnpm api                # backend http://localhost:3333 (+ /dev test console)
+pnpm web                # web app http://localhost:4200 (login at /login)
 
 # Quality gates
 pnpm exec nx affected -t lint typecheck test build
 pnpm graph              # interactive dependency graph
 ```
+
+No credentials needed: everything runs against the local stack with public dev
+defaults ([apps/api/.env.development](apps/api/.env.development)); personal
+overrides go in a gitignored `apps/api/.env`. Without Docker, the api falls
+back to an in-memory stub (comment out the `SUPABASE_*` vars) and the
+Postgres-bound specs skip themselves. Auth/authorization design:
+[ADR-0010](docs/adr/0010-authorization-permissions-and-grants.md) ·
+[supabase/README.md](supabase/README.md).
 
 Mobile/desktop need their native toolchains and SDKs installed; the native
 imports are isolated to a single `native-*.ts` file in each app (stubbed for CI).
