@@ -23,6 +23,7 @@ export const createFakeAuthProvider = (
   return {
     getSession: async () => ok(session),
     signIn: async () => ok(session),
+    signUp: async () => ok(session),
     signOut: async () => undefined,
     getAccessToken: async () => ok(session.accessToken),
     onChange: () => () => undefined,

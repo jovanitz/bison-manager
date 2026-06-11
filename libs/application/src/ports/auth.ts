@@ -32,12 +32,20 @@ export type AuthError = {
   readonly message: string;
 };
 
+export type AuthCredentials = {
+  readonly email: string;
+  readonly password: string;
+};
+
 export type AuthProvider = {
   readonly getSession: () => Promise<Result<AuthSession, AuthError>>;
-  readonly signIn: (credentials: {
-    email: string;
-    password: string;
-  }) => Promise<Result<AuthSession, AuthError>>;
+  readonly signIn: (
+    credentials: AuthCredentials,
+  ) => Promise<Result<AuthSession, AuthError>>;
+  /** Self-registration (customers); providers without it return an error. */
+  readonly signUp: (
+    credentials: AuthCredentials,
+  ) => Promise<Result<AuthSession, AuthError>>;
   readonly signOut: () => Promise<void>;
   /** Returns a fresh bearer token, refreshing transparently if needed. */
   readonly getAccessToken: () => Promise<Result<string, AuthError>>;

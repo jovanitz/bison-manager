@@ -14,3 +14,6 @@ export * from './debug/debug-bridge';
 export * from './example/use-items';
 export * from './example/item-form';
 export * from './example/item-screen';
+
+// Access: functional login/access skeleton (product screens replace it)
+export * from './access/access-login-screen';

@@ -37,3 +37,8 @@ export * from './audit-trail/use-cases';
 export * from './identity/ports';
 export * from './identity/errors';
 export * from './identity/use-cases';
+
+// Access client: what a SPA/native app consumes (auth flows + gating snapshot)
+export * from './access-client/ports';
+export * from './access-client/errors';
+export * from './access-client/use-cases';

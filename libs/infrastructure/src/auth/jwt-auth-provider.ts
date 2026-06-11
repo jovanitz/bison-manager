@@ -25,6 +25,29 @@ export type JwtAuthConfig = {
   readonly now?: () => number;
 };
 
+const requestJwtSession = async (
+  config: JwtAuthConfig,
+  input: {
+    readonly operation: 'signIn' | 'signUp';
+    readonly path: string;
+    readonly credentials: { readonly email: string; readonly password: string };
+  },
+  notify: (s: AuthSession | null) => void,
+): Promise<Result<AuthSession, AuthError>> => {
+  const res = await config.api.request<AuthSession>({
+    operation: input.operation,
+    method: 'POST',
+    path: input.path,
+    body: input.credentials,
+  });
+  if (!res.ok) {
+    return err({ tag: 'auth/provider-error', message: res.error.message });
+  }
+  await config.storage.set(JSON.stringify(res.value));
+  notify(res.value);
+  return ok(res.value);
+};
+
 export const createJwtAuthProvider = (config: JwtAuthConfig): AuthProvider => {
   const now = config.now ?? (() => Date.now());
   const listeners = new Set<(s: AuthSession | null) => void>();
@@ -59,20 +82,19 @@ export const createJwtAuthProvider = (config: JwtAuthConfig): AuthProvider => {
       return ok(session);
     },
 
-    signIn: async (credentials) => {
-      const res = await config.api.request<AuthSession, typeof credentials>({
-        operation: 'signIn',
-        method: 'POST',
-        path: 'auth/login',
-        body: credentials,
-      });
-      if (!res.ok) {
-        return err({ tag: 'auth/provider-error', message: res.error.message });
-      }
-      await config.storage.set(JSON.stringify(res.value));
-      notify(res.value);
-      return ok(res.value);
-    },
+    signIn: (credentials) =>
+      requestJwtSession(
+        config,
+        { operation: 'signIn', path: 'auth/login', credentials },
+        notify,
+      ),
+
+    signUp: (credentials) =>
+      requestJwtSession(
+        config,
+        { operation: 'signUp', path: 'auth/signup', credentials },
+        notify,
+      ),
 
     signOut: async () => {
       await config.storage.set(null);

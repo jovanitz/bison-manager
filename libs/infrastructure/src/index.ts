@@ -18,6 +18,11 @@ export * from './access/in-memory-access-store';
 // Auth adapters
 export * from './auth/jwt-auth-provider';
 export * from './auth/fake-auth-provider';
+export * from './auth/supabase-auth-provider';
+export * from './auth/supabase-auth-api';
+
+// Access client adapters (browser-safe: fetch/ApiClient only)
+export * from './access-client/rpc-access-gateway';
 
 // Offline sync
 export * from './sync/dexie-operation-queue';

@@ -4,14 +4,19 @@ import {
   uuidGenerator,
   type Logger,
 } from '@acme/shared';
-import { makeItemUseCases, nullEventPublisher } from '@acme/application';
+import {
+  makeAccessClientUseCases,
+  makeItemUseCases,
+  nullEventPublisher,
+} from '@acme/application';
 import {
   createApiItemRepository,
   createDexieItemRepository,
   createDexieOperationQueue,
   createDatabase,
   createHttpApiClient,
-  createJwtAuthProvider,
+  createRpcAccessGateway,
+  createSupabaseAuthProvider,
   createOfflineItemRepository,
   createSyncEngine,
 } from '@acme/infrastructure';
@@ -37,6 +42,9 @@ export type WebRuntime = {
 
 export const createWebRuntime = (config: {
   apiBaseUrl: string;
+  supabaseUrl: string;
+  /** Public (anon/publishable) key — not a secret; RLS is what protects. */
+  supabaseAnonKey: string;
 }): WebRuntime => {
   const logger = createConsoleLogger({ app: 'web' });
   const platform = createBrowserPlatform(
@@ -54,10 +62,12 @@ export const createWebRuntime = (config: {
     ids: uuidGenerator,
   });
 
-  // --- Auth (provider-agnostic): swap createJwtAuthProvider for Cognito/Auth0/Clerk.
-  const apiForAuth = createHttpApiClient({ baseUrl: config.apiBaseUrl });
-  const auth = createJwtAuthProvider({
-    api: apiForAuth,
+  // --- Auth (provider-agnostic): Supabase/GoTrue adapter behind the same
+  // AuthProvider port (swap back to JWT/Cognito/etc. by editing this alone).
+  // The token only proves identity; permissions come from the API below.
+  const auth = createSupabaseAuthProvider({
+    supabaseUrl: config.supabaseUrl,
+    anonKey: config.supabaseAnonKey,
     storage: {
       get: () => platform.secureStorage.get('session'),
       set: (v) =>
@@ -87,6 +97,10 @@ export const createWebRuntime = (config: {
     events: nullEventPublisher,
     logger,
   });
+  const access = makeAccessClientUseCases({
+    auth,
+    gateway: createRpcAccessGateway({ api }),
+  });
 
   // Sync whenever the network comes back.
   platform.network.subscribe((state) => {
@@ -94,7 +108,7 @@ export const createWebRuntime = (config: {
   });
 
   return {
-    useCases: { items },
+    useCases: { items, access },
     platform,
     logger,
     sync: async () => {

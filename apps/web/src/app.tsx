@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import {
+  AccessLoginScreen,
   ItemScreen,
   UseCasesProvider,
   installDebugBridge,
@@ -13,7 +14,10 @@ import {
  * interesting wiring happened in the composition root, and all the behaviour
  * lives in the reusable `@acme/ui` feature screens.
  */
-const router = createBrowserRouter([{ path: '/', element: <ItemScreen /> }]);
+const router = createBrowserRouter([
+  { path: '/', element: <ItemScreen /> },
+  { path: '/login', element: <AccessLoginScreen /> },
+]);
 
 export const App = ({ useCases }: { useCases: AppUseCases }) => {
   // One stable client for the app's lifetime.

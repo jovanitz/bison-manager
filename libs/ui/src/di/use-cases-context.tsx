@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { ItemUseCases } from '@acme/application';
+import type { AccessClientUseCases, ItemUseCases } from '@acme/application';
 
 /**
  * The UI's dependency-injection seam.
@@ -13,6 +13,8 @@ import type { ItemUseCases } from '@acme/application';
  */
 export type AppUseCases = {
   readonly items: ItemUseCases;
+  /** Present once the app wires auth (web today; mobile/desktop pending). */
+  readonly access?: AccessClientUseCases;
 };
 
 const UseCasesContext = createContext<AppUseCases | null>(null);
