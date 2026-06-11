@@ -18,6 +18,17 @@ enter only via env at the API composition root (see docs/ai/security.md).
   permissions as data), sessions (authorization source of truth; Supabase's
   auth.sessions is identity plumbing only), access_grants, audit_events
   (append-only by trigger).
-- RLS is enabled deny-all from the first migration (fail closed); policies are
-  phase 4d. The API talks to Postgres with the service connection and enforces
-  authorization in the application layer — RLS is the second line of defense.
+- RLS is the **second** line of defense (the first is the application policy
+  core, enforced by the API per request over its service connection): clients
+  may read their own rows only (accounts/memberships/sessions/grants via
+  `private.actor_*_ids()` security-definer helpers) and write **nothing** —
+  no insert/update/delete policies exist. `audit_events` has no policy at
+  all: the trail is invisible to client roles; reading it requires the
+  `audit.read` permission through the API.
+- `grant.expired` is recorded lazily in-request AND punctually by
+  `public.record_expired_access_grants()` (same dedup column, same payload),
+  scheduled every minute via pg_cron when the extension is available.
+- Audit retention (decision): **no automated purge** — append-only integrity
+  wins over storage. Revisit on a concrete compliance need; monthly
+  partitioning is the upgrade path. Verified by
+  `libs/infrastructure/src/access/postgres-rls.spec.ts`.

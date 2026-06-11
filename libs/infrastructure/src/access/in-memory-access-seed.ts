@@ -56,6 +56,12 @@ export type InMemoryAccessSeed = {
   readonly sessions?: ReadonlyArray<SeedSession>;
   readonly customers?: ReadonlyArray<SeedCustomer>;
   readonly grants?: ReadonlyArray<AccessGrant>;
+  /**
+   * Identities that exist in the auth provider but hold no membership yet
+   * (onboarding scenarios). Ignored by the in-memory store; the Postgres
+   * seeder creates them in auth.users so FK constraints hold.
+   */
+  readonly users?: ReadonlyArray<{ readonly id: string }>;
 };
 
 export type StoredMembership = {

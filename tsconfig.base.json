@@ -26,6 +26,7 @@
       "@acme/domain": ["libs/domain/src/index.ts"],
       "@acme/application": ["libs/application/src/index.ts"],
       "@acme/infrastructure": ["libs/infrastructure/src/index.ts"],
+      "@acme/infrastructure-node": ["libs/infrastructure/src/node.ts"],
       "@acme/platform": ["libs/platform/src/index.ts"],
       "@acme/ui": ["libs/ui/src/index.ts"]
     }
