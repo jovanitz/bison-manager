@@ -52,11 +52,22 @@ pnpm exec nx affected -t lint typecheck test build
 pnpm graph              # interactive dependency graph
 ```
 
-No credentials needed: everything runs against the local stack with public dev
-defaults ([apps/api/.env.development](apps/api/.env.development)); personal
-overrides go in a gitignored `apps/api/.env`. Without Docker, the api falls
-back to an in-memory stub (comment out the `SUPABASE_*` vars) and the
-Postgres-bound specs skip themselves. Auth/authorization design:
+No credentials needed for local dev: the api ships public local-stack defaults
+([apps/api/.env.development](apps/api/.env.development)) and the web falls back
+to public defaults in code, so both `pnpm api` and `pnpm web` just work.
+Personal/production overrides go in gitignored `apps/api/.env` /
+`apps/web/.env`. Without Docker, the api falls back to an in-memory stub
+(comment out the `SUPABASE_*` vars) and the Postgres-bound specs skip
+themselves.
+
+**Environment variables** — every var each app reads is documented in its
+`.env.example`: [apps/api/.env.example](apps/api/.env.example) (server) and
+[apps/web/.env.example](apps/web/.env.example) (Vite, `VITE_*`). In production
+(`NODE_ENV=production`) the api **refuses to boot** unless the
+`[prod-required]` vars are set — a missing one can never silently downgrade to
+an insecure default (`apps/api/src/boot-safety.ts`).
+
+Auth/authorization design:
 [ADR-0010](docs/adr/0010-authorization-permissions-and-grants.md) ·
 [supabase/README.md](supabase/README.md).
 
