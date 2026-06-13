@@ -46,8 +46,9 @@ export const IMPERSONATION_GRANT_ACTIONS: ReadonlyArray<AccessAction> = [
 ];
 
 export const IMPERSONATION_GRANT_MAX_MINUTES = 60;
+export const IMPERSONATION_GRANT_DEFAULT_MINUTES = 30;
 const MINUTE_MS = 60_000;
-const GRANT_REASON_MAX = 500;
+export const ACCESS_GRANT_REASON_MAX = 500;
 
 const toMs = (iso: string): number => new Date(iso).getTime();
 
@@ -81,10 +82,10 @@ export const createImpersonationGrant = (input: {
   if (reason.length === 0) {
     return err(invalidGrantReason('Impersonation requires a reason.'));
   }
-  if (reason.length > GRANT_REASON_MAX) {
+  if (reason.length > ACCESS_GRANT_REASON_MAX) {
     return err(
       invalidGrantReason(
-        `Grant reason must be at most ${GRANT_REASON_MAX} characters.`,
+        `Grant reason must be at most ${ACCESS_GRANT_REASON_MAX} characters.`,
       ),
     );
   }

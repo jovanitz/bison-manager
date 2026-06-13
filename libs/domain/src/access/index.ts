@@ -7,3 +7,4 @@ export * from './presets';
 export * from './grant/grant';
 export * from './grant/expiry';
 export * from './policy/evaluate';
+export * from './session/session-policy';

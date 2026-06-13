@@ -14,6 +14,9 @@ export const invalidGrantReason = defineError('domain/invalid-grant-reason');
 export const invalidGrantExpiry = defineError('domain/invalid-grant-expiry');
 export const grantNotActive = defineError('domain/grant-not-active');
 export const grantNotExpired = defineError('domain/grant-not-expired');
+export const invalidSessionPolicy = defineError(
+  'domain/invalid-session-policy',
+);
 
 export type AccessDomainError =
   | TaggedError<'domain/invalid-access-id'>
@@ -22,4 +25,5 @@ export type AccessDomainError =
   | TaggedError<'domain/invalid-grant-reason'>
   | TaggedError<'domain/invalid-grant-expiry'>
   | TaggedError<'domain/grant-not-active'>
-  | TaggedError<'domain/grant-not-expired'>;
+  | TaggedError<'domain/grant-not-expired'>
+  | TaggedError<'domain/invalid-session-policy'>;

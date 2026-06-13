@@ -12,6 +12,7 @@ export type AccountId = Brand<string, 'AccountId'>;
 export type MembershipId = Brand<string, 'MembershipId'>;
 export type SessionId = Brand<string, 'SessionId'>;
 export type AccessGrantId = Brand<string, 'AccessGrantId'>;
+export type InvitationId = Brand<string, 'InvitationId'>;
 
 const makeNonEmptyId = (raw: string): Result<string, AccessDomainError> => {
   const value = raw.trim();
@@ -52,13 +53,20 @@ export const makeAccessGrantId = (
  */
 export const ACCESS_ACTIONS = [
   'account.disable',
+  'account.enable',
+  'account.promote',
   'permissions.update',
   'sessions.revoke',
+  'sessions.read',
   'customer.search',
   'customer.read',
   'impersonation.start',
   'impersonation.end',
   'audit.read',
+  'settings.update',
+  'members.invite',
+  'members.read',
+  'members.remove',
 ] as const;
 
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];

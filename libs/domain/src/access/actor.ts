@@ -1,5 +1,6 @@
 import type { AccessGrant } from './grant/grant';
 import type { AccessPermission } from './permission';
+import type { AccountKind } from './session/session-policy';
 import type {
   AccountId,
   MembershipId,
@@ -29,11 +30,15 @@ export type ActorSession = {
   readonly id: SessionId;
   readonly status: SessionStatus;
   readonly expiresAt: string;
+  /** Login instant — the anchor of the absolute session-lifetime clock. */
+  readonly createdAt: string;
 };
 
 export type AccessActor = {
   readonly membership: ActorMembership;
   readonly accountStatus: AccountStatus;
+  /** Parametrizes session hygiene only — it never grants anything. */
+  readonly accountKind: AccountKind;
   readonly session: ActorSession;
   readonly permissions: ReadonlyArray<AccessPermission>;
   readonly grants: ReadonlyArray<AccessGrant>;
