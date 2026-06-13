@@ -97,7 +97,17 @@ if (!g.ok) {
   );
 }
 
-// 5) If THIS change touched the harness itself, validate it stays portable across
+// 5) Business-rules document must match the code (generated doc).
+const r = runSensor('rules.mjs');
+if (!r.ok) {
+  veto(
+    `Business-rules document is stale: the code and docs/business-rules/access.md ` +
+      `diverged. Regenerate and review the diff before finishing:\n\n` +
+      `  pnpm harness rules --write\n`,
+  );
+}
+
+// 6) If THIS change touched the harness itself, validate it stays portable across
 // Claude / Codex / git / CI (doctor). Only fires when harness files changed, so
 // normal app work doesn't pay for it.
 const changed = [
@@ -127,7 +137,7 @@ if (changed.some((f) => HARNESS_RE.test(f))) {
   }
 }
 
-// 6) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
+// 7) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
 // needing runtime validation (.harness/require-e2e) and no passing `e2e` run has
 // cleared it, nudge — but allow delivery (the user chose warn, not block).
 if (existsSync(path.join(cwd, '.harness', 'require-e2e'))) {

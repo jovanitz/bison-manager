@@ -38,6 +38,7 @@ const COMMANDS = {
   audit: 'sensors/audit.mjs',
   'skill-scan': 'sensors/skill-scan.mjs',
   doctor: 'sensors/doctor.mjs',
+  rules: 'sensors/rules.mjs',
   // Generators (write code — not controls)
   'generate-feature': 'generators/generate-feature.mjs',
 };
@@ -58,6 +59,7 @@ function help() {
       '  e2e       Browser-level verification (Playwright) + runtime bridge introspection\n' +
       '  audit     Dependency CVE scan (pnpm audit / OSV)\n' +
       '  skill-scan Agent-surface security scan of skills/MCP (NVIDIA SkillSpector)\n' +
+      '  rules     Business-rules doc in sync with the code (--write regenerates)\n' +
       '  doctor    Self-check the harness (hooks, scripts, capabilities↔eslint)\n\n' +
       'Generators (write code):\n' +
       '  generate-feature <name>   Copy the example slice into a new feature\n',
