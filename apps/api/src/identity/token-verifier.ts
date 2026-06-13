@@ -17,6 +17,14 @@ export type SupabaseTokenVerifierConfig =
   | { readonly jwksUrl: string }
   | { readonly jwtSecret: string };
 
+/** Supabase signs user access tokens with this audience; service-role and
+ * anon tokens do not, so requiring it rejects non-user tokens up front. */
+const REQUIRED_AUDIENCE = 'authenticated';
+
+const hasRequiredAudience = (aud: unknown): boolean =>
+  aud === REQUIRED_AUDIENCE ||
+  (Array.isArray(aud) && aud.includes(REQUIRED_AUDIENCE));
+
 const verifyToken = (
   config: SupabaseTokenVerifierConfig,
   token: string,
@@ -34,6 +42,9 @@ export const createSupabaseTokenVerifier = (
   verifyAccessToken: async (token) => {
     try {
       const payload = await verifyToken(config, token);
+      if (!hasRequiredAudience(payload['aud'])) {
+        return err(invalidAccessToken('Token is not a user session token.'));
+      }
       const userId = typeof payload['sub'] === 'string' ? payload['sub'] : null;
       const sessionId =
         typeof payload['session_id'] === 'string'

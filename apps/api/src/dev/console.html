@@ -84,11 +84,31 @@
         'impersonation.start': { targetAccountId: '', reason: '' },
         'impersonation.end': { grantId: '' },
         'account.disable': { accountId: '', reason: '' },
+        'account.enable': { accountId: '' },
+        'sessions.list': { membershipId: '' },
+        'account.promote': { accountId: '' },
         'permissions.update': {
           membershipId: '',
           permissions: [{ action: 'customer.read', scope: 'own' }],
         },
         'sessions.revoke': { sessionId: '' },
+        'sessions.revoke-all': { membershipId: '' },
+        'settings.update': {
+          expectedVersion: 1,
+          policies: {
+            customer: { idleTtlMs: 86400000, maxLifetimeMs: 259200000 },
+            staff: { idleTtlMs: 1800000, maxLifetimeMs: 43200000 },
+          },
+        },
+        'members.invite': {
+          accountId: '',
+          email: '',
+          permissions: [{ action: 'customer.read', scope: 'own' }],
+        },
+        'members.list': { accountId: '' },
+        'members.remove': { membershipId: '' },
+        'memberships.mine': {},
+        'session.switch-account': { membershipId: '' },
       };
 
       const $ = (id) => document.getElementById(id);

@@ -72,7 +72,7 @@ describe('the rpc pipeline', () => {
     expect(res.status).toBe(404);
   });
 
-  it('declares all nine use cases in the registry', () => {
+  it('declares every access capability in the registry', () => {
     expect(
       testRuntime()
         .procedures.map((p) => p.name)
@@ -80,13 +80,23 @@ describe('the rpc pipeline', () => {
     ).toEqual([
       'access.current',
       'account.disable',
+      'account.enable',
+      'account.promote',
       'audit.list',
       'customer.read',
       'customer.search',
       'impersonation.end',
       'impersonation.start',
+      'members.invite',
+      'members.list',
+      'members.remove',
+      'memberships.mine',
       'permissions.update',
+      'session.switch-account',
+      'sessions.list',
       'sessions.revoke',
+      'sessions.revoke-all',
+      'settings.update',
     ]);
   });
 });

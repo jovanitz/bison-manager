@@ -10,10 +10,14 @@ import { seedWorld } from '../seed';
  */
 export const TEST_NOW = '2026-06-09T12:00:00.000Z';
 export const TEST_SESSION_EXPIRES = '2026-06-09T18:00:00.000Z';
+export const TEST_SESSION_CREATED = '2026-06-09T11:00:00.000Z';
 
 export const testRuntime = () =>
   createApiRuntime({
-    seed: seedWorld({ sessionExpiresAt: TEST_SESSION_EXPIRES }),
+    seed: seedWorld({
+      sessionExpiresAt: TEST_SESSION_EXPIRES,
+      sessionCreatedAt: TEST_SESSION_CREATED,
+    }),
     clock: fixedClock(new Date(TEST_NOW)),
     ids: sequentialIdGenerator('grant'),
   });

@@ -8,8 +8,12 @@ import type { InMemoryAccessSeed } from '@acme/infrastructure';
  * directory holding ONLY the customer account (a staff account listed there
  * would become impersonable). Phase 4 replaces this with real Supabase rows.
  */
+const hourAgo = (): string => new Date(Date.now() - 3_600_000).toISOString();
+
 export const seedWorld = (config: {
   readonly sessionExpiresAt: string;
+  /** Login instant of the seeded sessions (defaults to one hour ago). */
+  readonly sessionCreatedAt?: string;
 }): InMemoryAccessSeed => ({
   accounts: [
     { id: 'acct-owner' },
@@ -41,21 +45,25 @@ export const seedWorld = (config: {
       id: 'session-owner',
       membershipId: 'membership-owner',
       expiresAt: config.sessionExpiresAt,
+      createdAt: config.sessionCreatedAt ?? hourAgo(),
     },
     {
       id: 'session-support',
       membershipId: 'membership-support',
       expiresAt: config.sessionExpiresAt,
+      createdAt: config.sessionCreatedAt ?? hourAgo(),
     },
     {
       id: 'session-customer',
       membershipId: 'membership-customer',
       expiresAt: config.sessionExpiresAt,
+      createdAt: config.sessionCreatedAt ?? hourAgo(),
     },
     {
       id: 'session-revoked',
       membershipId: 'membership-customer',
       expiresAt: config.sessionExpiresAt,
+      createdAt: config.sessionCreatedAt ?? hourAgo(),
       status: 'revoked',
     },
   ],

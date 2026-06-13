@@ -2,6 +2,9 @@ import { systemClock, uuidGenerator } from '@acme/shared';
 import type { Clock, IdGenerator } from '@acme/shared';
 import {
   makeAccessAdminUseCases,
+  makeAccessInvitationsUseCases,
+  makeAccessMembersUseCases,
+  makeAccessSettingsUseCases,
   makeAccessUseCases,
   makeAuditTrailUseCases,
   makeIdentityUseCases,
@@ -11,6 +14,7 @@ import { createInMemoryAccessStore } from '@acme/infrastructure';
 import type { InMemoryAccessSeed } from '@acme/infrastructure';
 import { createPostgresAccessStore } from '@acme/infrastructure-node';
 import { createApi } from './app';
+import type { AuthHookDeps } from './identity/auth-hook';
 import { createSupabaseTokenVerifier } from './identity/token-verifier';
 import { createApiProcedures } from './procedures';
 import type { ApiIdentityPipeline } from './rpc/actor-middleware';
@@ -43,12 +47,11 @@ export type ApiConfig = {
   readonly corsOrigins?: ReadonlyArray<string>;
   /** Dev-only test console at GET /dev (never wire in production). */
   readonly devConsole?: () => string;
-  readonly sessionTtlMs?: number;
+  /** standard-webhooks secret for the GoTrue password-verification hook. */
+  readonly authHookSecret?: string;
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
 };
-
-const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const toVerifierConfig = (
   config: ApiConfig,
@@ -62,7 +65,9 @@ const toVerifierConfig = (
 const toApiOptions = (
   config: ApiConfig,
   identity: ApiIdentityPipeline | undefined,
+  authHook: AuthHookDeps,
 ) => ({
+  authHook,
   ...(identity ? { identity } : {}),
   ...(config.corsOrigins ? { corsOrigins: config.corsOrigins } : {}),
   ...(config.devConsole ? { devConsole: config.devConsole } : {}),
@@ -78,10 +83,16 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
   const access = makeAccessUseCases({
     actors: store.actors,
     grantExpiry: store.grantExpiry,
+    sessionPolicies: store.sessionPolicies,
+    sessionActivity: store.sessionActivity,
     clock,
   });
   const auditTrail = makeAuditTrailUseCases({ trail: store.auditTrail, clock });
-  const accessAdmin = makeAccessAdminUseCases({ admin: store.admin, clock });
+  const accessAdmin = makeAccessAdminUseCases({
+    admin: store.admin,
+    settings: store.sessionPolicies,
+    clock,
+  });
   const impersonation = makeImpersonationUseCases({
     grants: store.grants,
     customers: store.customers,
@@ -95,25 +106,49 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
         verifier: createSupabaseTokenVerifier(verifierConfig),
         registerSession: makeIdentityUseCases({
           onboarding: store.onboarding,
+          sessionPolicies: store.sessionPolicies,
+          sessions: store.admin,
+          invitations: store.invitations,
+          members: store.members,
           clock,
           ids,
           bootstrapOwnerEmail: config.bootstrapOwnerEmail ?? null,
         }).registerIdentitySession,
-        sessionTtlMs: config.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS,
-        clock,
       }
     : undefined;
 
+  const accessSettings = makeAccessSettingsUseCases({
+    settings: store.sessionPolicies,
+    clock,
+  });
+  const accessInvitations = makeAccessInvitationsUseCases({
+    invitations: store.invitations,
+    accounts: store.admin,
+    clock,
+    ids,
+  });
+  const accessMembers = makeAccessMembersUseCases({
+    members: store.members,
+    accounts: store.admin,
+    sessionPolicies: store.sessionPolicies,
+    clock,
+  });
   const procedures = createApiProcedures({
     access,
     auditTrail,
     accessAdmin,
     impersonation,
+    accessSettings,
+    accessInvitations,
+    accessMembers,
   });
   const app = createApi({
     procedures,
     resolveActor: access.resolveRequestActor,
-    ...toApiOptions(config, identity),
+    ...toApiOptions(config, identity, {
+      secret: config.authHookSecret ?? null,
+      recordFailedLogin: auditTrail.recordFailedLogin,
+    }),
   });
   return {
     app,

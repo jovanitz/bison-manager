@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { z } from 'zod';
 import type { AccessUseCases } from '@acme/application';
+import { handlePasswordVerificationHook } from './identity/auth-hook';
+import type { AuthHookDeps } from './identity/auth-hook';
 import { createAccessActorMiddleware } from './rpc/actor-middleware';
 import type { ApiEnv, ApiIdentityPipeline } from './rpc/actor-middleware';
 import { registerRpcRoutes } from './rpc/routes';
@@ -25,6 +27,8 @@ export const createApi = (deps: {
   readonly corsOrigins?: ReadonlyArray<string>;
   /** Dev-only test console (GET /dev); absent in production wiring. */
   readonly devConsole?: () => string;
+  /** GoTrue password-verification hook receiver (login.failed audit). */
+  readonly authHook?: AuthHookDeps;
 }) => {
   const app = new Hono<ApiEnv>();
 
@@ -51,6 +55,13 @@ export const createApi = (deps: {
   const devConsole = deps.devConsole;
   if (devConsole) {
     app.get('/dev', (c) => c.html(devConsole()));
+  }
+
+  const authHook = deps.authHook;
+  if (authHook) {
+    app.post('/hooks/password-verification', (c) =>
+      handlePasswordVerificationHook(authHook, c),
+    );
   }
 
   app.use('/rpc/*', createAccessActorMiddleware(deps));

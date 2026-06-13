@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
+import { productionBootErrors } from './boot-safety';
 import { createApiRuntime } from './composition-root';
 import { seedWorld } from './seed';
 
@@ -33,6 +34,8 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   /** 'true' serves the static test console at GET /dev (local only). */
   DEV_CONSOLE: z.string().optional(),
+  /** standard-webhooks secret of the GoTrue password-verification hook. */
+  AUTH_HOOK_SECRET: z.string().min(8).optional(),
 });
 
 const DEV_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -55,6 +58,22 @@ const identityModeOf = (): string => {
 };
 const identityMode = identityModeOf();
 
+// Fail-closed: in production, a missing env var must abort the boot rather
+// than silently degrade to an insecure default.
+const bootErrors = productionBootErrors({
+  nodeEnv: process.env['NODE_ENV'],
+  hasJwks: jwksUrl !== undefined,
+  hasJwtSecret: env.data.SUPABASE_JWT_SECRET !== undefined,
+  hasDatabaseUrl: usePostgres,
+  hasAuthHookSecret: env.data.AUTH_HOOK_SECRET !== undefined,
+  devConsole: env.data.DEV_CONSOLE === 'true',
+});
+if (bootErrors.length > 0) {
+  console.error('Refusing to start (production safety):');
+  for (const error of bootErrors) console.error(`  - ${error}`);
+  process.exit(1);
+}
+
 const runtime = createApiRuntime({
   ...(databaseUrl !== undefined
     ? { databaseUrl }
@@ -70,6 +89,9 @@ const runtime = createApiRuntime({
     ? { jwtSecret: env.data.SUPABASE_JWT_SECRET }
     : {}),
   bootstrapOwnerEmail: env.data.BOOTSTRAP_OWNER_EMAIL ?? null,
+  ...(env.data.AUTH_HOOK_SECRET
+    ? { authHookSecret: env.data.AUTH_HOOK_SECRET }
+    : {}),
   corsOrigins: env.data.CORS_ORIGINS?.split(',').map((o) => o.trim()) ?? [
     'http://localhost:4200',
     'http://127.0.0.1:4200',

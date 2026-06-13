@@ -59,6 +59,55 @@ describe('account.disable', () => {
   });
 });
 
+describe('account.enable', () => {
+  it('undoes a disable: the account authorizes again on the next request', async () => {
+    const { app } = testRuntime();
+    await callRpc(app, 'account.disable', {
+      token: 'session-owner',
+      body: { accountId: 'acct-customer' },
+    });
+    expect(
+      (await callRpc(app, 'access.current', { token: 'session-customer' }))
+        .status,
+    ).toBe(401);
+
+    const res = await callRpc(app, 'account.enable', {
+      token: 'session-owner',
+      body: { accountId: 'acct-customer' },
+    });
+    expect(res.status).toBe(200);
+    // the unexpired session resumes — enable is the undo of disable
+    expect(
+      (await callRpc(app, 'access.current', { token: 'session-customer' }))
+        .status,
+    ).toBe(200);
+
+    const audit = await callRpc(app, 'audit.list', { token: 'session-owner' });
+    const events = (await audit.json()) as {
+      readonly data: ReadonlyArray<{
+        readonly event: { readonly type: string };
+      }>;
+    };
+    expect(events.data.map((r) => r.event.type)).toContain('account.enabled');
+  });
+
+  it('403s non-owners and 409s an account that is not disabled', async () => {
+    const { app } = testRuntime();
+    const denied = await callRpc(app, 'account.enable', {
+      token: 'session-support',
+      body: { accountId: 'acct-customer' },
+    });
+    expect(denied.status).toBe(403);
+
+    const active = await callRpc(app, 'account.enable', {
+      token: 'session-owner',
+      body: { accountId: 'acct-customer' },
+    });
+    expect(active.status).toBe(409);
+    expect(await errorTag(active)).toBe('app/account-not-disabled');
+  });
+});
+
 describe('permissions.update', () => {
   it('replaces the permission list and the actor sees it immediately', async () => {
     const { app } = testRuntime();
@@ -97,38 +146,59 @@ describe('permissions.update', () => {
     });
     expect(missing.status).toBe(404);
   });
+
+  it('409s demoting the last administrator of an account', async () => {
+    const { app } = testRuntime();
+    // membership-owner is the only admin of acct-owner
+    const res = await callRpc(app, 'permissions.update', {
+      token: 'session-owner',
+      body: {
+        membershipId: 'membership-owner',
+        permissions: [{ action: 'customer.read', scope: 'own' }],
+      },
+    });
+    expect(res.status).toBe(409);
+    expect(await errorTag(res)).toBe('app/cannot-orphan-account');
+  });
 });
 
-describe('sessions.revoke', () => {
-  it('lets a customer revoke their own session, which 401s right after', async () => {
+describe('POST /rpc/account.promote', () => {
+  it('owner promotes a customer account; it leaves the directory', async () => {
     const { app } = testRuntime();
+    const before = await callRpc(app, 'customer.search', {
+      token: 'session-support',
+      body: { query: 'casa' },
+    });
+    const found = (await before.json()) as { data: ReadonlyArray<unknown> };
+    expect(found.data.length).toBeGreaterThan(0);
 
-    const res = await callRpc(app, 'sessions.revoke', {
-      token: 'session-customer',
-      body: { sessionId: 'session-customer' },
+    const res = await callRpc(app, 'account.promote', {
+      token: 'session-owner',
+      body: { accountId: 'acct-customer' },
     });
     expect(res.status).toBe(200);
 
-    const next = await callRpc(app, 'access.current', {
-      token: 'session-customer',
+    const after = await callRpc(app, 'customer.search', {
+      token: 'session-support',
+      body: { query: 'casa' },
     });
-    expect(next.status).toBe(401);
+    const gone = (await after.json()) as { data: ReadonlyArray<unknown> };
+    expect(gone.data).toHaveLength(0);
   });
 
-  it("403s revoking another account's session with own scope, 409s a repeat", async () => {
+  it('403s non-owners and 409s an already-staff account', async () => {
     const { app } = testRuntime();
-
-    const denied = await callRpc(app, 'sessions.revoke', {
-      token: 'session-customer',
-      body: { sessionId: 'session-owner' },
+    const denied = await callRpc(app, 'account.promote', {
+      token: 'session-support',
+      body: { accountId: 'acct-customer' },
     });
     expect(denied.status).toBe(403);
 
-    const repeat = await callRpc(app, 'sessions.revoke', {
+    const repeat = await callRpc(app, 'account.promote', {
       token: 'session-owner',
-      body: { sessionId: 'session-revoked' },
+      body: { accountId: 'acct-owner' },
     });
     expect(repeat.status).toBe(409);
-    expect(await errorTag(repeat)).toBe('app/session-already-revoked');
+    expect(await errorTag(repeat)).toBe('app/account-already-staff');
   });
 });

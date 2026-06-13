@@ -1,9 +1,9 @@
 import { createMiddleware } from 'hono/factory';
-import type { Clock } from '@acme/shared';
 import type {
   AccessTokenVerifier,
   AccessUseCases,
   IdentityUseCases,
+  SessionContext,
 } from '@acme/application';
 import type { AccessActor } from '@acme/domain';
 
@@ -22,8 +22,6 @@ export type ApiEnv = {
 export type ApiIdentityPipeline = {
   readonly verifier: AccessTokenVerifier;
   readonly registerSession: IdentityUseCases['registerIdentitySession'];
-  readonly sessionTtlMs: number;
-  readonly clock: Clock;
 };
 
 const bearerToken = (header: string | undefined): string | null => {
@@ -31,20 +29,31 @@ const bearerToken = (header: string | undefined): string | null => {
   return match?.[1] ?? null;
 };
 
+/**
+ * Origin facts captured per request — feeds the sessions' device/IP columns.
+ * x-forwarded-for is only meaningful behind a trusted proxy; first hop wins.
+ */
+const requestContext = (headers: {
+  readonly userAgent: string | undefined;
+  readonly forwardedFor: string | undefined;
+}): SessionContext => ({
+  userAgent: headers.userAgent ?? null,
+  ipAddress: headers.forwardedFor?.split(',')[0]?.trim() || null,
+});
+
 const toSessionId = async (
   identity: ApiIdentityPipeline,
   token: string,
+  context: SessionContext,
 ): Promise<string | null> => {
   const verified = await identity.verifier.verifyAccessToken(token);
   if (!verified.ok) return null;
-  const expiresAt = new Date(
-    identity.clock.now().getTime() + identity.sessionTtlMs,
-  ).toISOString();
+  // Initial expiry comes from the per-kind session policy (registration).
   const registered = await identity.registerSession({
     userId: verified.value.userId,
     sessionId: verified.value.sessionId,
     email: verified.value.email,
-    sessionExpiresAt: expiresAt,
+    context,
   });
   return registered.ok ? registered.value.sessionId : null;
 };
@@ -78,12 +87,16 @@ export const createAccessActorMiddleware = (deps: {
     const token = bearerToken(c.req.header('authorization'));
     if (!token) return unauthorized();
 
+    const context = requestContext({
+      userAgent: c.req.header('user-agent'),
+      forwardedFor: c.req.header('x-forwarded-for'),
+    });
     const sessionId = deps.identity
-      ? await toSessionId(deps.identity, token)
+      ? await toSessionId(deps.identity, token, context)
       : token;
     if (!sessionId) return unauthorized();
 
-    const actor = await deps.resolveActor({ sessionId });
+    const actor = await deps.resolveActor({ sessionId, context });
     if (!actor.ok) return unauthorized();
 
     c.set('actor', actor.value);

@@ -27,6 +27,7 @@ const tokenFor = (input: {
     {
       sub: input.userId,
       session_id: input.sessionId,
+      aud: 'authenticated',
       ...(input.email === null ? {} : { email: input.email }),
       exp: Math.floor(Date.now() / 1000) + 3600,
     },
@@ -119,6 +120,55 @@ describe('identity pipeline (Supabase-shaped JWTs)', () => {
     expect(
       (await callRpc(app, 'access.current', { token: customer })).status,
     ).toBe(401);
+  });
+
+  it('an invited email joins the inviting account on first login', async () => {
+    const { app } = identityRuntime();
+    const owner = await ownerToken();
+    const current = await callRpc(app, 'access.current', { token: owner });
+    const { data } = (await current.json()) as { data: { accountId: string } };
+
+    const invited = await callRpc(app, 'members.invite', {
+      token: owner,
+      body: {
+        accountId: data.accountId,
+        email: 'Invitee@Example.com',
+        permissions: [{ action: 'audit.read', scope: 'any' }],
+      },
+    });
+    expect(invited.status).toBe(200);
+
+    // First login of the invited email: no new account, the owner's instead.
+    const invitee = await tokenFor({
+      userId: crypto.randomUUID(),
+      sessionId: crypto.randomUUID(),
+      email: 'invitee@example.com',
+    });
+    const inviteeCurrent = await callRpc(app, 'access.current', {
+      token: invitee,
+    });
+    expect(inviteeCurrent.status).toBe(200);
+    const inviteeBody = (await inviteeCurrent.json()) as {
+      data: {
+        accountId: string;
+        permissions: ReadonlyArray<{ action: string; scope: string }>;
+      };
+    };
+    expect(inviteeBody.data.accountId).toBe(data.accountId);
+    expect(inviteeBody.data.permissions).toEqual([
+      { action: 'audit.read', scope: 'any' },
+    ]);
+
+    const audit = await callRpc(app, 'audit.list', { token: owner, body: {} });
+    const events = (await audit.json()) as {
+      data: ReadonlyArray<{ event: { type: string } }>;
+    };
+    expect(events.data.map((r) => r.event.type)).toContain(
+      'invitation.created',
+    );
+    expect(events.data.map((r) => r.event.type)).toContain(
+      'invitation.accepted',
+    );
   });
 
   it('rejects unsigned, foreign-signed and malformed tokens with a plain 401', async () => {
