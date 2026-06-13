@@ -4,8 +4,11 @@ import {
   isAccessGrantActive,
   makeSessionId,
   recordAccessGrantExpiry,
+  slideAccessSessionExpiry,
 } from '@acme/domain';
 import type { AccessActor, AccessGrant } from '@acme/domain';
+import type { AccessSessionPolicyStore } from '../access-settings/ports';
+import type { SessionContext } from '../identity/ports';
 import { type CurrentAccessDto, toCurrentAccessDto } from './dto';
 import { accessActorNotFound, accessDenied } from './errors';
 import type { AccessUseCaseError } from './errors';
@@ -13,12 +16,41 @@ import type {
   AccessActorReader,
   AccessGrantExpiryEntry,
   AccessGrantExpiryRecorder,
+  AccessSessionActivityRecorder,
 } from './ports';
 
 export type CurrentAccessDeps = {
   readonly actors: AccessActorReader;
   readonly grantExpiry: AccessGrantExpiryRecorder;
+  readonly sessionPolicies: Pick<AccessSessionPolicyStore, 'loadSessionPolicies'>;
+  readonly sessionActivity: AccessSessionActivityRecorder;
   readonly clock: Clock;
+};
+
+/**
+ * Sliding renewal: an alive session pushes its expiry forward on use, bounded
+ * by the absolute cap (domain rule). Returns the actor with the fresh expiry.
+ */
+const slideSession = async (
+  deps: CurrentAccessDeps,
+  actor: AccessActor,
+  now: string,
+  context: SessionContext | undefined,
+): Promise<AccessActor> => {
+  const policies = await deps.sessionPolicies.loadSessionPolicies();
+  const slid = slideAccessSessionExpiry({
+    session: actor.session,
+    policy: policies[actor.accountKind],
+    now,
+  });
+  if (!slid) return actor;
+  await deps.sessionActivity.recordSessionActivity({
+    sessionId: actor.session.id,
+    lastSeenAt: now,
+    expiresAt: slid,
+    ipAddress: context?.ipAddress ?? null,
+  });
+  return { ...actor, session: { ...actor.session, expiresAt: slid } };
 };
 
 const recordLazyExpiry = (
@@ -46,6 +78,7 @@ export const makeResolveRequestActor =
   (deps: CurrentAccessDeps) =>
   async (input: {
     readonly sessionId: string;
+    readonly context?: SessionContext;
   }): Promise<Result<AccessActor, AccessUseCaseError>> => {
     const sessionId = makeSessionId(input.sessionId);
     if (!sessionId.ok) return err(sessionId.error);
@@ -76,7 +109,7 @@ export const makeResolveRequestActor =
         }),
       );
     }
-    return ok(actor);
+    return ok(await slideSession(deps, actor, now, input.context));
   };
 
 /**

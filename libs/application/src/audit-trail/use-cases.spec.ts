@@ -65,4 +65,30 @@ describe('listAuditEvents', () => {
       if (!r.ok) expect(r.error.tag).toBe('app/access-denied');
     }
   });
+
+  it("an org admin reads only their own account's slice, never the global trail", async () => {
+    const trail = inMemoryTrail([loginEvent]);
+    const uc = makeAuditTrailUseCases(deps(trail));
+    const orgAdmin = testAccessActor({
+      preset: 'customer-admin',
+      accountId: 'acct-1',
+    });
+
+    const ownSlice = await uc.listAuditEvents({
+      actor: orgAdmin,
+      filter: { accountId: 'acct-1' },
+    });
+    expect(ownSlice.ok).toBe(true);
+
+    const global = await uc.listAuditEvents({ actor: orgAdmin });
+    expect(global.ok).toBe(false);
+    if (!global.ok) expect(global.error.tag).toBe('app/access-denied');
+
+    const foreign = await uc.listAuditEvents({
+      actor: orgAdmin,
+      filter: { accountId: 'acct-other' },
+    });
+    expect(foreign.ok).toBe(false);
+    if (!foreign.ok) expect(foreign.error.tag).toBe('app/access-denied');
+  });
 });

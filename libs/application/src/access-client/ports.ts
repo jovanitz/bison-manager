@@ -15,4 +15,15 @@ export type CurrentAccessGateway = {
       TaggedError<'app/access-gateway-error' | 'app/access-denied'>
     >
   >;
+  /**
+   * "Log me out everywhere": revokes every active session of the CALLER's own
+   * membership through the API (the adapter resolves the membership first).
+   * The current session dies too — follow with a fresh sign-in.
+   */
+  readonly revokeOwnSessions: () => Promise<
+    Result<
+      { readonly revoked: number },
+      TaggedError<'app/access-gateway-error' | 'app/access-denied'>
+    >
+  >;
 };

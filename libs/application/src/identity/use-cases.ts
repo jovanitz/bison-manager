@@ -1,94 +1,16 @@
+import { type Result, err, ok } from '@acme/shared';
 import {
-  type Clock,
-  type IdGenerator,
-  type Result,
-  err,
-  ok,
-} from '@acme/shared';
-import {
-  accessPresetPermissions,
+  accessSessionExpiryFrom,
   makeSessionId,
   makeUserId,
 } from '@acme/domain';
-import type { AccountId, MembershipId, SessionId, UserId } from '@acme/domain';
+import type { SessionId } from '@acme/domain';
 import type { IdentityUseCaseError } from './errors';
-import type {
-  IdentityOnboardingRepository,
-  NewIdentityMembership,
-} from './ports';
+import type { SessionContext } from './ports';
+import { enforceSessionCap, resolveLoginMembership } from './provisioning';
+import type { IdentityDeps } from './provisioning';
 
-export type IdentityDeps = {
-  readonly onboarding: IdentityOnboardingRepository;
-  readonly clock: Clock;
-  readonly ids: IdGenerator;
-  /**
-   * The documented owner-bootstrap mechanism (ADR-0010): read from env in the
-   * API composition root only. When no root admin exists and this email signs
-   * in, that identity is promoted exactly once. Null disables bootstrapping.
-   */
-  readonly bootstrapOwnerEmail: string | null;
-};
-
-const sameEmail = (a: string, b: string): boolean =>
-  a.trim().toLowerCase() === b.trim().toLowerCase();
-
-const buildMembership = (input: {
-  readonly deps: IdentityDeps;
-  readonly userId: UserId;
-  readonly email: string | null;
-  readonly displayName: string;
-  readonly preset: 'owner' | 'customer';
-  readonly occurredAt: string;
-}): NewIdentityMembership => ({
-  membershipId: input.deps.ids.next() as MembershipId,
-  accountId: input.deps.ids.next() as AccountId,
-  userId: input.userId,
-  email: input.email,
-  displayName: input.displayName,
-  permissions: accessPresetPermissions(input.preset),
-  occurredAt: input.occurredAt,
-});
-
-const provisionMembership = async (
-  deps: IdentityDeps,
-  identity: { readonly userId: UserId; readonly email: string | null },
-  occurredAt: string,
-): Promise<MembershipId> => {
-  const bootstrap =
-    deps.bootstrapOwnerEmail !== null &&
-    identity.email !== null &&
-    sameEmail(identity.email, deps.bootstrapOwnerEmail) &&
-    !(await deps.onboarding.rootAdminExists());
-
-  if (bootstrap) {
-    const membership = buildMembership({
-      deps,
-      userId: identity.userId,
-      email: identity.email,
-      displayName: 'Owner',
-      preset: 'owner',
-      occurredAt,
-    });
-    await deps.onboarding.createOwnerMembership(membership, {
-      type: 'owner.bootstrapped',
-      membershipId: membership.membershipId,
-      userId: identity.userId,
-      occurredAt,
-    });
-    return membership.membershipId;
-  }
-
-  const membership = buildMembership({
-    deps,
-    userId: identity.userId,
-    email: identity.email,
-    displayName: identity.email ?? 'Customer',
-    preset: 'customer',
-    occurredAt,
-  });
-  await deps.onboarding.createCustomerMembership(membership);
-  return membership.membershipId;
-};
+export type { IdentityDeps } from './provisioning';
 
 /**
  * Login bookkeeping, run when a verified identity presents a session our
@@ -104,7 +26,7 @@ export const makeRegisterIdentitySession =
     readonly userId: string;
     readonly sessionId: string;
     readonly email: string | null;
-    readonly sessionExpiresAt: string;
+    readonly context: SessionContext;
   }): Promise<
     Result<{ readonly sessionId: SessionId }, IdentityUseCaseError>
   > => {
@@ -118,20 +40,29 @@ export const makeRegisterIdentitySession =
     }
 
     const occurredAt = deps.clock.now().toISOString();
-    const existing = await deps.onboarding.findMembershipByUser(userId.value);
-    const membershipId =
-      existing?.membershipId ??
-      (await provisionMembership(
-        deps,
-        { userId: userId.value, email: input.email },
-        occurredAt,
-      ));
+    const membership = await resolveLoginMembership(
+      deps,
+      { userId: userId.value, email: input.email },
+      occurredAt,
+    );
+
+    // Initial expiry per the session policy of the account kind (dual clock:
+    // both anchors are the login instant, so it resolves to now + idle TTL).
+    const policies = await deps.sessionPolicies.loadSessionPolicies();
+    const expiresAt = accessSessionExpiryFrom(
+      policies[membership.accountKind],
+      occurredAt,
+      occurredAt,
+    );
+    await enforceSessionCap(deps, membership.membershipId, occurredAt);
 
     await deps.onboarding.createSession(
       {
         sessionId: sessionId.value,
-        membershipId,
-        expiresAt: input.sessionExpiresAt,
+        membershipId: membership.membershipId,
+        createdAt: occurredAt,
+        expiresAt,
+        context: input.context,
       },
       {
         type: 'login.succeeded',

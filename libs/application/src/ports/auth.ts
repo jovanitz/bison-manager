@@ -47,6 +47,17 @@ export type AuthProvider = {
     credentials: AuthCredentials,
   ) => Promise<Result<AuthSession, AuthError>>;
   readonly signOut: () => Promise<void>;
+  /**
+   * Starts a password recovery (e.g. sends a reset email). Succeeds without
+   * revealing whether the email exists — never an account-existence probe.
+   */
+  readonly requestPasswordReset: (
+    email: string,
+  ) => Promise<Result<void, AuthError>>;
+  /** Sets a new password for the CURRENT session's identity. */
+  readonly updatePassword: (
+    newPassword: string,
+  ) => Promise<Result<void, AuthError>>;
   /** Returns a fresh bearer token, refreshing transparently if needed. */
   readonly getAccessToken: () => Promise<Result<string, AuthError>>;
   readonly onChange: (

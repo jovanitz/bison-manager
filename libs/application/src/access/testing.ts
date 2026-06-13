@@ -12,6 +12,7 @@ import {
  */
 export const TEST_ACCESS_NOW = '2026-06-09T12:00:00.000Z';
 export const TEST_ACCESS_SESSION_EXPIRY = '2026-06-09T18:00:00.000Z';
+export const TEST_ACCESS_SESSION_CREATED = '2026-06-09T11:00:00.000Z';
 
 export const testAccessActor = (input: {
   readonly preset: AccessPresetName;
@@ -28,10 +29,15 @@ export const testAccessActor = (input: {
     accountId: (input.accountId ?? 'acct-1') as AccountId,
   },
   accountStatus: input.accountStatus ?? 'active',
+  accountKind:
+    input.preset === 'customer' || input.preset === 'customer-admin'
+      ? 'customer'
+      : 'staff',
   session: {
     id: 'session-1' as AccessActor['session']['id'],
     status: input.sessionStatus ?? 'active',
     expiresAt: TEST_ACCESS_SESSION_EXPIRY,
+    createdAt: TEST_ACCESS_SESSION_CREATED,
   },
   permissions: accessPresetPermissions(input.preset),
   grants: input.grants ?? [],

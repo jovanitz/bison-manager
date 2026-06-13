@@ -1,80 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { fixedClock } from '@acme/shared';
-import type {
-  AccessAuditEvent,
-  AccessPermission,
-  AccountId,
-  MembershipId,
-  SessionId,
-} from '@acme/domain';
-import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
-import type {
-  AdminAccountSnapshot,
-  AdminMembershipSnapshot,
-  AdminSessionSnapshot,
-} from './ports';
+import type { AccountId, MembershipId } from '@acme/domain';
+import { testAccessActor } from '../access/testing';
+import type { AdminMembershipSnapshot } from './ports';
+import {
+  inMemoryAdmin,
+  testAdminAccount as account,
+  testAdminDeps as deps,
+} from './testing';
 import { makeAccessAdminUseCases } from './use-cases';
 
-const inMemoryAdmin = (seed: {
-  accounts?: AdminAccountSnapshot[];
-  memberships?: AdminMembershipSnapshot[];
-  sessions?: AdminSessionSnapshot[];
-}) => {
-  const accounts = new Map(seed.accounts?.map((a) => [a.id, a]));
-  const memberships = new Map(seed.memberships?.map((m) => [m.id, m]));
-  const sessions = new Map(seed.sessions?.map((s) => [s.id, s]));
-  const audit: AccessAuditEvent[] = [];
-  return {
-    audit,
-    accounts,
-    sessions,
-    memberships,
-    port: {
-      findAccount: async (id: AccountId) => accounts.get(id) ?? null,
-      disableAccount: async (id: AccountId, event: AccessAuditEvent) => {
-        const account = accounts.get(id);
-        if (account) accounts.set(id, { ...account, status: 'disabled' });
-        audit.push(event);
+/** A store with one empty-permission customer membership (coherence tests). */
+const customerTargetStore = () =>
+  inMemoryAdmin({
+    memberships: [
+      {
+        id: 'membership-target' as MembershipId,
+        accountId: 'acct-target' as AccountId,
+        accountKind: 'customer',
+        permissions: [],
       },
-      findMembership: async (id: MembershipId) => memberships.get(id) ?? null,
-      updatePermissions: async (
-        id: MembershipId,
-        permissions: ReadonlyArray<AccessPermission>,
-        event: AccessAuditEvent,
-      ) => {
-        const membership = memberships.get(id);
-        if (membership) memberships.set(id, { ...membership, permissions });
-        audit.push(event);
-      },
-      findSession: async (id: SessionId) => sessions.get(id) ?? null,
-      revokeSession: async (id: SessionId, event: AccessAuditEvent) => {
-        const session = sessions.get(id);
-        if (session) sessions.set(id, { ...session, status: 'revoked' });
-        audit.push(event);
-      },
-    },
-  };
-};
-
-const account = (id: string, status = 'active'): AdminAccountSnapshot => ({
-  id: id as AccountId,
-  status: status as AdminAccountSnapshot['status'],
-});
-
-const session = (
-  id: string,
-  accountId: string,
-  status = 'active',
-): AdminSessionSnapshot => ({
-  id: id as SessionId,
-  accountId: accountId as AccountId,
-  status: status as AdminSessionSnapshot['status'],
-});
-
-const deps = (admin: ReturnType<typeof inMemoryAdmin>) => ({
-  admin: admin.port,
-  clock: fixedClock(new Date(TEST_ACCESS_NOW)),
-});
+    ],
+  });
 
 describe('disableAccount', () => {
   it('lets an owner disable an account and audits it atomically', async () => {
@@ -116,10 +62,111 @@ describe('disableAccount', () => {
   });
 });
 
+describe('enableAccount', () => {
+  it('re-enables a disabled account and audits it', async () => {
+    const admin = inMemoryAdmin({ accounts: [account('acct-x', 'disabled')] });
+    const r = await makeAccessAdminUseCases(deps(admin)).enableAccount({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-x',
+    });
+    expect(r.ok).toBe(true);
+    expect(admin.accounts.get('acct-x' as AccountId)?.status).toBe('active');
+    expect(admin.audit.map((e) => e.type)).toEqual(['account.enabled']);
+  });
+
+  it('rejects enabling an account that is not disabled', async () => {
+    const admin = inMemoryAdmin({ accounts: [account('acct-x')] });
+    const r = await makeAccessAdminUseCases(deps(admin)).enableAccount({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-x',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/account-not-disabled');
+    expect(admin.audit).toHaveLength(0);
+  });
+
+  it('denies support and customers', async () => {
+    const admin = inMemoryAdmin({ accounts: [account('acct-x', 'disabled')] });
+    for (const preset of ['support', 'customer'] as const) {
+      const r = await makeAccessAdminUseCases(deps(admin)).enableAccount({
+        actor: testAccessActor({ preset }),
+        accountId: 'acct-x',
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error.tag).toBe('app/access-denied');
+    }
+  });
+});
+
+describe('account.promote + permissions coherence', () => {
+  it('promotes a customer account to staff, audited', async () => {
+    const admin = inMemoryAdmin({ accounts: [account('acct-x')] });
+    const r = await makeAccessAdminUseCases(deps(admin)).promoteAccountToStaff({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-x',
+    });
+    expect(r.ok).toBe(true);
+    expect(admin.accounts.get('acct-x' as AccountId)?.kind).toBe('staff');
+    expect(admin.audit.map((e) => e.type)).toEqual(['account.promoted']);
+  });
+
+  it('rejects promoting an account that is already staff', async () => {
+    const admin = inMemoryAdmin({
+      accounts: [{ ...account('acct-x'), kind: 'staff' }],
+    });
+    const r = await makeAccessAdminUseCases(deps(admin)).promoteAccountToStaff({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-x',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/account-already-staff');
+  });
+
+  it('refuses any-scoped permissions on a customer account (promote first)', async () => {
+    const admin = customerTargetStore();
+    const r = await makeAccessAdminUseCases(deps(admin)).updateUserPermissions({
+      actor: testAccessActor({ preset: 'owner' }),
+      membershipId: 'membership-target',
+      permissions: [{ action: 'customer.search', scope: 'any' }],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/requires-staff-account');
+    expect(admin.audit).toHaveLength(0);
+  });
+
+  it('refuses staff-only actions on a customer account even with own scope', async () => {
+    const admin = customerTargetStore();
+    const r = await makeAccessAdminUseCases(deps(admin)).updateUserPermissions({
+      actor: testAccessActor({ preset: 'owner' }),
+      membershipId: 'membership-target',
+      permissions: [{ action: 'account.disable', scope: 'own' }],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/not-delegable-to-customer');
+    expect(admin.audit).toHaveLength(0);
+  });
+
+  it('allows the delegable org-admin bundle on a customer account', async () => {
+    const admin = customerTargetStore();
+    const r = await makeAccessAdminUseCases(deps(admin)).updateUserPermissions({
+      actor: testAccessActor({ preset: 'owner' }),
+      membershipId: 'membership-target',
+      permissions: [
+        { action: 'members.invite', scope: 'own' },
+        { action: 'permissions.update', scope: 'own' },
+        { action: 'sessions.revoke', scope: 'own' },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    expect(admin.audit.map((e) => e.type)).toEqual(['permissions.updated']);
+  });
+});
+
 describe('updateUserPermissions', () => {
   const membership = (): AdminMembershipSnapshot => ({
     id: 'membership-target' as MembershipId,
     accountId: 'acct-target' as AccountId,
+    accountKind: 'staff',
     permissions: [{ action: 'customer.read', scope: 'own' }],
   });
 
@@ -163,58 +210,36 @@ describe('updateUserPermissions', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('app/access-denied');
   });
-});
 
-describe('revokeSession', () => {
-  it('lets an owner revoke any session and audits it', async () => {
-    const admin = inMemoryAdmin({
-      sessions: [session('session-x', 'acct-other')],
-    });
-    const r = await makeAccessAdminUseCases(deps(admin)).revokeSession({
-      actor: testAccessActor({ preset: 'owner' }),
-      sessionId: 'session-x',
-    });
-    expect(r.ok).toBe(true);
-    expect(admin.sessions.get('session-x' as SessionId)?.status).toBe(
-      'revoked',
-    );
-    expect(admin.audit[0]?.type).toBe('session.revoked');
+  const admin = (id: string, accountId: string): AdminMembershipSnapshot => ({
+    id: id as MembershipId,
+    accountId: accountId as AccountId,
+    accountKind: 'customer',
+    permissions: [{ action: 'permissions.update', scope: 'own' }],
   });
 
-  it('lets a customer revoke sessions of their own account only', async () => {
-    const admin = inMemoryAdmin({
-      sessions: [
-        session('session-own', 'acct-1'),
-        session('session-foreign', 'acct-other'),
-      ],
-    });
-    const uc = makeAccessAdminUseCases(deps(admin));
-    const customer = testAccessActor({
-      preset: 'customer',
-      accountId: 'acct-1',
-    });
-    const own = await uc.revokeSession({
-      actor: customer,
-      sessionId: 'session-own',
-    });
-    const foreign = await uc.revokeSession({
-      actor: customer,
-      sessionId: 'session-foreign',
-    });
-    expect(own.ok).toBe(true);
-    expect(foreign.ok).toBe(false);
-    if (!foreign.ok) expect(foreign.error.tag).toBe('app/access-denied');
-  });
-
-  it('rejects revoking an already-revoked session', async () => {
-    const admin = inMemoryAdmin({
-      sessions: [session('session-x', 'acct-1', 'revoked')],
-    });
-    const r = await makeAccessAdminUseCases(deps(admin)).revokeSession({
+  it('refuses demoting the last administrator of an account', async () => {
+    const store = inMemoryAdmin({ memberships: [admin('m-only', 'acct-x')] });
+    const r = await makeAccessAdminUseCases(deps(store)).updateUserPermissions({
       actor: testAccessActor({ preset: 'owner' }),
-      sessionId: 'session-x',
+      membershipId: 'm-only',
+      permissions: [{ action: 'customer.read', scope: 'own' }],
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.tag).toBe('app/session-already-revoked');
+    if (!r.ok) expect(r.error.tag).toBe('app/cannot-orphan-account');
+    expect(store.audit).toHaveLength(0);
+  });
+
+  it('allows demoting an admin while another remains', async () => {
+    const store = inMemoryAdmin({
+      memberships: [admin('m1', 'acct-x'), admin('m2', 'acct-x')],
+    });
+    const r = await makeAccessAdminUseCases(deps(store)).updateUserPermissions({
+      actor: testAccessActor({ preset: 'owner' }),
+      membershipId: 'm1',
+      permissions: [{ action: 'customer.read', scope: 'own' }],
+    });
+    expect(r.ok).toBe(true);
+    expect(store.audit.map((e) => e.type)).toEqual(['permissions.updated']);
   });
 });

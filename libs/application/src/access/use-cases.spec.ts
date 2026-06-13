@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@acme/shared';
-import { createImpersonationGrant } from '@acme/domain';
+import {
+  ACCESS_SESSION_POLICY_DEFAULTS,
+  createImpersonationGrant,
+} from '@acme/domain';
 import type { AccessActor, AccessGrant } from '@acme/domain';
-import type { AccessActorReader, AccessGrantExpiryEntry } from './ports';
+import type {
+  AccessActorReader,
+  AccessGrantExpiryEntry,
+  AccessSessionActivity,
+} from './ports';
 import { TEST_ACCESS_NOW, testAccessActor } from './testing';
 import { makeAccessUseCases } from './use-cases';
 
@@ -12,6 +19,7 @@ const readerFor = (actor: AccessActor | null): AccessActorReader => ({
 
 const makeDeps = (actor: AccessActor | null) => {
   const recorded: AccessGrantExpiryEntry[] = [];
+  const slides: AccessSessionActivity[] = [];
   return {
     deps: {
       actors: readerFor(actor),
@@ -22,9 +30,18 @@ const makeDeps = (actor: AccessActor | null) => {
           recorded.push(...entries);
         },
       },
+      sessionPolicies: {
+        loadSessionPolicies: async () => ACCESS_SESSION_POLICY_DEFAULTS,
+      },
+      sessionActivity: {
+        recordSessionActivity: async (activity: AccessSessionActivity) => {
+          slides.push(activity);
+        },
+      },
       clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     },
     recorded,
+    slides,
   };
 };
 
@@ -43,7 +60,9 @@ const expiredGrant = (): AccessGrant => {
 
 describe('resolveRequestActor', () => {
   it('returns the full actor for an active session', async () => {
-    const actor = testAccessActor({ preset: 'customer' });
+    // staff: the slide candidate (now + 30 min) is below the fixture expiry,
+    // so nothing is written and the actor comes back untouched.
+    const actor = testAccessActor({ preset: 'owner' });
     const { deps } = makeDeps(actor);
     const r = await makeAccessUseCases(deps).resolveRequestActor({
       sessionId: 'session-1',
@@ -70,6 +89,36 @@ describe('resolveRequestActor', () => {
     });
     expect(denied.ok).toBe(false);
     if (!denied.ok) expect(denied.error.tag).toBe('app/access-denied');
+  });
+
+  it('slides a customer session forward on use, bounded writes only', async () => {
+    const customer = testAccessActor({ preset: 'customer' });
+    const { deps, slides } = makeDeps(customer);
+    const r = await makeAccessUseCases(deps).resolveRequestActor({
+      sessionId: 'session-1',
+    });
+    expect(r.ok).toBe(true);
+    // customer idle = 24 h from NOW (far from the 72 h cap)
+    expect(slides).toEqual([
+      {
+        sessionId: customer.session.id,
+        lastSeenAt: TEST_ACCESS_NOW,
+        expiresAt: '2026-06-10T12:00:00.000Z',
+        ipAddress: null,
+      },
+    ]);
+    if (r.ok) {
+      expect(r.value.session.expiresAt).toBe('2026-06-10T12:00:00.000Z');
+    }
+  });
+
+  it('does not slide staff sessions when nothing would be gained', async () => {
+    const { deps, slides } = makeDeps(testAccessActor({ preset: 'support' }));
+    const r = await makeAccessUseCases(deps).resolveRequestActor({
+      sessionId: 'session-1',
+    });
+    expect(r.ok).toBe(true);
+    expect(slides).toHaveLength(0);
   });
 
   it('records grant.expired lazily while resolving', async () => {

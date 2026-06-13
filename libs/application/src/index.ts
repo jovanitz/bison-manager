@@ -38,6 +38,21 @@ export * from './identity/ports';
 export * from './identity/errors';
 export * from './identity/use-cases';
 
+// Access invitations: joining an existing account, by invitation only
+export * from './access-invitations/ports';
+export * from './access-invitations/errors';
+export * from './access-invitations/use-cases';
+
+// Access members: managing the memberships of one account (organization)
+export * from './access-members/ports';
+export * from './access-members/errors';
+export * from './access-members/use-cases';
+
+// Access settings: runtime-editable session policy (owner capability)
+export * from './access-settings/ports';
+export * from './access-settings/errors';
+export * from './access-settings/use-cases';
+
 // Access client: what a SPA/native app consumes (auth flows + gating snapshot)
 export * from './access-client/ports';
 export * from './access-client/errors';

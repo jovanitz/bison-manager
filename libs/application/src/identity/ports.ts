@@ -1,9 +1,12 @@
 import type { Result, TaggedError } from '@acme/shared';
 import type {
+  AccessInvitationAccepted,
   AccessLoginSucceeded,
   AccessOwnerBootstrapped,
   AccessPermission,
   AccountId,
+  AccountKind,
+  InvitationId,
   MembershipId,
   SessionId,
   UserId,
@@ -38,6 +41,8 @@ export type AccessTokenVerifier = {
 export type IdentityMembershipSnapshot = {
   readonly membershipId: MembershipId;
   readonly accountId: AccountId;
+  /** Drives the session policy (staff strict, customer lax) — never grants. */
+  readonly accountKind: AccountKind;
 };
 
 export type NewIdentityMembership = {
@@ -50,10 +55,27 @@ export type NewIdentityMembership = {
   readonly occurredAt: string;
 };
 
+/**
+ * Request context captured at the session edge. You cannot backfill what you
+ * never captured: this feeds the future "active sessions" UI and forensics.
+ */
+export type SessionContext = {
+  readonly userAgent: string | null;
+  readonly ipAddress: string | null;
+};
+
 export type NewIdentitySession = {
   readonly sessionId: SessionId;
   readonly membershipId: MembershipId;
+  /** Login instant — anchors the absolute session-lifetime clock. */
+  readonly createdAt: string;
   readonly expiresAt: string;
+  readonly context: SessionContext;
+};
+
+export type ActiveIdentitySession = {
+  readonly sessionId: SessionId;
+  readonly lastSeenAt: string;
 };
 
 export type IdentityOnboardingRepository = {
@@ -72,9 +94,24 @@ export type IdentityOnboardingRepository = {
   readonly createCustomerMembership: (
     membership: NewIdentityMembership,
   ) => Promise<void>;
+  /**
+   * Joins an EXISTING account (invitation flow): membership creation, the
+   * invitation's acceptance mark and the audit event commit in one
+   * transaction. No account row is created.
+   */
+  readonly acceptInvitation: (
+    membership: NewIdentityMembership,
+    invitationId: InvitationId,
+    event: AccessInvitationAccepted,
+  ) => Promise<void>;
   /** Registers the session row, atomically with its login event. */
   readonly createSession: (
     session: NewIdentitySession,
     event: AccessLoginSucceeded,
   ) => Promise<void>;
+  /** Live sessions of a membership (for the concurrent-session cap). */
+  readonly listActiveSessions: (
+    membershipId: MembershipId,
+    now: string,
+  ) => Promise<ReadonlyArray<ActiveIdentitySession>>;
 };

@@ -1,60 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import { accessPresetPermissions } from '@acme/domain';
-import type { AccessAuditEvent, MembershipId, UserId } from '@acme/domain';
+import type { AccountId, InvitationId, MembershipId } from '@acme/domain';
 import type {
+  ActiveIdentitySession,
   IdentityMembershipSnapshot,
-  NewIdentityMembership,
-  NewIdentitySession,
 } from './ports';
+import {
+  IDENTITY_TEST_CONTEXT,
+  makeIdentityWorld as makeWorld,
+} from './testing';
 import { makeIdentityUseCases } from './use-cases';
 
-const NOW = '2026-06-10T12:00:00.000Z';
-const EXPIRES = '2026-07-10T12:00:00.000Z';
+const CUSTOMER_EXPIRES = '2026-06-11T12:00:00.000Z'; // NOW + 24 h idle
+const STAFF_EXPIRES = '2026-06-10T12:30:00.000Z'; // NOW + 30 min idle
 
-const makeWorld = (input: {
-  bootstrapOwnerEmail?: string | null;
-  rootAdminExists?: boolean;
-  memberships?: Record<string, IdentityMembershipSnapshot>;
-  sessions?: string[];
-}) => {
-  const memberships = new Map(Object.entries(input.memberships ?? {}));
-  const sessions = new Set(input.sessions ?? []);
-  const created: NewIdentityMembership[] = [];
-  const registered: NewIdentitySession[] = [];
-  const audit: AccessAuditEvent[] = [];
-  let rootAdmin = input.rootAdminExists ?? false;
-  const deps = {
-    onboarding: {
-      findMembershipByUser: async (userId: UserId) =>
-        memberships.get(userId) ?? null,
-      sessionExists: async (sessionId: string) => sessions.has(sessionId),
-      rootAdminExists: async () => rootAdmin,
-      createOwnerMembership: async (
-        membership: NewIdentityMembership,
-        event: AccessAuditEvent,
-      ) => {
-        created.push(membership);
-        audit.push(event);
-        rootAdmin = true;
-      },
-      createCustomerMembership: async (membership: NewIdentityMembership) => {
-        created.push(membership);
-      },
-      createSession: async (
-        session: NewIdentitySession,
-        event: AccessAuditEvent,
-      ) => {
-        registered.push(session);
-        sessions.add(session.sessionId);
-        audit.push(event);
-      },
-    },
-    clock: fixedClock(new Date(NOW)),
-    ids: sequentialIdGenerator('id'),
-    bootstrapOwnerEmail: input.bootstrapOwnerEmail ?? null,
-  };
-  return { deps, created, registered, audit };
+const knownCustomerMembership: Record<string, IdentityMembershipSnapshot> = {
+  'user-1': {
+    membershipId: 'membership-9' as MembershipId,
+    accountId: 'acct-9' as AccountId,
+    accountKind: 'customer',
+  },
 };
 
 const register = (world: ReturnType<typeof makeWorld>, email: string | null) =>
@@ -62,7 +27,7 @@ const register = (world: ReturnType<typeof makeWorld>, email: string | null) =>
     userId: 'user-1',
     sessionId: 'session-1',
     email,
-    sessionExpiresAt: EXPIRES,
+    context: IDENTITY_TEST_CONTEXT,
   });
 
 describe('registerIdentitySession', () => {
@@ -75,20 +40,33 @@ describe('registerIdentitySession', () => {
   });
 
   it('registers the session with login.succeeded for a known membership', async () => {
-    const world = makeWorld({
-      memberships: {
-        'user-1': {
-          membershipId: 'membership-9' as MembershipId,
-          accountId: 'acct-9' as IdentityMembershipSnapshot['accountId'],
-        },
-      },
-    });
+    const world = makeWorld({ memberships: knownCustomerMembership });
     const r = await register(world, 'a@example.com');
     expect(r.ok).toBe(true);
     expect(world.created).toHaveLength(0);
     expect(world.registered[0]?.membershipId).toBe('membership-9');
-    expect(world.registered[0]?.expiresAt).toBe(EXPIRES);
+    expect(world.registered[0]?.expiresAt).toBe(CUSTOMER_EXPIRES);
+    expect(world.registered[0]?.context).toEqual(IDENTITY_TEST_CONTEXT);
     expect(world.audit.map((e) => e.type)).toEqual(['login.succeeded']);
+  });
+
+  it('revokes the least-recently-seen session when the cap is exceeded', async () => {
+    const five = Array.from({ length: 5 }, (_, i) => ({
+      sessionId: `session-old-${i}` as ActiveIdentitySession['sessionId'],
+      lastSeenAt: `2026-06-10T0${i}:00:00.000Z`,
+    }));
+    const world = makeWorld({
+      memberships: knownCustomerMembership,
+      activeSessions: five,
+    });
+    const r = await register(world, 'a@example.com');
+    expect(r.ok).toBe(true);
+    // 5 active + 1 new > cap of 5 → the oldest one goes, audited
+    expect(world.capRevoked).toEqual(['session-old-0']);
+    expect(world.audit.map((e) => e.type)).toEqual([
+      'session.revoked',
+      'login.succeeded',
+    ]);
   });
 
   it('bootstraps the owner exactly when the env email matches and no root admin exists', async () => {
@@ -98,6 +76,8 @@ describe('registerIdentitySession', () => {
     expect(world.created[0]?.permissions).toEqual(
       accessPresetPermissions('owner'),
     );
+    // staff session policy: strict 30-minute idle window
+    expect(world.registered[0]?.expiresAt).toBe(STAFF_EXPIRES);
     expect(world.audit.map((e) => e.type)).toEqual([
       'owner.bootstrapped',
       'login.succeeded',
@@ -116,6 +96,75 @@ describe('registerIdentitySession', () => {
     expect(world.audit.map((e) => e.type)).toEqual(['login.succeeded']);
   });
 
+  it('a pending invitation joins the existing account, beating bootstrap and self-signup', async () => {
+    const world = makeWorld({
+      // even the bootstrap email defers to an invitation
+      bootstrapOwnerEmail: 'invitee@example.com',
+      pendingInvitation: {
+        invitationId: 'inv-1' as InvitationId,
+        accountId: 'acct-owner' as AccountId,
+        accountKind: 'staff',
+        permissions: accessPresetPermissions('support'),
+      },
+    });
+    const r = await register(world, 'invitee@example.com');
+    expect(r.ok).toBe(true);
+    // joins the inviting account with the invited permissions — no new account
+    expect(world.created[0]?.accountId).toBe('acct-owner');
+    expect(world.created[0]?.permissions).toEqual(
+      accessPresetPermissions('support'),
+    );
+    expect(world.accepted).toEqual(['inv-1']);
+    // a staff account ⇒ strict staff session policy from the first login
+    expect(world.registered[0]?.expiresAt).toBe(STAFF_EXPIRES);
+    expect(world.audit.map((e) => e.type)).toEqual([
+      'invitation.accepted',
+      'login.succeeded',
+    ]);
+  });
+
+  it('a user with an existing membership still joins the inviting account', async () => {
+    const world = makeWorld({
+      memberships: knownCustomerMembership,
+      pendingInvitation: {
+        invitationId: 'inv-1' as InvitationId,
+        accountId: 'acct-owner' as AccountId,
+        accountKind: 'staff',
+        permissions: accessPresetPermissions('support'),
+      },
+    });
+    const r = await register(world, 'a@example.com');
+    expect(r.ok).toBe(true);
+    // a SECOND membership: joined the inviting account, original untouched
+    expect(world.accepted).toEqual(['inv-1']);
+    expect(world.created[0]?.accountId).toBe('acct-owner');
+    // the fresh session acts as the invited membership
+    expect(world.registered[0]?.membershipId).toBe(
+      world.created[0]?.membershipId,
+    );
+    expect(world.audit.map((e) => e.type)).toEqual([
+      'invitation.accepted',
+      'login.succeeded',
+    ]);
+  });
+
+  it('ignores an invitation into an account the user already belongs to', async () => {
+    const world = makeWorld({
+      memberships: knownCustomerMembership,
+      pendingInvitation: {
+        invitationId: 'inv-1' as InvitationId,
+        accountId: 'acct-9' as AccountId, // same account as the membership
+        accountKind: 'customer',
+        permissions: [],
+      },
+    });
+    const r = await register(world, 'a@example.com');
+    expect(r.ok).toBe(true);
+    expect(world.accepted).toEqual([]);
+    expect(world.created).toHaveLength(0);
+    expect(world.registered[0]?.membershipId).toBe('membership-9');
+  });
+
   it('provisions unknown identities as customers (also without email)', async () => {
     const world = makeWorld({ bootstrapOwnerEmail: 'owner@example.com' });
     const r = await register(world, null);
@@ -126,6 +175,7 @@ describe('registerIdentitySession', () => {
     expect(world.registered[0]?.membershipId).toBe(
       world.created[0]?.membershipId,
     );
+    expect(world.registered[0]?.expiresAt).toBe(CUSTOMER_EXPIRES);
   });
 
   it('rejects blank identity ids', async () => {
@@ -134,7 +184,7 @@ describe('registerIdentitySession', () => {
       userId: '  ',
       sessionId: 'session-1',
       email: null,
-      sessionExpiresAt: EXPIRES,
+      context: IDENTITY_TEST_CONTEXT,
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('domain/invalid-access-id');

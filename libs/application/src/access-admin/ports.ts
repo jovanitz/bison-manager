@@ -1,9 +1,13 @@
 import type {
   AccessAccountDisabled,
+  AccessAccountEnabled,
+  AccessAccountPromoted,
   AccessPermission,
   AccessPermissionsUpdated,
+  AccessSessionPolicy,
   AccessSessionRevoked,
   AccountId,
+  AccountKind,
   AccountStatus,
   MembershipId,
   SessionId,
@@ -18,11 +22,13 @@ import type {
 export type AdminAccountSnapshot = {
   readonly id: AccountId;
   readonly status: AccountStatus;
+  readonly kind: AccountKind;
 };
 
 export type AdminMembershipSnapshot = {
   readonly id: MembershipId;
   readonly accountId: AccountId;
+  readonly accountKind: AccountKind;
   readonly permissions: ReadonlyArray<AccessPermission>;
 };
 
@@ -32,23 +38,74 @@ export type AdminSessionSnapshot = {
   readonly status: SessionStatus;
 };
 
+/** One row of the "active sessions" view: the context captured at the edge. */
+export type AdminSessionDetail = {
+  readonly id: SessionId;
+  readonly status: SessionStatus;
+  readonly createdAt: string;
+  readonly lastSeenAt: string;
+  readonly expiresAt: string;
+  readonly userAgent: string | null;
+  readonly createdIp: string | null;
+  readonly lastIp: string | null;
+};
+
 export type AccessAdminRepository = {
   readonly findAccount: (id: AccountId) => Promise<AdminAccountSnapshot | null>;
   readonly disableAccount: (
     id: AccountId,
     event: AccessAccountDisabled,
   ) => Promise<void>;
+  readonly enableAccount: (
+    id: AccountId,
+    event: AccessAccountEnabled,
+  ) => Promise<void>;
   readonly findMembership: (
     id: MembershipId,
   ) => Promise<AdminMembershipSnapshot | null>;
+  /**
+   * Replaces a membership's permissions atomically with its audit event. When
+   * `requireCoAdmin` is set, the account's administrators (memberships holding
+   * `permissions.update`) are locked and counted INSIDE the same transaction;
+   * if removing this one would leave the account with no administrator, the
+   * change is refused — returns `{ orphaned: true }` and nothing is written.
+   * This closes the check-then-act race two concurrent demotions would open.
+   */
   readonly updatePermissions: (
     id: MembershipId,
     permissions: ReadonlyArray<AccessPermission>,
     event: AccessPermissionsUpdated,
+    requireCoAdmin: boolean,
+  ) => Promise<{ readonly orphaned: boolean }>;
+  /**
+   * customer → staff, atomically with the audit event AND the clamp of the
+   * account's live sessions to the (stricter) staff policy. A promoted
+   * account disappears from the customer directory at the same instant.
+   */
+  readonly promoteAccountToStaff: (
+    id: AccountId,
+    event: AccessAccountPromoted,
+    staffPolicy: AccessSessionPolicy,
   ) => Promise<void>;
   readonly findSession: (id: SessionId) => Promise<AdminSessionSnapshot | null>;
   readonly revokeSession: (
     id: SessionId,
     event: AccessSessionRevoked,
   ) => Promise<void>;
+  /**
+   * "Log out everywhere": revokes every active session of a membership,
+   * writing one session.revoked audit event per session in the same
+   * transaction. Returns how many were revoked.
+   */
+  readonly revokeAllSessions: (
+    membershipId: MembershipId,
+    template: {
+      readonly actorMembershipId: MembershipId;
+      readonly occurredAt: string;
+    },
+  ) => Promise<number>;
+  /** Sessions of a membership with their edge context, newest activity first. */
+  readonly listSessions: (
+    membershipId: MembershipId,
+  ) => Promise<ReadonlyArray<AdminSessionDetail>>;
 };

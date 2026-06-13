@@ -6,6 +6,7 @@ import {
   ok,
 } from '@acme/shared';
 import {
+  IMPERSONATION_GRANT_DEFAULT_MINUTES,
   IMPERSONATION_GRANT_MAX_MINUTES,
   createImpersonationGrant,
   endImpersonationGrant,
@@ -34,7 +35,6 @@ export type ImpersonationDeps = {
   readonly ids: IdGenerator;
 };
 
-const DEFAULT_IMPERSONATION_MINUTES = 30;
 const MINUTE_MS = 60_000;
 
 /**
@@ -71,7 +71,7 @@ export const makeStartImpersonation =
     const grantId = makeAccessGrantId(deps.ids.next());
     if (!grantId.ok) return err(grantId.error);
     const minutes = Math.min(
-      input.durationMinutes ?? DEFAULT_IMPERSONATION_MINUTES,
+      input.durationMinutes ?? IMPERSONATION_GRANT_DEFAULT_MINUTES,
       IMPERSONATION_GRANT_MAX_MINUTES,
     );
     const expiresAt = new Date(
