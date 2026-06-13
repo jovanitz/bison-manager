@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { accessStoreContract } from '../testing/access-store-contract';
-import { identityOnboardingContract } from '../testing/identity-onboarding-contract';
+import { accessStoreContract } from '../../testing/access/access-store-contract';
+import { identityOnboardingContract } from '../../testing/access/identity-onboarding-contract';
+import { sessionPolicyContract } from '../../testing/access/session-policy-contract';
 import {
   POSTGRES_TEST_URL,
   acquirePostgresTestLock,
   probePostgres,
-} from '../testing/postgres-test-env';
-import { createPostgresAccessStore } from './postgres/postgres-access-store';
-import { applyPostgresAccessSeed } from './postgres/seed';
+} from '../../testing/postgres-test-env';
+import { createPostgresAccessStore } from '../postgres/postgres-access-store';
+import { applyPostgresAccessSeed } from '../../testing/postgres-access-seed';
 
 /**
  * Runs the SAME contract suites as the in-memory store, against the local
@@ -39,6 +40,7 @@ if (available) {
   };
   accessStoreContract('postgres (supabase local)', makeStore);
   identityOnboardingContract('postgres (supabase local)', makeStore);
+  sessionPolicyContract('postgres (supabase local)', makeStore);
 } else {
   describe('AccessStore contract: postgres (supabase local)', () => {
     it('skipped — local Supabase is not running (`supabase start`)', (ctx) => {

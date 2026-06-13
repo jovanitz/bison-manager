@@ -2,22 +2,32 @@ import type {
   AccessAdminRepository,
   AdminAccountSnapshot,
   AdminMembershipSnapshot,
-  AdminSessionSnapshot,
 } from '@acme/application';
 import type {
+  AccessAccountDisabled,
+  AccessAccountEnabled,
+  AccessAccountPromoted,
   AccessPermission,
+  AccessSessionPolicy,
   AccountId,
+  AccountKind,
   AccountStatus,
   MembershipId,
-  SessionId,
-  SessionStatus,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
+import {
+  findSession,
+  listSessions,
+  revokeAllSessions,
+  revokeSession,
+} from './admin-sessions';
 import { insertAuditEvent, isUuid } from './rows';
+import type { SqlLike } from './rows';
 
 /**
  * Administrative mutations. Every write runs mutation + audit event in one
  * transaction (`sql.begin`) — the atomicity the port signature promises.
+ * Session methods live in ./admin-sessions (same rules, split for size).
  */
 const findAccount = async (
   sql: Sql,
@@ -25,13 +35,14 @@ const findAccount = async (
 ): Promise<AdminAccountSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select id, status from public.accounts where id = ${id}
+    select id, status, kind from public.accounts where id = ${id}
   `;
   const row = rows[0];
   if (!row) return null;
   return {
     id: row['id'] as AccountId,
     status: row['status'] as AccountStatus,
+    kind: row['kind'] as AccountKind,
   };
 };
 
@@ -41,35 +52,91 @@ const findMembership = async (
 ): Promise<AdminMembershipSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select id, account_id, permissions from public.memberships where id = ${id}
+    select m.id, m.account_id, m.permissions, a.kind
+    from public.memberships m
+    join public.accounts a on a.id = m.account_id
+    where m.id = ${id}
   `;
   const row = rows[0];
   if (!row) return null;
   return {
     id: row['id'] as MembershipId,
     accountId: row['account_id'] as AccountId,
+    accountKind: row['kind'] as AccountKind,
     permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
   };
 };
 
-const findSession = async (
-  sql: Sql,
-  id: SessionId,
-): Promise<AdminSessionSnapshot | null> => {
-  if (!isUuid(id)) return null;
-  const rows = await sql`
-    select s.id, s.status, m.account_id
-    from public.sessions s
-    join public.memberships m on m.id = s.membership_id
-    where s.id = ${id}
+/**
+ * Within a transaction: locks the account's administrator rows (memberships
+ * holding `permissions.update`) and reports whether one OTHER than `exceptId`
+ * exists. The `for update` lock serializes concurrent demotions/removals on
+ * the same account, so the anti-orphan check cannot be raced.
+ */
+export const hasOtherAdminLocked = async (
+  tx: SqlLike,
+  membershipId: string,
+): Promise<boolean> => {
+  const owner = await tx`
+    select account_id from public.memberships where id = ${membershipId}
   `;
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row['id'] as SessionId,
-    accountId: row['account_id'] as AccountId,
-    status: row['status'] as SessionStatus,
-  };
+  const accountId = owner[0]?.['account_id'] as string | undefined;
+  if (!accountId) return true; // no row to orphan
+  const admins = await tx`
+    select id from public.memberships
+    where account_id = ${accountId}
+      and permissions @? '$[*] ? (@.action == "permissions.update")'
+    for update
+  `;
+  return admins.some((row) => row['id'] !== membershipId);
+};
+
+const promoteAccountToStaff = async (
+  sql: Sql,
+  id: AccountId,
+  event: AccessAccountPromoted,
+  staffPolicy: AccessSessionPolicy,
+): Promise<void> => {
+  await sql.begin(async (tx) => {
+    await tx`
+      update public.accounts set kind = 'staff' where id = ${id}
+    `;
+    await tx`
+      update public.sessions s
+      set expires_at = least(
+        s.expires_at,
+        coalesce(s.last_seen_at, s.created_at) +
+          ${staffPolicy.idleTtlMs}::bigint * interval '1 millisecond',
+        s.created_at +
+          ${staffPolicy.maxLifetimeMs}::bigint * interval '1 millisecond'
+      )
+      from public.memberships m
+      where m.id = s.membership_id
+        and m.account_id = ${id}
+        and s.status = 'active'
+    `;
+    await insertAuditEvent(tx, event);
+  });
+};
+
+/** disable/enable share one audited UPDATE; only the patch differs. */
+const setAccountStatus = async (
+  sql: Sql,
+  id: AccountId,
+  patch: {
+    readonly status: 'active' | 'disabled';
+    readonly disabledAt: string | null;
+  },
+  event: AccessAccountDisabled | AccessAccountEnabled,
+): Promise<void> => {
+  await sql.begin(async (tx) => {
+    await tx`
+      update public.accounts
+      set status = ${patch.status}, disabled_at = ${patch.disabledAt}
+      where id = ${id}
+    `;
+    await insertAuditEvent(tx, event);
+  });
 };
 
 export const createPostgresAdminRepository = (
@@ -78,41 +145,38 @@ export const createPostgresAdminRepository = (
   findAccount: (id) => findAccount(sql, id),
   findMembership: (id) => findMembership(sql, id),
   findSession: (id) => findSession(sql, id),
+  listSessions: (membershipId) => listSessions(sql, membershipId),
 
-  disableAccount: async (id, event) => {
-    await sql.begin(async (tx) => {
-      await tx`
-        update public.accounts
-        set status = 'disabled', disabled_at = ${event.occurredAt}
-        where id = ${id}
-      `;
-      await insertAuditEvent(tx, event);
-    });
-  },
+  disableAccount: (id, event) =>
+    setAccountStatus(
+      sql,
+      id,
+      { status: 'disabled', disabledAt: event.occurredAt },
+      event,
+    ),
 
-  updatePermissions: async (id, permissions, event) => {
-    await sql.begin(async (tx) => {
+  enableAccount: (id, event) =>
+    setAccountStatus(sql, id, { status: 'active', disabledAt: null }, event),
+
+  promoteAccountToStaff: (id, event, staffPolicy) =>
+    promoteAccountToStaff(sql, id, event, staffPolicy),
+
+  updatePermissions: (id, permissions, event, requireCoAdmin) =>
+    sql.begin(async (tx) => {
+      if (requireCoAdmin && !(await hasOtherAdminLocked(tx, id))) {
+        return { orphaned: true };
+      }
       await tx`
         update public.memberships
         set permissions = ${tx.json(permissions as never)}
         where id = ${id}
       `;
       await insertAuditEvent(tx, event);
-    });
-  },
+      return { orphaned: false };
+    }) as Promise<{ readonly orphaned: boolean }>,
 
-  revokeSession: async (id, event) => {
-    await sql.begin(async (tx) => {
-      await tx`
-        update public.sessions
-        set status = 'revoked', revoked_at = ${event.occurredAt}
-        where id = ${id}
-      `;
-      // Same transaction: drop GoTrue's session so its refresh tokens die
-      // with ours — revocation must also stop token renewal, not just API
-      // access. No-op when the row does not exist (tests, stub identities).
-      await tx`delete from auth.sessions where id = ${id}`;
-      await insertAuditEvent(tx, event);
-    });
-  },
+  revokeSession: (id, event) => revokeSession(sql, id, event),
+
+  revokeAllSessions: (membershipId, template) =>
+    revokeAllSessions(sql, membershipId, template),
 });

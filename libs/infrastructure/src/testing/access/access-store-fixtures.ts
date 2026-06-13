@@ -15,10 +15,14 @@ import type {
   AccessAuditTrail,
   AccessGrantExpiryRecorder,
   AccessGrantRepository,
+  AccessInvitationStore,
+  AccessMemberDirectory,
+  AccessSessionActivityRecorder,
+  AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
 } from '@acme/application';
-import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 
 /**
  * Shared fixtures for the access-store contract suite. Ids are random UUIDs
@@ -33,6 +37,10 @@ export type AccessStorePorts = {
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
   readonly onboarding: IdentityOnboardingRepository;
+  readonly sessionPolicies: AccessSessionPolicyStore;
+  readonly sessionActivity: AccessSessionActivityRecorder;
+  readonly invitations: AccessInvitationStore;
+  readonly members: AccessMemberDirectory;
 };
 
 export const ACCESS_CONTRACT_NOW = '2026-06-09T12:00:00.000Z';

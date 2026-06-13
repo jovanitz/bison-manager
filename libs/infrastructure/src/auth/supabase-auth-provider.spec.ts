@@ -127,6 +127,47 @@ describe('createSupabaseAuthProvider', () => {
     if (!r.ok) expect(r.error.message).toContain('confirmation');
   });
 
+  it('requests a password recovery without needing a session', async () => {
+    const world = makeWorld({ responses: [{ status: 200, body: {} }] });
+    const r = await world.provider.requestPasswordReset('a@example.com');
+    expect(r.ok).toBe(true);
+    expect(world.calls[0]?.url).toBe('https://supabase.local/auth/v1/recover');
+    expect(world.calls[0]?.init.body).toBe(
+      JSON.stringify({ email: 'a@example.com' }),
+    );
+    expect(
+      (world.calls[0]?.init.headers as Record<string, string>)['authorization'],
+    ).toBeUndefined();
+  });
+
+  it('updates the password via PUT /user with the live bearer', async () => {
+    const world = makeWorld({
+      responses: [
+        { status: 200, body: gotrueSession() },
+        { status: 200, body: { user: { id: 'user-1' } } },
+      ],
+    });
+    await world.provider.signIn({ email: 'a@example.com', password: 'old' });
+    const r = await world.provider.updatePassword('new-secret');
+    expect(r.ok).toBe(true);
+    expect(world.calls[1]?.url).toBe('https://supabase.local/auth/v1/user');
+    expect(world.calls[1]?.init.method).toBe('PUT');
+    expect(world.calls[1]?.init.body).toBe(
+      JSON.stringify({ password: 'new-secret' }),
+    );
+    expect(
+      (world.calls[1]?.init.headers as Record<string, string>)['authorization'],
+    ).toBe('Bearer access-1');
+  });
+
+  it('refuses to update the password without a session', async () => {
+    const world = makeWorld({ responses: [] });
+    const r = await world.provider.updatePassword('new-secret');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('auth/unauthenticated');
+    expect(world.calls).toHaveLength(0);
+  });
+
   it('signs out: best-effort GoTrue logout, clears storage, notifies', async () => {
     const world = makeWorld({
       responses: [

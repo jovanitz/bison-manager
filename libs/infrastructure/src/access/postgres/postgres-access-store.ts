@@ -5,6 +5,10 @@ import type {
   AccessAuditTrail,
   AccessGrantExpiryRecorder,
   AccessGrantRepository,
+  AccessInvitationStore,
+  AccessMemberDirectory,
+  AccessSessionActivityRecorder,
+  AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
 } from '@acme/application';
@@ -18,7 +22,13 @@ import {
   createPostgresGrantExpiryRecorder,
   createPostgresGrantRepository,
 } from './grant-repository';
-import { createPostgresIdentityOnboarding } from './identity-onboarding';
+import { createPostgresInvitationStore } from './identity/invitations';
+import { createPostgresMemberDirectory } from './identity/members';
+import { createPostgresIdentityOnboarding } from './identity/onboarding';
+import {
+  createPostgresSessionActivityRecorder,
+  createPostgresSessionPolicyStore,
+} from './session-policy';
 
 /**
  * The Postgres/Supabase implementation of every access port — same shape as
@@ -37,6 +47,10 @@ export type PostgresAccessStore = {
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
   readonly onboarding: IdentityOnboardingRepository;
+  readonly sessionPolicies: AccessSessionPolicyStore;
+  readonly sessionActivity: AccessSessionActivityRecorder;
+  readonly invitations: AccessInvitationStore;
+  readonly members: AccessMemberDirectory;
   readonly close: () => Promise<void>;
 };
 
@@ -56,6 +70,10 @@ export const createPostgresAccessStore = (config: {
     grants: createPostgresGrantRepository(sql),
     customers: createPostgresCustomerDirectory(sql),
     onboarding: createPostgresIdentityOnboarding(sql),
+    sessionPolicies: createPostgresSessionPolicyStore(sql),
+    sessionActivity: createPostgresSessionActivityRecorder(sql),
+    invitations: createPostgresInvitationStore(sql),
+    members: createPostgresMemberDirectory(sql),
     close: () => sql.end(),
   };
 };

@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import type { Sql } from 'postgres';
-import type { InMemoryAccessSeed } from '../in-memory-access-seed';
+import { SEED_SESSION_CREATED_AT } from '../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
 
 /**
  * Test/dev plumbing: load an `InMemoryAccessSeed` into the Postgres schema so
@@ -14,7 +15,8 @@ import type { InMemoryAccessSeed } from '../in-memory-access-seed';
 const wipe = async (sql: Sql): Promise<void> => {
   await sql`
     truncate public.audit_events, public.access_grants, public.sessions,
-      public.memberships, public.accounts restart identity cascade
+      public.memberships, public.accounts, public.access_settings
+      restart identity cascade
   `;
   await sql`delete from auth.users`;
 };
@@ -93,10 +95,16 @@ const insertPeople = async (
       values (${m.id}, ${m.userId}, ${m.accountId}, ${sql.json(m.permissions as never)})
     `;
   }
-  for (const s of seed.sessions ?? []) {
+  for (const raw of seed.sessions ?? []) {
+    const row = {
+      status: raw.status ?? 'active',
+      createdAt: raw.createdAt ?? SEED_SESSION_CREATED_AT,
+    };
     await sql`
-      insert into public.sessions (id, membership_id, status, expires_at)
-      values (${s.id}, ${s.membershipId}, ${s.status ?? 'active'}, ${s.expiresAt})
+      insert into public.sessions
+        (id, membership_id, status, expires_at, created_at, last_seen_at)
+      values (${raw.id}, ${raw.membershipId}, ${row.status},
+        ${raw.expiresAt}, ${row.createdAt}, ${row.createdAt})
     `;
   }
   for (const g of seed.grants ?? []) {

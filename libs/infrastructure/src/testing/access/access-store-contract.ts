@@ -6,7 +6,8 @@ import type {
   MembershipId,
   SessionId,
 } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
+import { SEED_SESSION_CREATED_AT } from '../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   ACCESS_CONTRACT_SESSION_EXPIRES as SESSION_EXPIRES,
@@ -15,6 +16,8 @@ import {
   makeAccessContractIds,
 } from './access-store-fixtures';
 import type { AccessStorePorts } from './access-store-fixtures';
+import { adminRepositoryContract } from './admin-repository-contract';
+import { memberDirectoryContract } from './member-directory-contract';
 
 export type { AccessStorePorts } from './access-store-fixtures';
 
@@ -48,8 +51,10 @@ export const accessStoreContract = (
       expect(actor?.membership.id).toBe(ids.membershipSupport);
       expect(actor?.membership.accountId).toBe(ids.acctSupport);
       expect(actor?.accountStatus).toBe('active');
+      expect(actor?.accountKind).toBe('staff');
       expect(actor?.session.status).toBe('active');
       expect(actor?.session.expiresAt).toBe(SESSION_EXPIRES);
+      expect(actor?.session.createdAt).toBe(SEED_SESSION_CREATED_AT);
       expect(actor?.permissions).toEqual(accessPresetPermissions('support'));
       expect(actor?.grants).toEqual([grant]);
       expect(
@@ -60,7 +65,6 @@ export const accessStoreContract = (
     it('makes admin mutations visible on the next actor read, with their audit events', async () => {
       const ids = makeAccessContractIds();
       const store = await makeStore(accessContractSeed(ids));
-
       await store.admin.disableAccount(ids.acctSupport, {
         type: 'account.disabled',
         accountId: ids.acctSupport,
@@ -74,15 +78,19 @@ export const accessStoreContract = (
         actorMembershipId: ids.membershipSupport,
         occurredAt: NOW,
       });
-      await store.admin.updatePermissions(ids.membershipSupport, [], {
-        type: 'permissions.updated',
-        membershipId: ids.membershipSupport,
-        actorMembershipId: ids.membershipSupport,
-        before: accessPresetPermissions('support'),
-        after: [],
-        occurredAt: NOW,
-      });
-
+      await store.admin.updatePermissions(
+        ids.membershipSupport,
+        [],
+        {
+          type: 'permissions.updated',
+          membershipId: ids.membershipSupport,
+          actorMembershipId: ids.membershipSupport,
+          before: accessPresetPermissions('support'),
+          after: [],
+          occurredAt: NOW,
+        },
+        false,
+      );
       const actor = await store.actors.findActorBySession(ids.sessionSupport);
       expect(actor?.accountStatus).toBe('disabled');
       expect(actor?.session.status).toBe('revoked');
@@ -97,14 +105,15 @@ export const accessStoreContract = (
     it('reads back admin snapshots and misses unknown ids as null', async () => {
       const ids = makeAccessContractIds();
       const store = await makeStore(accessContractSeed(ids));
-
       expect(await store.admin.findAccount(ids.acctSupport)).toEqual({
         id: ids.acctSupport,
         status: 'active',
+        kind: 'staff',
       });
       expect(await store.admin.findMembership(ids.membershipSupport)).toEqual({
         id: ids.membershipSupport,
         accountId: ids.acctSupport,
+        accountKind: 'staff',
         permissions: accessPresetPermissions('support'),
       });
       expect(await store.admin.findSession(ids.sessionSupport)).toEqual({
@@ -234,4 +243,7 @@ export const accessStoreContract = (
       expect(limited[0]?.event.type).toBe('login.failed');
     });
   });
+
+  adminRepositoryContract(name, makeStore);
+  memberDirectoryContract(name, makeStore);
 };

@@ -52,4 +52,41 @@ describe('createRpcAccessGateway', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('app/access-gateway-error');
   });
+
+  it('revokes own sessions using the membership from the snapshot', async () => {
+    const requests: Array<{ path?: string; body?: unknown }> = [];
+    const api: ApiClient = {
+      request: async (input) => {
+        requests.push({ path: input.path, body: input.body });
+        return input.path === 'rpc/access.current'
+          ? (ok({ data: dto }) as never)
+          : (ok({ data: { revoked: 2 } }) as never);
+      },
+    };
+    const r = await createRpcAccessGateway({ api }).revokeOwnSessions();
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.revoked).toBe(2);
+    expect(requests[1]).toEqual({
+      path: 'rpc/sessions.revoke-all',
+      body: { membershipId: 'membership-1' },
+    });
+  });
+
+  it('does not attempt the revocation when the snapshot is denied', async () => {
+    let calls = 0;
+    const api: ApiClient = {
+      request: async () => {
+        calls += 1;
+        return err({
+          tag: 'api/status',
+          message: 'denied',
+          status: 401,
+        }) as never;
+      },
+    };
+    const r = await createRpcAccessGateway({ api }).revokeOwnSessions();
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/access-denied');
+    expect(calls).toBe(1);
+  });
 });

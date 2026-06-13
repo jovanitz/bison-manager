@@ -25,6 +25,42 @@ export type JwtAuthConfig = {
   readonly now?: () => number;
 };
 
+type JwtAuthState = {
+  current: AuthSession | null;
+  readonly listeners: Set<(s: AuthSession | null) => void>;
+};
+
+const restore = async (
+  config: JwtAuthConfig,
+  state: JwtAuthState,
+): Promise<AuthSession | null> => {
+  if (state.current) return state.current;
+  const raw = await config.storage.get();
+  if (!raw) return null;
+  try {
+    state.current = JSON.parse(raw) as AuthSession;
+    return state.current;
+  } catch {
+    return null;
+  }
+};
+
+/** The stored session, rejected when absent or past its expiry. */
+const liveSession = async (
+  config: JwtAuthConfig,
+  state: JwtAuthState,
+): Promise<Result<AuthSession, AuthError>> => {
+  const now = config.now ?? (() => Date.now());
+  const session = await restore(config, state);
+  if (!session) {
+    return err({ tag: 'auth/unauthenticated', message: 'No session.' });
+  }
+  if (session.expiresAt <= now()) {
+    return err({ tag: 'auth/expired', message: 'Session expired.' });
+  }
+  return ok(session);
+};
+
 const requestJwtSession = async (
   config: JwtAuthConfig,
   input: {
@@ -48,39 +84,33 @@ const requestJwtSession = async (
   return ok(res.value);
 };
 
+/** Void mutations against the token endpoint (recover / password update). */
+const requestJwtVoid = async (
+  config: JwtAuthConfig,
+  input: {
+    readonly operation: string;
+    readonly method: 'POST' | 'PUT';
+    readonly path: string;
+    readonly body: unknown;
+  },
+): Promise<Result<void, AuthError>> => {
+  const res = await config.api.request<void>(input);
+  if (!res.ok) {
+    return err({ tag: 'auth/provider-error', message: res.error.message });
+  }
+  return ok(undefined);
+};
+
 export const createJwtAuthProvider = (config: JwtAuthConfig): AuthProvider => {
-  const now = config.now ?? (() => Date.now());
-  const listeners = new Set<(s: AuthSession | null) => void>();
-  let current: AuthSession | null = null;
+  const state: JwtAuthState = { current: null, listeners: new Set() };
 
   const notify = (s: AuthSession | null) => {
-    current = s;
-    for (const l of listeners) l(s);
-  };
-
-  const restore = async (): Promise<AuthSession | null> => {
-    if (current) return current;
-    const raw = await config.storage.get();
-    if (!raw) return null;
-    try {
-      current = JSON.parse(raw) as AuthSession;
-      return current;
-    } catch {
-      return null;
-    }
+    state.current = s;
+    for (const l of state.listeners) l(s);
   };
 
   return {
-    getSession: async (): Promise<Result<AuthSession, AuthError>> => {
-      const session = await restore();
-      if (!session) {
-        return err({ tag: 'auth/unauthenticated', message: 'No session.' });
-      }
-      if (session.expiresAt <= now()) {
-        return err({ tag: 'auth/expired', message: 'Session expired.' });
-      }
-      return ok(session);
-    },
+    getSession: () => liveSession(config, state),
 
     signIn: (credentials) =>
       requestJwtSession(
@@ -101,20 +131,33 @@ export const createJwtAuthProvider = (config: JwtAuthConfig): AuthProvider => {
       notify(null);
     },
 
+    requestPasswordReset: (email) =>
+      requestJwtVoid(config, {
+        operation: 'requestPasswordReset',
+        method: 'POST',
+        path: 'auth/recover',
+        body: { email },
+      }),
+
+    updatePassword: async (newPassword) => {
+      const session = await liveSession(config, state);
+      if (!session.ok) return err(session.error);
+      return requestJwtVoid(config, {
+        operation: 'updatePassword',
+        method: 'PUT',
+        path: 'auth/password',
+        body: { password: newPassword },
+      });
+    },
+
     getAccessToken: async (): Promise<Result<string, AuthError>> => {
-      const session = await restore();
-      if (!session) {
-        return err({ tag: 'auth/unauthenticated', message: 'No session.' });
-      }
-      if (session.expiresAt <= now()) {
-        return err({ tag: 'auth/expired', message: 'Session expired.' });
-      }
-      return ok(session.accessToken);
+      const session = await liveSession(config, state);
+      return session.ok ? ok(session.value.accessToken) : err(session.error);
     },
 
     onChange: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      state.listeners.add(listener);
+      return () => state.listeners.delete(listener);
     },
   };
 };

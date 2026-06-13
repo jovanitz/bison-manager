@@ -5,7 +5,7 @@ import type {
   IdentityOnboardingRepository,
   NewIdentityMembership,
 } from '@acme/application';
-import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   accessContractSeed,
@@ -15,6 +15,7 @@ import type {
   AccessContractIds,
   AccessStorePorts,
 } from './access-store-fixtures';
+import { identityInvitationContract } from './identity-invitation-contract';
 
 const EXPIRES = '2026-07-09T12:00:00.000Z';
 
@@ -37,7 +38,13 @@ const registerSession = async (
 ): Promise<SessionId> => {
   const sessionId = crypto.randomUUID() as SessionId;
   await onboarding.createSession(
-    { sessionId, membershipId: membership.membershipId, expiresAt: EXPIRES },
+    {
+      sessionId,
+      membershipId: membership.membershipId,
+      createdAt: NOW,
+      expiresAt: EXPIRES,
+      context: { userAgent: 'contract-test', ipAddress: '203.0.113.7' },
+    },
     {
       type: 'login.succeeded',
       userId: membership.userId,
@@ -68,6 +75,7 @@ export const identityOnboardingContract = (
       ).toEqual({
         membershipId: ids.membershipSupport,
         accountId: ids.acctSupport,
+        accountKind: 'staff',
       });
       expect(
         await store.onboarding.findMembershipByUser(ids.userNew),
@@ -115,12 +123,39 @@ export const identityOnboardingContract = (
         displayName: 'New Customer',
         email: 'new@example.com',
       });
-      expect(
-        await store.onboarding.findMembershipByUser(ids.userNew),
-      ).toEqual({
+      expect(await store.onboarding.findMembershipByUser(ids.userNew)).toEqual({
         membershipId: customer.membershipId,
         accountId: customer.accountId,
+        accountKind: 'customer',
       });
+    });
+
+    it('lists only the live sessions of a membership', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const owner = newMembership(ids, 'owner');
+      await store.onboarding.createOwnerMembership(owner, {
+        type: 'owner.bootstrapped',
+        membershipId: owner.membershipId,
+        userId: owner.userId,
+        occurredAt: NOW,
+      });
+      const first = await registerSession(store.onboarding, owner);
+      const second = await registerSession(store.onboarding, owner);
+
+      const active = await store.onboarding.listActiveSessions(
+        owner.membershipId,
+        NOW,
+      );
+      expect(active.map((s) => s.sessionId).sort()).toEqual(
+        [first, second].sort(),
+      );
+      // a session past its expiry is not "active"
+      const afterExpiry = await store.onboarding.listActiveSessions(
+        owner.membershipId,
+        '2026-08-01T00:00:00.000Z',
+      );
+      expect(afterExpiry).toHaveLength(0);
     });
 
     it('registers a session + login.succeeded that the actor reader honours', async () => {
@@ -147,4 +182,6 @@ export const identityOnboardingContract = (
       ]);
     });
   });
+
+  identityInvitationContract(name, makeStore);
 };

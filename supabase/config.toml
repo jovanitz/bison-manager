@@ -163,6 +163,7 @@ site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
+
 # JWT issuer URL. If not set, defaults to auth.external_url.
 # jwt_issuer = ""
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -193,6 +194,24 @@ password_requirements = ""
 # rp_display_name = "Supabase"
 # rp_id = "localhost"
 # rp_origins = ["http://127.0.0.1:3000"]
+
+# Second line of defense for session lifetimes (the FIRST line is our own
+# `sessions` table, enforced per request with the runtime policy — staff
+# 30 min idle / 12 h max, customer 24 h / 72 h by default). GoTrue can only
+# hold one global setting, so it mirrors the HARD BOUND the runtime policy
+# may never exceed (30 days): refresh tokens of sessions our table already
+# considers dead stop being renewable here at the latest.
+[auth.sessions]
+timebox = "720h"
+inactivity_timeout = "720h"
+
+# Every password check is reported to the API, which audits failed attempts
+# (login.failed) — see apps/api/src/identity/auth-hook.ts. The secret is the
+# public local default; production configures its own pair.
+[auth.hook.password_verification_attempt]
+enabled = true
+uri = "http://host.docker.internal:3333/hooks/password-verification"
+secrets = "v1,whsec_bG9jYWwtaG9vay1zZWNyZXQtMDEyMw=="
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.

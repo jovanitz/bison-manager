@@ -5,8 +5,10 @@ import type {
 import type {
   AccessGrant,
   AccessPermission,
+  AccessSessionPolicies,
   AccountId,
   AccountStatus,
+  InvitationId,
   SessionStatus,
 } from '@acme/domain';
 
@@ -35,7 +37,11 @@ export type SeedSession = {
   readonly membershipId: string;
   readonly expiresAt: string;
   readonly status?: SessionStatus;
+  /** Login instant (absolute-lifetime anchor). Defaults to a fixed past. */
+  readonly createdAt?: string;
 };
+
+export const SEED_SESSION_CREATED_AT = '2026-01-01T00:00:00.000Z';
 
 /**
  * Directory entries. Security invariant (see the impersonation use cases):
@@ -74,9 +80,26 @@ export type StoredSession = {
   readonly membershipId: string;
   readonly status: SessionStatus;
   readonly expiresAt: string;
+  readonly createdAt: string;
+  readonly lastSeenAt: string;
+  readonly userAgent: string | null;
+  readonly createdIp: string | null;
+  readonly lastIp: string | null;
+};
+
+export type StoredInvitation = {
+  readonly invitationId: InvitationId;
+  readonly accountId: string;
+  readonly email: string;
+  readonly permissions: ReadonlyArray<AccessPermission>;
+  readonly expiresAt: string;
+  readonly acceptedAt: string | null;
 };
 
 export type AccessStoreState = {
+  readonly invitations: Map<string, StoredInvitation>;
+  /** Runtime-editable session policy; null = domain defaults (version 1). */
+  settings: { policies: AccessSessionPolicies; version: number } | null;
   readonly accounts: Map<string, { status: AccountStatus }>;
   readonly memberships: Map<string, StoredMembership>;
   readonly sessions: Map<string, StoredSession>;
@@ -88,6 +111,8 @@ export type AccessStoreState = {
 export const toAccessStoreState = (
   seed: InMemoryAccessSeed,
 ): AccessStoreState => ({
+  invitations: new Map(),
+  settings: null,
   accounts: new Map(
     (seed.accounts ?? []).map((a) => [a.id, { status: a.status ?? 'active' }]),
   ),
@@ -104,6 +129,11 @@ export const toAccessStoreState = (
         membershipId: s.membershipId,
         status: s.status ?? 'active',
         expiresAt: s.expiresAt,
+        createdAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
+        lastSeenAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
+        userAgent: null,
+        createdIp: null,
+        lastIp: null,
       },
     ]),
   ),

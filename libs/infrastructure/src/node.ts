@@ -7,4 +7,3 @@
  * composition roots (apps/api) may import this module.
  */
 export * from './access/postgres/postgres-access-store';
-export * from './access/postgres/seed';

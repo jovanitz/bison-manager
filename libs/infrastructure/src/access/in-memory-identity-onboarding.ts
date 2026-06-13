@@ -1,5 +1,9 @@
-import type { IdentityOnboardingRepository } from '@acme/application';
-import type { AccountId, MembershipId } from '@acme/domain';
+import type {
+  IdentityOnboardingRepository,
+  NewIdentityMembership,
+  NewIdentitySession,
+} from '@acme/application';
+import type { AccountId, MembershipId, SessionId } from '@acme/domain';
 import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
 import type { AccessStoreState } from './in-memory-access-seed';
 
@@ -8,6 +12,34 @@ import type { AccessStoreState } from './in-memory-access-seed';
  * sessions are immediately visible to the actor reader, and customer accounts
  * surface in the directory (staff accounts never do).
  */
+const storeMembership = (
+  state: AccessStoreState,
+  membership: NewIdentityMembership,
+): void => {
+  state.accounts.set(membership.accountId, { status: 'active' });
+  state.memberships.set(membership.membershipId, {
+    userId: membership.userId,
+    accountId: membership.accountId,
+    permissions: membership.permissions,
+  });
+};
+
+const storeSession = (
+  state: AccessStoreState,
+  session: NewIdentitySession,
+): void => {
+  state.sessions.set(session.sessionId, {
+    membershipId: session.membershipId,
+    status: 'active',
+    expiresAt: session.expiresAt,
+    createdAt: session.createdAt,
+    lastSeenAt: session.createdAt,
+    userAgent: session.context.userAgent,
+    createdIp: session.context.ipAddress,
+    lastIp: session.context.ipAddress,
+  });
+};
+
 export const makeInMemoryIdentityOnboarding = (
   state: AccessStoreState,
 ): IdentityOnboardingRepository => ({
@@ -17,6 +49,9 @@ export const makeInMemoryIdentityOnboarding = (
         return {
           membershipId: id as MembershipId,
           accountId: membership.accountId as AccountId,
+          accountKind: state.customers.has(membership.accountId)
+            ? ('customer' as const)
+            : ('staff' as const),
         };
       }
     }
@@ -33,17 +68,12 @@ export const makeInMemoryIdentityOnboarding = (
     ),
 
   createOwnerMembership: async (membership, event) => {
-    state.accounts.set(membership.accountId, { status: 'active' });
-    state.memberships.set(membership.membershipId, {
-      userId: membership.userId,
-      accountId: membership.accountId,
-      permissions: membership.permissions,
-    });
+    storeMembership(state, membership);
     appendInMemoryAuditRecord(state, event);
   },
 
   createCustomerMembership: async (membership) => {
-    state.accounts.set(membership.accountId, { status: 'active' });
+    storeMembership(state, membership);
     state.customers.set(membership.accountId, {
       accountId: membership.accountId,
       displayName: membership.displayName,
@@ -51,19 +81,40 @@ export const makeInMemoryIdentityOnboarding = (
       status: 'active',
       createdAt: membership.occurredAt,
     });
+  },
+
+  acceptInvitation: async (membership, invitationId, event) => {
+    const invitation = state.invitations.get(invitationId);
+    if (invitation) {
+      state.invitations.set(invitationId, {
+        ...invitation,
+        acceptedAt: event.occurredAt,
+      });
+    }
+    // join the EXISTING account: membership only, no account row
     state.memberships.set(membership.membershipId, {
       userId: membership.userId,
       accountId: membership.accountId,
       permissions: membership.permissions,
     });
+    appendInMemoryAuditRecord(state, event);
   },
 
   createSession: async (session, event) => {
-    state.sessions.set(session.sessionId, {
-      membershipId: session.membershipId,
-      status: 'active',
-      expiresAt: session.expiresAt,
-    });
+    storeSession(state, session);
     appendInMemoryAuditRecord(state, event);
   },
+
+  listActiveSessions: async (membershipId, now) =>
+    [...state.sessions.entries()]
+      .filter(
+        ([, s]) =>
+          s.membershipId === membershipId &&
+          s.status === 'active' &&
+          new Date(s.expiresAt).getTime() > new Date(now).getTime(),
+      )
+      .map(([id, s]) => ({
+        sessionId: id as SessionId,
+        lastSeenAt: s.lastSeenAt,
+      })),
 });

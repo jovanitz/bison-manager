@@ -4,6 +4,10 @@ import type {
   AccessAuditTrail,
   AccessGrantExpiryRecorder,
   AccessGrantRepository,
+  AccessInvitationStore,
+  AccessMemberDirectory,
+  AccessSessionActivityRecorder,
+  AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
 } from '@acme/application';
@@ -18,7 +22,16 @@ import {
   appendInMemoryAuditRecord,
   makeInMemoryAuditTrail,
 } from './in-memory-audit-trail';
+import {
+  makeInMemoryAdminRepository,
+  makeInMemoryMemberDirectory,
+} from './in-memory-admin-repository';
 import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
+import { makeInMemoryInvitationStore } from './in-memory-invitations';
+import {
+  makeInMemorySessionActivityRecorder,
+  makeInMemorySessionPolicyStore,
+} from './in-memory-session-policy';
 import { toAccessStoreState } from './in-memory-access-seed';
 import type {
   AccessStoreState,
@@ -41,6 +54,10 @@ export type InMemoryAccessStore = {
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
   readonly onboarding: IdentityOnboardingRepository;
+  readonly sessionPolicies: AccessSessionPolicyStore;
+  readonly sessionActivity: AccessSessionActivityRecorder;
+  readonly invitations: AccessInvitationStore;
+  readonly members: AccessMemberDirectory;
 };
 
 const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
@@ -56,60 +73,20 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
         accountId: membership.accountId as AccountId,
       },
       accountStatus: account.status,
+      accountKind: state.customers.has(membership.accountId)
+        ? ('customer' as const)
+        : ('staff' as const),
       session: {
         id: sessionId,
         status: session.status,
         expiresAt: session.expiresAt,
+        createdAt: session.createdAt,
       },
       permissions: membership.permissions,
       grants: [...state.grants.values()].filter(
         (grant) => grant.membershipId === session.membershipId,
       ),
     };
-  },
-});
-
-const makeAdminRepository = (
-  state: AccessStoreState,
-): AccessAdminRepository => ({
-  findAccount: async (id) => {
-    const account = state.accounts.get(id);
-    return account ? { id, status: account.status } : null;
-  },
-  disableAccount: async (id, event) => {
-    state.accounts.set(id, { status: 'disabled' });
-    appendInMemoryAuditRecord(state, event);
-  },
-  findMembership: async (id) => {
-    const membership = state.memberships.get(id);
-    if (!membership) return null;
-    return {
-      id,
-      accountId: membership.accountId as AccountId,
-      permissions: membership.permissions,
-    };
-  },
-  updatePermissions: async (id, permissions, event) => {
-    const membership = state.memberships.get(id);
-    if (!membership) return;
-    state.memberships.set(id, { ...membership, permissions });
-    appendInMemoryAuditRecord(state, event);
-  },
-  findSession: async (id) => {
-    const session = state.sessions.get(id);
-    const membership = session && state.memberships.get(session.membershipId);
-    if (!session || !membership) return null;
-    return {
-      id,
-      accountId: membership.accountId as AccountId,
-      status: session.status,
-    };
-  },
-  revokeSession: async (id, event) => {
-    const session = state.sessions.get(id);
-    if (!session) return;
-    state.sessions.set(id, { ...session, status: 'revoked' });
-    appendInMemoryAuditRecord(state, event);
   },
 });
 
@@ -160,9 +137,13 @@ export const createInMemoryAccessStore = (
       },
     },
     auditTrail: makeInMemoryAuditTrail(state),
-    admin: makeAdminRepository(state),
+    admin: makeInMemoryAdminRepository(state),
     grants: makeGrantRepository(state),
     customers: makeCustomerDirectory(state),
     onboarding: makeInMemoryIdentityOnboarding(state),
+    sessionPolicies: makeInMemorySessionPolicyStore(state),
+    sessionActivity: makeInMemorySessionActivityRecorder(state),
+    invitations: makeInMemoryInvitationStore(state),
+    members: makeInMemoryMemberDirectory(state),
   };
 };

@@ -1,0 +1,108 @@
+import { describe, expect, it } from 'vitest';
+import { accessPresetPermissions } from '@acme/domain';
+import type { InvitationId, MembershipId } from '@acme/domain';
+import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
+import {
+  ACCESS_CONTRACT_NOW as NOW,
+  accessContractSeed,
+  makeAccessContractIds,
+} from './access-store-fixtures';
+import type { AccessStorePorts } from './access-store-fixtures';
+
+const INVITE_EXPIRES = '2026-07-09T12:00:00.000Z';
+const AFTER_EXPIRY = '2026-08-01T00:00:00.000Z';
+
+/**
+ * Contract for the invitation lifecycle: create + audit atomically, pending
+ * lookup (case-insensitive, expiry-aware), and atomic consumption that joins
+ * the EXISTING account. Runs inside the identity-onboarding contract.
+ */
+export const identityInvitationContract = (
+  name: string,
+  makeStore: (
+    seed: InMemoryAccessSeed,
+  ) => AccessStorePorts | Promise<AccessStorePorts>,
+): void => {
+  describe(`Invitation contract: ${name}`, () => {
+    it('created, found pending (case-insensitive), consumed atomically', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const invitationId = crypto.randomUUID() as InvitationId;
+      const permissions = accessPresetPermissions('customer');
+      await store.invitations.createInvitation(
+        {
+          invitationId,
+          accountId: ids.acctCustomer,
+          email: 'invitee@example.com',
+          permissions,
+          invitedBy: ids.membershipSupport,
+          createdAt: NOW,
+          expiresAt: INVITE_EXPIRES,
+        },
+        {
+          type: 'invitation.created',
+          invitationId,
+          accountId: ids.acctCustomer,
+          email: 'invitee@example.com',
+          permissions,
+          actorMembershipId: ids.membershipSupport,
+          expiresAt: INVITE_EXPIRES,
+          occurredAt: NOW,
+        },
+      );
+
+      const pending = await store.invitations.findPendingByEmail(
+        'INVITEE@example.com',
+        NOW,
+      );
+      expect(pending).toEqual({
+        invitationId,
+        accountId: ids.acctCustomer,
+        accountKind: 'customer',
+        permissions,
+      });
+      // an expired invitation is not pending
+      expect(
+        await store.invitations.findPendingByEmail(
+          'invitee@example.com',
+          AFTER_EXPIRY,
+        ),
+      ).toBeNull();
+
+      const membershipId = crypto.randomUUID() as MembershipId;
+      await store.onboarding.acceptInvitation(
+        {
+          membershipId,
+          accountId: ids.acctCustomer,
+          userId: ids.userNew,
+          email: 'invitee@example.com',
+          displayName: 'invitee@example.com',
+          permissions,
+          occurredAt: NOW,
+        },
+        invitationId,
+        {
+          type: 'invitation.accepted',
+          invitationId,
+          accountId: ids.acctCustomer,
+          membershipId,
+          userId: ids.userNew,
+          occurredAt: NOW,
+        },
+      );
+      // consumed: no longer pending; membership joined the EXISTING account
+      expect(
+        await store.invitations.findPendingByEmail('invitee@example.com', NOW),
+      ).toBeNull();
+      expect(await store.onboarding.findMembershipByUser(ids.userNew)).toEqual({
+        membershipId,
+        accountId: ids.acctCustomer,
+        accountKind: 'customer',
+      });
+      expect((await store.auditTrail.list()).map((r) => r.event.type)).toEqual([
+        'invitation.created',
+        'invitation.accepted',
+      ]);
+    });
+  });
+};

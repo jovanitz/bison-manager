@@ -66,10 +66,23 @@ export const toStoredSupabaseSession = (
   };
 };
 
+type GoTrueErrorPayload = {
+  readonly error_description?: string;
+  readonly msg?: string;
+  readonly error?: string;
+};
+
+const errorMessageOf = (payload: GoTrueErrorPayload, status: number): string =>
+  payload.error_description ??
+  payload.msg ??
+  payload.error ??
+  `Auth request failed (${status}).`;
+
 export const gotrueRequest = async (
   config: SupabaseAuthConfig,
   input: {
     readonly path: string;
+    readonly method?: 'POST' | 'PUT';
     readonly body?: unknown;
     readonly bearer?: string;
   },
@@ -79,7 +92,7 @@ export const gotrueRequest = async (
     const response = await fetchFn(
       `${config.supabaseUrl}/auth/v1/${input.path}`,
       {
-        method: 'POST',
+        method: input.method ?? 'POST',
         headers: {
           apikey: config.anonKey,
           'content-type': 'application/json',
@@ -91,20 +104,10 @@ export const gotrueRequest = async (
       },
     );
     if (response.status === 204) return ok({});
-    const payload = (await response.json()) as GoTrueSession & {
-      readonly error_description?: string;
-      readonly msg?: string;
-      readonly error?: string;
-    };
+    const payload = (await response.json()) as GoTrueSession &
+      GoTrueErrorPayload;
     if (!response.ok) {
-      return err(
-        providerError(
-          payload.error_description ??
-            payload.msg ??
-            payload.error ??
-            `Auth request failed (${response.status}).`,
-        ),
-      );
+      return err(providerError(errorMessageOf(payload, response.status)));
     }
     return ok(payload);
   } catch (cause) {

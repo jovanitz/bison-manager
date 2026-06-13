@@ -1,6 +1,6 @@
 import { accessPresetPermissions } from '@acme/domain';
-import { POSTGRES_TEST_URL } from '../testing/postgres-test-env';
-import { applyPostgresAccessSeed } from './postgres/seed';
+import { POSTGRES_TEST_URL } from '../../testing/postgres-test-env';
+import { applyPostgresAccessSeed } from '../../testing/postgres-access-seed';
 
 /**
  * Fixtures for the RLS spec: two users on two accounts (A = support staff,

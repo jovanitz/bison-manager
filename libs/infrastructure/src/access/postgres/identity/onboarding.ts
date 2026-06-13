@@ -2,10 +2,17 @@ import type {
   IdentityOnboardingRepository,
   NewIdentityMembership,
 } from '@acme/application';
-import type { AccountId, MembershipId } from '@acme/domain';
+import type {
+  AccessInvitationAccepted,
+  AccountId,
+  AccountKind,
+  InvitationId,
+  MembershipId,
+  SessionId,
+} from '@acme/domain';
 import type { Sql } from 'postgres';
-import { insertAuditEvent, isUuid } from './rows';
-import type { SqlLike } from './rows';
+import { insertAuditEvent, isUuid } from '../rows';
+import type { SqlLike } from '../rows';
 
 /**
  * Postgres onboarding. Provisioning writes (account + membership [+ event])
@@ -14,6 +21,24 @@ import type { SqlLike } from './rows';
  * this code runs, so nothing here writes to the auth schema.
  */
 const ROOT_ADMIN_MARKER = [{ action: 'permissions.update', scope: 'any' }];
+
+const listActiveSessions = async (
+  sql: Sql,
+  membershipId: MembershipId,
+  now: string,
+): Promise<ReadonlyArray<{ sessionId: SessionId; lastSeenAt: string }>> => {
+  if (!isUuid(membershipId)) return [];
+  const rows = await sql`
+    select id, last_seen_at from public.sessions
+    where membership_id = ${membershipId}
+      and status = 'active'
+      and expires_at > ${now}
+  `;
+  return rows.map((row) => ({
+    sessionId: row['id'] as SessionId,
+    lastSeenAt: new Date(row['last_seen_at'] as Date).toISOString(),
+  }));
+};
 
 const insertMembershipBundle = async (
   tx: SqlLike,
@@ -33,15 +58,42 @@ const insertMembershipBundle = async (
   `;
 };
 
+const acceptInvitation = async (
+  sql: Sql,
+  input: {
+    readonly membership: NewIdentityMembership;
+    readonly invitationId: InvitationId;
+    readonly event: AccessInvitationAccepted;
+  },
+): Promise<void> => {
+  const { membership, invitationId, event } = input;
+  await sql.begin(async (tx) => {
+    await tx`
+      update public.invitations
+      set accepted_at = ${event.occurredAt}
+      where id = ${invitationId}
+    `;
+    await tx`
+      insert into public.memberships (id, user_id, account_id, permissions, created_at)
+      values (${membership.membershipId}, ${membership.userId},
+        ${membership.accountId}, ${tx.json(membership.permissions as never)},
+        ${membership.occurredAt})
+    `;
+    await insertAuditEvent(tx, event);
+  });
+};
+
 export const createPostgresIdentityOnboarding = (
   sql: Sql,
 ): IdentityOnboardingRepository => ({
   findMembershipByUser: async (userId) => {
     if (!isUuid(userId)) return null;
     const rows = await sql`
-      select id, account_id from public.memberships
-      where user_id = ${userId}
-      order by created_at asc
+      select m.id, m.account_id, a.kind
+      from public.memberships m
+      join public.accounts a on a.id = m.account_id
+      where m.user_id = ${userId}
+      order by m.created_at asc
       limit 1
     `;
     const row = rows[0];
@@ -49,6 +101,7 @@ export const createPostgresIdentityOnboarding = (
     return {
       membershipId: row['id'] as MembershipId,
       accountId: row['account_id'] as AccountId,
+      accountKind: row['kind'] as AccountKind,
     };
   },
 
@@ -84,13 +137,24 @@ export const createPostgresIdentityOnboarding = (
     });
   },
 
+  acceptInvitation: (membership, invitationId, event) =>
+    acceptInvitation(sql, { membership, invitationId, event }),
+
   createSession: async (session, event) => {
     await sql.begin(async (tx) => {
       await tx`
-        insert into public.sessions (id, membership_id, expires_at)
-        values (${session.sessionId}, ${session.membershipId}, ${session.expiresAt})
+        insert into public.sessions
+          (id, membership_id, expires_at, created_at, last_seen_at,
+           user_agent, created_ip, last_ip)
+        values (${session.sessionId}, ${session.membershipId},
+          ${session.expiresAt}, ${session.createdAt}, ${session.createdAt},
+          ${session.context.userAgent}, ${session.context.ipAddress},
+          ${session.context.ipAddress})
       `;
       await insertAuditEvent(tx, event);
     });
   },
+
+  listActiveSessions: (membershipId, now) =>
+    listActiveSessions(sql, membershipId, now),
 });

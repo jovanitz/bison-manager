@@ -119,6 +119,26 @@ export const createSupabaseAuthProvider = (
       await persist(config, state, null);
     },
 
+    requestPasswordReset: async (email) => {
+      const response = await gotrueRequest(config, {
+        path: 'recover',
+        body: { email },
+      });
+      return response.ok ? ok(undefined) : err(response.error);
+    },
+
+    updatePassword: async (newPassword) => {
+      const fresh = await ensureFresh(config, state);
+      if (!fresh.ok) return err(fresh.error);
+      const response = await gotrueRequest(config, {
+        path: 'user',
+        method: 'PUT',
+        body: { password: newPassword },
+        bearer: fresh.value.session.accessToken,
+      });
+      return response.ok ? ok(undefined) : err(response.error);
+    },
+
     getAccessToken: async () => {
       const fresh = await ensureFresh(config, state);
       return fresh.ok ? ok(fresh.value.session.accessToken) : err(fresh.error);

@@ -2,6 +2,7 @@ import type { AccessActorReader } from '@acme/application';
 import type {
   AccessActor,
   AccountId,
+  AccountKind,
   AccountStatus,
   MembershipId,
   SessionStatus,
@@ -13,11 +14,13 @@ import { grantFromRow, isUuid, isoOf } from './rows';
 type ActorRow = {
   readonly session_status: string;
   readonly session_expires_at: Date;
+  readonly session_created_at: Date;
   readonly membership_id: string;
   readonly user_id: string;
   readonly account_id: string;
   readonly permissions: AccessActor['permissions'];
   readonly account_status: string;
+  readonly account_kind: string;
 };
 
 /**
@@ -33,11 +36,13 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
       select
         s.status as session_status,
         s.expires_at as session_expires_at,
+        s.created_at as session_created_at,
         m.id as membership_id,
         m.user_id,
         m.account_id,
         m.permissions,
-        a.status as account_status
+        a.status as account_status,
+        a.kind as account_kind
       from public.sessions s
       join public.memberships m on m.id = s.membership_id
       join public.accounts a on a.id = m.account_id
@@ -59,10 +64,12 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         accountId: row.account_id as AccountId,
       },
       accountStatus: row.account_status as AccountStatus,
+      accountKind: row.account_kind as AccountKind,
       session: {
         id: sessionId,
         status: row.session_status as SessionStatus,
         expiresAt: isoOf(row.session_expires_at),
+        createdAt: isoOf(row.session_created_at),
       },
       permissions: row.permissions,
       grants: grantRows.map((grant) => grantFromRow(grant as never)),

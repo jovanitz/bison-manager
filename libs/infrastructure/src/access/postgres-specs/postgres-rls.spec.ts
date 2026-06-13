@@ -5,7 +5,7 @@ import {
   POSTGRES_TEST_URL,
   acquirePostgresTestLock,
   probePostgres,
-} from '../testing/postgres-test-env';
+} from '../../testing/postgres-test-env';
 import { rlsIds, seedRlsWorld } from './postgres-rls-fixtures';
 
 /**
