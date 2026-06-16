@@ -17,3 +17,19 @@ export * from './example/item-screen';
 
 // Access: functional login/access skeleton (product screens replace it)
 export * from './access/access-login-screen';
+
+// Staff dashboard: login-only auth gate + staff/customer directory tables
+export * from './dashboard/admin-access';
+export * from './dashboard/login-screen';
+export * from './dashboard/require-admin';
+export * from './dashboard/dashboard-screen';
+export * from './dashboard/invitations/invite-member-form';
+export * from './dashboard/invitations/activate-invitation-screen';
+export * from './dashboard/permissions/manage-permissions-form';
+export * from './dashboard/block/block-buttons';
+
+// Client app: customer-facing self-serve (signup, home, org switcher)
+export * from './client/client-login-screen';
+export * from './client/client-home-screen';
+export * from './client/require-session';
+export * from './client/manage-org/manage-org-section';

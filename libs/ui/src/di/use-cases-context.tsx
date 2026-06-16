@@ -1,5 +1,13 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { AccessClientUseCases, ItemUseCases } from '@acme/application';
+import type {
+  AccessClientUseCases,
+  BlockUseCases,
+  DirectoryUseCases,
+  InvitationsUseCases,
+  ItemUseCases,
+  MembersUseCases,
+  OrgsUseCases,
+} from '@acme/application';
 
 /**
  * The UI's dependency-injection seam.
@@ -15,6 +23,16 @@ export type AppUseCases = {
   readonly items: ItemUseCases;
   /** Present once the app wires auth (web today; mobile/desktop pending). */
   readonly access?: AccessClientUseCases;
+  /** Present in the staff dashboard: the staff/customer directory reads. */
+  readonly directory?: DirectoryUseCases;
+  /** Present in the staff dashboard: issue invitations + activate them. */
+  readonly invitations?: InvitationsUseCases;
+  /** Present in the staff dashboard: list members + edit their permissions. */
+  readonly members?: MembersUseCases;
+  /** Present in the staff dashboard: soft-block orgs / identities. */
+  readonly block?: BlockUseCases;
+  /** Present in the client app: the caller's orgs + switching between them. */
+  readonly orgs?: OrgsUseCases;
 };
 
 const UseCasesContext = createContext<AppUseCases | null>(null);

@@ -18,6 +18,7 @@ export const testCurrentAccess: CurrentAccessDto = {
   userId: 'user-1',
   accountId: 'acct-1',
   accountStatus: 'active',
+  blocked: false,
   session: {
     id: 'session-1',
     status: 'active',
