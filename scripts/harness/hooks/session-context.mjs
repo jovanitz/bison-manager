@@ -17,6 +17,7 @@ const context = [
   'Layer import rules (authoritative): docs/ai/capabilities.json.',
   'Build features inside-out: port TYPE first → use-case spec (in-memory adapters) → adapter contract test → screen test → wire in apps/*/composition-root.ts.',
   'Hard rules: no classes/decorators; return Result, never throw; domain/application import no framework/browser/DB/HTTP/auth/native.',
+  'Auth/access model (identity≠authorization, actor resolution, presets/scopes, multi-org, grants, invitations, soft-block vs hard-disable, root protection): read docs/ai/auth.md before touching anything auth-related.',
   'Before finishing, the Stop hook runs lint+typecheck+test on affected projects — keep it green.',
 ].join(' ');
 

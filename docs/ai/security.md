@@ -5,6 +5,11 @@ authentication, sessions, tokens, passwords, permissions/authorization, payments
 The architecture's `Result`-everywhere, ports-as-types, and boundary rules already
 help; this adds the security-specific controls.
 
+> This page is the **build rules**. For how the existing auth/access model
+> actually works (identity vs authorization, the actor, the request pipeline,
+> scopes, multi-org, grants, invitations, soft-block vs hard-disable, root
+> protection), read [auth.md](auth.md) first.
+
 ## Where security-sensitive code goes (same layering)
 
 - **Rules** (token expiry, password policy, permission checks) → `domain`

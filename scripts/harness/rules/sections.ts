@@ -37,6 +37,9 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
   'sessions.revoke': 'Revoke a session immediately (kills refresh tokens too)',
   'sessions.read':
     "List a membership's sessions with device/IP context (active-sessions view)",
+  'staff.read': 'List the staff (platform-internal) directory',
+  'access.block':
+    'Soft-block / unblock an org or identity (can sign in, cannot operate)',
   'customer.search': 'Search the customer directory',
   'customer.read': 'Read a customer account',
   'impersonation.start': 'Open a view-only impersonation grant on a customer',
@@ -49,6 +52,8 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
   'members.read': "List an account's memberships with their permissions",
   'members.remove':
     'Remove a membership from its account (sessions die with it)',
+  'members.block':
+    'Soft-block one member inside your own org (own scope): they can sign in but cannot operate',
 };
 
 const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
@@ -74,6 +79,9 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
     'A membership was removed from its account, by whom (sessions included)',
   'session.switched':
     'A user re-bound their session to another of their own memberships',
+  'access.blocked':
+    'An org or identity was soft-blocked (can sign in, cannot operate)',
+  'access.unblocked': 'A soft block on an org or identity was lifted',
 };
 
 const PRESETS: ReadonlyArray<AccessPresetName> = [

@@ -56,7 +56,9 @@ gained through later activity.
 | `permissions.update` | Replace the persistent permissions of a membership | ✅ any account | — | — | ✅ own account |
 | `sessions.revoke` | Revoke a session immediately (kills refresh tokens too) | ✅ any account | — | ✅ own account | ✅ own account |
 | `sessions.read` | List a membership's sessions with device/IP context (active-sessions view) | ✅ any account | — | ✅ own account | ✅ own account |
-| `customer.search` | Search the customer directory | — | ✅ any account | — | — |
+| `staff.read` | List the staff (platform-internal) directory | ✅ any account | — | — | — |
+| `access.block` | Soft-block / unblock an org or identity (can sign in, cannot operate) | ✅ any account | — | — | — |
+| `customer.search` | Search the customer directory | ✅ any account | ✅ any account | — | — |
 | `customer.read` | Read a customer account | — | — | ✅ own account | ✅ own account |
 | `impersonation.start` | Open a view-only impersonation grant on a customer | — | ✅ any account | — | — |
 | `impersonation.end` | End an impersonation grant (holder only) | — | ✅ any account | — | — |
@@ -65,6 +67,7 @@ gained through later activity.
 | `members.invite` | Invite an email into an existing account with explicit permissions | ✅ any account | — | — | ✅ own account |
 | `members.read` | List an account's memberships with their permissions | ✅ any account | — | — | ✅ own account |
 | `members.remove` | Remove a membership from its account (sessions die with it) | ✅ any account | — | — | ✅ own account |
+| `members.block` | Soft-block one member inside your own org (own scope): they can sign in but cannot operate | — | — | — | ✅ own account |
 
 Presets are starting bundles: an owner can change any membership's
 permissions afterwards (`permissions.update` is root-equivalent — whoever
@@ -80,7 +83,7 @@ with `own` scope. `any` scope additionally requires a staff account
 accounts, promoting, impersonation, session policy, the directory) is
 platform-staff machinery.
 
-`customer.read` · `sessions.revoke` · `sessions.read` · `members.invite` · `members.read` · `members.remove` · `permissions.update` · `audit.read`
+`customer.read` · `sessions.revoke` · `sessions.read` · `members.invite` · `members.read` · `members.remove` · `members.block` · `permissions.update` · `audit.read`
 
 **Anti-orphan rule:** every account always keeps at least one membership
 holding `permissions.update` (the root-equivalent capability). A
@@ -138,6 +141,14 @@ generated — they are behavior, not documentation:
 | `sessions.revoke` | `sessions.revoke` | Revoke a session; it stops authorizing immediately. |
 | `sessions.revoke-all` | `sessions.revoke` | Log a membership out everywhere: revokes all of that membership's active sessions (audited one by one). |
 | `sessions.list` | `sessions.read` | A membership's sessions with their captured context (device, IPs, activity) — the "active sessions" view. |
+| `org.block` | `access.block` | Soft-block a whole org: members can sign in but cannot operate. |
+| `org.unblock` | `access.block` | Lift an org soft-block. |
+| `identity.block` | `access.block` | Soft-block an identity across every org: can sign in, cannot operate. |
+| `identity.unblock` | `access.block` | Lift an identity soft-block. |
+| `members.block` | `members.block` | Org admin soft-block of one member inside their OWN org (own scope): the member can sign in but cannot operate in that org. |
+| `members.unblock` | `members.block` | Lift a member soft-block within your org. |
+| `staff.list` | `staff.read` | List every staff (platform-internal) account — the staff directory the admin dashboard renders. Staff-only; never customer-visible. |
+| `customers.list` | `customer.search` | List every customer account — the customer directory the admin dashboard renders. Same permission as customer.search, no term needed. |
 | `customer.search` | `customer.search` | Find customer accounts by name or email (support workflow). |
 | `customer.read` | `customer.read` | Read one customer account. Customers read their own; support needs an active impersonation grant on that exact account. |
 | `impersonation.start` | `impersonation.start` | Open a view-only, expiring, reasoned window into one customer account. The actor stays the support agent. |
@@ -172,6 +183,8 @@ re-authorizes itself with the concrete resource in hand.
 | `session.switched` | A user re-bound their session to another of their own memberships |
 | `settings.updated` | The session policy was reconfigured (records before and after) |
 | `owner.bootstrapped` | The one-time env-driven owner promotion ran |
+| `access.blocked` | An org or identity was soft-blocked (can sign in, cannot operate) |
+| `access.unblocked` | A soft block on an org or identity was lifted |
 
 ## Owner bootstrap
 
