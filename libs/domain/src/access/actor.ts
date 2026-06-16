@@ -39,6 +39,21 @@ export type AccessActor = {
   readonly accountStatus: AccountStatus;
   /** Parametrizes session hygiene only — it never grants anything. */
   readonly accountKind: AccountKind;
+  /**
+   * The protected super-admin (the bootstrapped owner). It grants nothing by
+   * itself — permissions still come from `permissions`. Its only effect is
+   * protective: an admin mutation whose TARGET is the root is refused unless the
+   * actor is the root, so no permission set, however broad, lets another member
+   * disable, demote, expel, re-permission or sign out the super-admin.
+   */
+  readonly isRoot: boolean;
+  /**
+   * Soft block (org- or identity-level). A blocked actor still authenticates
+   * and resolves — login and self-service reads keep working — but the policy
+   * denies EVERY permission/grant-gated operation. "Can sign in, cannot
+   * operate." The hard kill (account `disabled`) is separate and fails earlier.
+   */
+  readonly blocked: boolean;
   readonly session: ActorSession;
   readonly permissions: ReadonlyArray<AccessPermission>;
   readonly grants: ReadonlyArray<AccessGrant>;

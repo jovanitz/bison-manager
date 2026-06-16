@@ -19,6 +19,7 @@ const actorWith = (overrides: {
   sessionExpiresAt?: string;
   permissions?: ReadonlyArray<AccessPermission>;
   grants?: ReadonlyArray<AccessGrant>;
+  blocked?: boolean;
 }): AccessActor => ({
   membership: {
     id: 'membership-1' as AccessActor['membership']['id'],
@@ -26,10 +27,14 @@ const actorWith = (overrides: {
     accountId: account(overrides.accountId ?? 'acct-own'),
   },
   accountStatus: overrides.accountStatus ?? 'active',
+  accountKind: 'staff',
+  isRoot: false,
+  blocked: overrides.blocked ?? false,
   session: {
     id: 'session-1' as AccessActor['session']['id'],
     status: overrides.sessionStatus ?? 'active',
     expiresAt: overrides.sessionExpiresAt ?? LATER,
+    createdAt: EARLIER,
   },
   permissions: overrides.permissions ?? [],
   grants: overrides.grants ?? [],
@@ -105,6 +110,19 @@ describe('evaluateAccessPolicy', () => {
       now: NOW,
     });
     expect(decision.allowed).toBe(false);
+  });
+
+  it('denies every operation for a blocked actor, even with full permissions', () => {
+    const decision = evaluateAccessPolicy({
+      actor: actorWith({
+        blocked: true,
+        permissions: accessPresetPermissions('owner'),
+      }),
+      action: 'audit.read',
+      resource: resource(null),
+      now: NOW,
+    });
+    expect(decision).toEqual({ allowed: false, reason: 'blocked' });
   });
 
   it('denies everything when the account is disabled, even for owners', () => {

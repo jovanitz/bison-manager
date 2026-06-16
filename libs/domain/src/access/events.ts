@@ -160,6 +160,34 @@ export type AccessOwnerBootstrapped = {
   readonly occurredAt: string;
 };
 
+/** What a soft block targets: a whole org, one identity across every org, or a
+ * single membership (one user inside one org — the org admin's own scope). */
+export type AccessBlockSubjectKind = 'org' | 'identity' | 'membership';
+
+/**
+ * Soft block / unblock of a subject — an org (account), an identity (user), or
+ * a single membership. Blocked subjects keep authenticating (login +
+ * self-service reads) but every permission/grant-gated operation is denied.
+ * `subjectId` is the account id (`org`), the user id (`identity`) or the
+ * membership id (`membership`).
+ */
+export type AccessBlocked = {
+  readonly type: 'access.blocked';
+  readonly subjectKind: AccessBlockSubjectKind;
+  readonly subjectId: string;
+  readonly actorMembershipId: MembershipId;
+  readonly reason: string | null;
+  readonly occurredAt: string;
+};
+
+export type AccessUnblocked = {
+  readonly type: 'access.unblocked';
+  readonly subjectKind: AccessBlockSubjectKind;
+  readonly subjectId: string;
+  readonly actorMembershipId: MembershipId;
+  readonly occurredAt: string;
+};
+
 export type AccessAuditEvent =
   | AccessLoginSucceeded
   | AccessLoginFailed
@@ -176,7 +204,9 @@ export type AccessAuditEvent =
   | AccessMemberRemoved
   | AccessSessionSwitched
   | AccessSettingsUpdated
-  | AccessOwnerBootstrapped;
+  | AccessOwnerBootstrapped
+  | AccessBlocked
+  | AccessUnblocked;
 
 export type AccessAuditEventType = AccessAuditEvent['type'];
 
@@ -198,6 +228,8 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'session.switched',
   'settings.updated',
   'owner.bootstrapped',
+  'access.blocked',
+  'access.unblocked',
 ] as const satisfies ReadonlyArray<AccessAuditEventType>;
 
 type MissingAuditEventType = Exclude<

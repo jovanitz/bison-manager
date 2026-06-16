@@ -58,6 +58,8 @@ export const ACCESS_ACTIONS = [
   'permissions.update',
   'sessions.revoke',
   'sessions.read',
+  'staff.read',
+  'access.block',
   'customer.search',
   'customer.read',
   'impersonation.start',
@@ -67,6 +69,7 @@ export const ACCESS_ACTIONS = [
   'members.invite',
   'members.read',
   'members.remove',
+  'members.block',
 ] as const;
 
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];

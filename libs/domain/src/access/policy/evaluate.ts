@@ -19,6 +19,7 @@ export type AccessDenialReason =
   | 'account-disabled'
   | 'session-revoked'
   | 'session-expired'
+  | 'blocked'
   | 'not-permitted';
 
 export type AccessDecision =
@@ -48,6 +49,8 @@ export const evaluateAccessPolicy = (input: {
   if (new Date(actor.session.expiresAt).getTime() <= new Date(now).getTime()) {
     return accessDenied('session-expired');
   }
+  // Soft block: authenticated and resolved, but no operation is permitted.
+  if (actor.blocked) return accessDenied('blocked');
 
   const permitted = actor.permissions.some((permission) =>
     accessPermissionAllows({

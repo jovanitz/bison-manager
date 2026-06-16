@@ -20,6 +20,9 @@ const ownerAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'permissions.update', scope: 'any' },
   { action: 'sessions.revoke', scope: 'any' },
   { action: 'sessions.read', scope: 'any' },
+  { action: 'staff.read', scope: 'any' },
+  { action: 'customer.search', scope: 'any' },
+  { action: 'access.block', scope: 'any' },
   { action: 'audit.read', scope: 'any' },
   { action: 'settings.update', scope: 'any' },
   { action: 'members.invite', scope: 'any' },
@@ -54,6 +57,7 @@ const customerAdminAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'members.invite', scope: 'own' },
   { action: 'members.read', scope: 'own' },
   { action: 'members.remove', scope: 'own' },
+  { action: 'members.block', scope: 'own' },
   { action: 'permissions.update', scope: 'own' },
   { action: 'audit.read', scope: 'own' },
 ];
@@ -85,6 +89,7 @@ export const ACCESS_CUSTOMER_DELEGABLE_ACTIONS = [
   'members.invite',
   'members.read',
   'members.remove',
+  'members.block',
   'permissions.update',
   'audit.read',
 ] as const satisfies ReadonlyArray<AccessAction>;
