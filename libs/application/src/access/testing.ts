@@ -21,6 +21,8 @@ export const testAccessActor = (input: {
   readonly accountStatus?: AccessActor['accountStatus'];
   readonly sessionStatus?: AccessActor['session']['status'];
   readonly grants?: ReadonlyArray<AccessGrant>;
+  readonly isRoot?: boolean;
+  readonly blocked?: boolean;
 }): AccessActor => ({
   membership: {
     id: (input.membershipId ??
@@ -33,6 +35,8 @@ export const testAccessActor = (input: {
     input.preset === 'customer' || input.preset === 'customer-admin'
       ? 'customer'
       : 'staff',
+  isRoot: input.isRoot ?? false,
+  blocked: input.blocked ?? false,
   session: {
     id: 'session-1' as AccessActor['session']['id'],
     status: input.sessionStatus ?? 'active',

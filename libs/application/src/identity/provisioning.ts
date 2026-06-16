@@ -134,7 +134,8 @@ const acceptPendingInvitation = async (
  *    binds the session there: the invitation is the freshest intent. If the
  *    user already belongs to that account, the invitation is simply ignored.
  * 2. An existing membership (the user's first; switchable per session).
- * 3. First contact: owner bootstrap or customer self-signup.
+ * 3. First contact: owner bootstrap, else ORG-LESS (null) — the identity must
+ *    create its own organization or be invited into one.
  */
 export const resolveLoginMembership = async (
   deps: IdentityDeps,
@@ -143,7 +144,7 @@ export const resolveLoginMembership = async (
 ): Promise<{
   readonly membershipId: MembershipId;
   readonly accountKind: AccountKind;
-}> => {
+} | null> => {
   const mine = await deps.members.listMembershipsByUser(identity.userId);
   const pending =
     identity.email === null
@@ -174,6 +175,12 @@ export const resolveLoginMembership = async (
   return provisionMembership(deps, identity, occurredAt);
 };
 
+/**
+ * First contact. The ONLY automatic membership is the env-driven owner
+ * bootstrap; every other new identity is left ORG-LESS (returns null) — they
+ * explicitly create their own organization, or are invited into one. No
+ * silent customer org is minted.
+ */
 export const provisionMembership = async (
   deps: IdentityDeps,
   identity: { readonly userId: UserId; readonly email: string | null },
@@ -181,39 +188,28 @@ export const provisionMembership = async (
 ): Promise<{
   readonly membershipId: MembershipId;
   readonly accountKind: AccountKind;
-}> => {
+} | null> => {
   const bootstrap =
     deps.bootstrapOwnerEmail !== null &&
     identity.email !== null &&
     sameEmail(identity.email, deps.bootstrapOwnerEmail) &&
     !(await deps.onboarding.rootAdminExists());
 
-  if (bootstrap) {
-    const membership = buildMembership({
-      deps,
-      userId: identity.userId,
-      email: identity.email,
-      displayName: 'Owner',
-      preset: 'owner',
-      occurredAt,
-    });
-    await deps.onboarding.createOwnerMembership(membership, {
-      type: 'owner.bootstrapped',
-      membershipId: membership.membershipId,
-      userId: identity.userId,
-      occurredAt,
-    });
-    return { membershipId: membership.membershipId, accountKind: 'staff' };
-  }
+  if (!bootstrap) return null;
 
   const membership = buildMembership({
     deps,
     userId: identity.userId,
     email: identity.email,
-    displayName: identity.email ?? 'Customer',
-    preset: 'customer',
+    displayName: 'Owner',
+    preset: 'owner',
     occurredAt,
   });
-  await deps.onboarding.createCustomerMembership(membership);
-  return { membershipId: membership.membershipId, accountKind: 'customer' };
+  await deps.onboarding.createOwnerMembership(membership, {
+    type: 'owner.bootstrapped',
+    membershipId: membership.membershipId,
+    userId: identity.userId,
+    occurredAt,
+  });
+  return { membershipId: membership.membershipId, accountKind: 'staff' };
 };

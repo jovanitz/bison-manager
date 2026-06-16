@@ -84,16 +84,16 @@ describe('registerIdentitySession', () => {
     ]);
   });
 
-  it('never bootstraps twice: with a root admin present the same email becomes a customer', async () => {
+  it('never bootstraps twice: with a root admin present the email is left org-less', async () => {
     const world = makeWorld({
       bootstrapOwnerEmail: 'owner@example.com',
       rootAdminExists: true,
     });
-    await register(world, 'owner@example.com');
-    expect(world.created[0]?.permissions).toEqual(
-      accessPresetPermissions('customer'),
-    );
-    expect(world.audit.map((e) => e.type)).toEqual(['login.succeeded']);
+    const r = await register(world, 'owner@example.com');
+    // not bootstrapped (root exists) and not invited ⇒ no membership, no session
+    expect(r.ok && r.value.sessionId).toBeNull();
+    expect(world.created).toHaveLength(0);
+    expect(world.audit).toHaveLength(0);
   });
 
   it('a pending invitation joins the existing account, beating bootstrap and self-signup', async () => {
@@ -165,17 +165,12 @@ describe('registerIdentitySession', () => {
     expect(world.registered[0]?.membershipId).toBe('membership-9');
   });
 
-  it('provisions unknown identities as customers (also without email)', async () => {
+  it('leaves an unknown identity org-less (no auto-provisioned customer org)', async () => {
     const world = makeWorld({ bootstrapOwnerEmail: 'owner@example.com' });
-    const r = await register(world, null);
-    expect(r.ok).toBe(true);
-    expect(world.created[0]?.permissions).toEqual(
-      accessPresetPermissions('customer'),
-    );
-    expect(world.registered[0]?.membershipId).toBe(
-      world.created[0]?.membershipId,
-    );
-    expect(world.registered[0]?.expiresAt).toBe(CUSTOMER_EXPIRES);
+    const r = await register(world, 'stranger@example.com');
+    expect(r.ok && r.value.sessionId).toBeNull();
+    expect(world.created).toHaveLength(0);
+    expect(world.registered).toHaveLength(0);
   });
 
   it('rejects blank identity ids', async () => {

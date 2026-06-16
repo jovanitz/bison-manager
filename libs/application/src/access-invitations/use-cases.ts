@@ -15,13 +15,28 @@ import { authorizeAccessAction } from '../access/authorize';
 import { guardGrantedPermissions } from '../access-admin/deps';
 import { accountNotFound } from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
-import { invalidInvitationEmail, invitationAlreadyPending } from './errors';
-import type { AccessInvitationUseCaseError } from './errors';
-import type { AccessInvitationStore } from './ports';
+import {
+  identityAlreadyExists,
+  identityProvisionFailed,
+  invalidInvitationEmail,
+  invitationAlreadyPending,
+  invitationTokenInvalid,
+} from './errors';
+import type {
+  AccessInvitationUseCaseError,
+  ActivateInvitationError,
+} from './errors';
+import type {
+  AccessInvitationStore,
+  IdentityProvisioner,
+  SecretTokenService,
+} from './ports';
 
 export type AccessInvitationsDeps = {
   readonly invitations: AccessInvitationStore;
   readonly accounts: Pick<AccessAdminRepository, 'findAccount'>;
+  readonly tokens: SecretTokenService;
+  readonly provisioner: IdentityProvisioner;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 };
@@ -62,7 +77,7 @@ export const makeCreateInvitation =
     }>;
   }): Promise<
     Result<
-      { readonly invitationId: InvitationId },
+      { readonly invitationId: InvitationId; readonly token: string },
       AccessInvitationUseCaseError
     >
   > => {
@@ -99,6 +114,7 @@ export const makeCreateInvitation =
     const expiresAt = new Date(
       deps.clock.now().getTime() + ACCESS_INVITATION_TTL_DAYS * DAY_MS,
     ).toISOString();
+    const { token, tokenHash } = deps.tokens.issue();
     await deps.invitations.createInvitation(
       {
         invitationId,
@@ -108,6 +124,7 @@ export const makeCreateInvitation =
         invitedBy: input.actor.membership.id,
         createdAt: now,
         expiresAt,
+        tokenHash,
       },
       {
         type: 'invitation.created',
@@ -120,15 +137,59 @@ export const makeCreateInvitation =
         occurredAt: now,
       },
     );
-    return ok({ invitationId });
+    // The plaintext token is returned exactly here, once, to build the link.
+    return ok({ invitationId, token });
+  };
+
+/**
+ * Activation (pre-login, no actor): the secret token is the only credential.
+ * Hash it, find the live invitation, then create the identity with the chosen
+ * password. Fail-closed and generic on a bad/expired/used token (no
+ * enumeration); refuse if the email already has an identity (no takeover). The
+ * membership itself is attached by the existing onboarding on first login.
+ */
+export const makeActivateInvitation =
+  (deps: AccessInvitationsDeps) =>
+  async (input: {
+    readonly token: string;
+    readonly password: string;
+  }): Promise<Result<{ readonly email: string }, ActivateInvitationError>> => {
+    const now = deps.clock.now().toISOString();
+    const tokenHash = deps.tokens.hashOf(input.token);
+    const pending = await deps.invitations.findPendingByTokenHash(
+      tokenHash,
+      now,
+    );
+    if (!pending) {
+      return err(invitationTokenInvalid('Invalid or expired invitation.'));
+    }
+
+    const created = await deps.provisioner.createIdentity({
+      email: pending.email,
+      password: input.password,
+    });
+    if (!created.ok) {
+      return err(
+        created.error.tag === 'app/identity-already-exists'
+          ? identityAlreadyExists(
+              'An account already exists for this email; sign in instead.',
+            )
+          : identityProvisionFailed('Could not create the identity.'),
+      );
+    }
+
+    await deps.invitations.consumeToken(pending.invitationId);
+    return ok({ email: pending.email });
   };
 
 export type AccessInvitationsUseCases = {
   readonly createInvitation: ReturnType<typeof makeCreateInvitation>;
+  readonly activateInvitation: ReturnType<typeof makeActivateInvitation>;
 };
 
 export const makeAccessInvitationsUseCases = (
   deps: AccessInvitationsDeps,
 ): AccessInvitationsUseCases => ({
   createInvitation: makeCreateInvitation(deps),
+  activateInvitation: makeActivateInvitation(deps),
 });

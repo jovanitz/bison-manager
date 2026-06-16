@@ -6,7 +6,7 @@ import {
 } from '@acme/domain';
 import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import { holdsAdminCapability } from '../access-admin/deps';
+import { guardRootTarget, holdsAdminCapability } from '../access-admin/deps';
 import {
   accountNotFound,
   cannotOrphanAccount,
@@ -74,6 +74,12 @@ export const makeRemoveMember =
     if (!membership) {
       return err(membershipNotFound(`No membership ${input.membershipId}.`));
     }
+
+    const rootGuard = guardRootTarget({
+      targetIsRoot: membership.isRoot,
+      actor: input.actor,
+    });
+    if (!rootGuard.ok) return err(rootGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({

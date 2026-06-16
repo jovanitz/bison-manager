@@ -1,6 +1,7 @@
 import { type Clock, type Result, err, ok } from '@acme/shared';
 import { isCustomerDelegableAction, makeAccessPermission } from '@acme/domain';
-import type { AccessPermission, AccountKind } from '@acme/domain';
+import type { AccessActor, AccessPermission, AccountKind } from '@acme/domain';
+import { accessDenied } from '../access/errors';
 import type { AccessSessionPolicyStore } from '../access-settings/ports';
 import { notDelegableToCustomer, requiresStaffAccount } from './errors';
 import type { AccessAdminUseCaseError } from './errors';
@@ -25,6 +26,26 @@ export type AccessAdminDeps = {
 export const holdsAdminCapability = (
   permissions: ReadonlyArray<AccessPermission>,
 ): boolean => permissions.some((p) => p.action === 'permissions.update');
+
+/**
+ * The super-admin protection: a mutation whose TARGET is the root membership
+ * (or an account hosting it) is refused unless the actor is itself the root.
+ * There is exactly one root, so `actor.isRoot` means "this very super-admin".
+ * Permissions never override this — an invited member granted the owner's full
+ * permission set still cannot disable, demote, expel, re-permission or sign out
+ * the super-admin.
+ */
+export const guardRootTarget = (input: {
+  readonly targetIsRoot: boolean;
+  readonly actor: AccessActor;
+}): Result<void, AccessAdminUseCaseError> => {
+  if (input.targetIsRoot && !input.actor.isRoot) {
+    // Denied with the SAME generic access-denied as any other refusal — never
+    // a distinct tag — so the response can't be used to discover who is root.
+    return err(accessDenied('The super-admin cannot be modified.'));
+  }
+  return ok(undefined);
+};
 
 /**
  * Coherence guards for handing permissions into an account — shared by

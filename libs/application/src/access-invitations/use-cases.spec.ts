@@ -2,26 +2,41 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import type { AccessInvitationCreated, AccountKind } from '@acme/domain';
 import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
-import type { PendingAccessInvitation } from './ports';
+import type {
+  IdentityProvisioner,
+  PendingAccessInvitation,
+  PendingInvitationByToken,
+} from './ports';
 import { makeAccessInvitationsUseCases } from './use-cases';
 
 const EXPIRES = '2026-06-16T12:00:00.000Z'; // TEST_ACCESS_NOW + 7 days
+
+const okProvisioner: IdentityProvisioner = {
+  createIdentity: async () => ({ ok: true, value: { userId: 'user-new' } }),
+};
 
 const makeWorld = (input?: {
   accountKind?: AccountKind;
   accountExists?: boolean;
   pending?: PendingAccessInvitation;
+  byToken?: PendingInvitationByToken | null;
+  provisioner?: IdentityProvisioner;
 }) => {
   const created: Array<{
-    invitation: { email: string; expiresAt: string };
+    invitation: { email: string; expiresAt: string; tokenHash: string };
     event: AccessInvitationCreated;
   }> = [];
+  const consumed: string[] = [];
   const useCases = makeAccessInvitationsUseCases({
     invitations: {
       createInvitation: async (invitation, event) => {
         created.push({ invitation, event });
       },
       findPendingByEmail: async () => input?.pending ?? null,
+      findPendingByTokenHash: async () => input?.byToken ?? null,
+      consumeToken: async (id) => {
+        consumed.push(id);
+      },
     },
     accounts: {
       findAccount: async (id) =>
@@ -29,10 +44,15 @@ const makeWorld = (input?: {
           ? { id, status: 'active', kind: input?.accountKind ?? 'staff' }
           : null,
     },
+    tokens: {
+      issue: () => ({ token: 'plain-token', tokenHash: 'hash-of-plain-token' }),
+      hashOf: (token) => `hash-of-${token}`,
+    },
+    provisioner: input?.provisioner ?? okProvisioner,
     clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     ids: sequentialIdGenerator('inv'),
   });
-  return { useCases, created };
+  return { useCases, created, consumed };
 };
 
 const OWN_READ = [{ action: 'customer.read', scope: 'own' }];
@@ -47,8 +67,10 @@ describe('createInvitation', () => {
       permissions: OWN_READ,
     });
     expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.token).toBe('plain-token');
     expect(world.created).toHaveLength(1);
     expect(world.created[0]?.invitation.email).toBe('new.member@example.com');
+    expect(world.created[0]?.invitation.tokenHash).toBe('hash-of-plain-token');
     expect(world.created[0]?.invitation.expiresAt).toBe(EXPIRES);
     expect(world.created[0]?.event.type).toBe('invitation.created');
     expect(world.created[0]?.event.actorMembershipId).toBe('membership-1');
@@ -141,5 +163,57 @@ describe('createInvitation', () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('app/invitation-already-pending');
+  });
+});
+
+const TOKEN_INVITE: PendingInvitationByToken = {
+  invitationId: 'inv-1' as PendingInvitationByToken['invitationId'],
+  accountId: 'acct-1' as PendingInvitationByToken['accountId'],
+  email: 'new@example.com',
+};
+
+describe('activateInvitation', () => {
+  it('creates the identity for a valid token and burns it', async () => {
+    const world = makeWorld({ byToken: TOKEN_INVITE });
+    const r = await world.useCases.activateInvitation({
+      token: 'plain-token',
+      password: 'sup3r-secret',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.email).toBe('new@example.com');
+    expect(world.consumed).toEqual(['inv-1']);
+  });
+
+  it('fails generically on an unknown/expired/used token (no enumeration)', async () => {
+    const world = makeWorld({ byToken: null });
+    const r = await world.useCases.activateInvitation({
+      token: 'whatever',
+      password: 'sup3r-secret',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/invitation-token-invalid');
+    expect(world.consumed).toEqual([]);
+  });
+
+  it('refuses when the email already has an identity (no takeover), token intact', async () => {
+    const world = makeWorld({
+      byToken: TOKEN_INVITE,
+      provisioner: {
+        createIdentity: async () => ({
+          ok: false,
+          error: {
+            tag: 'app/identity-already-exists',
+            message: 'exists',
+          },
+        }),
+      },
+    });
+    const r = await world.useCases.activateInvitation({
+      token: 'plain-token',
+      password: 'sup3r-secret',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/identity-already-exists');
+    expect(world.consumed).toEqual([]);
   });
 });

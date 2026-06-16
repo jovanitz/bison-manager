@@ -18,20 +18,24 @@ import type {
 export const testAdminAccount = (
   id: string,
   status = 'active',
+  hostsRoot = false,
 ): AdminAccountSnapshot => ({
   id: id as AccountId,
   status: status as AdminAccountSnapshot['status'],
   kind: 'customer',
+  hostsRoot,
 });
 
 export const testAdminSession = (
   id: string,
   accountId: string,
   status = 'active',
+  isRoot = false,
 ): AdminSessionSnapshot => ({
   id: id as SessionId,
   accountId: accountId as AccountId,
   status: status as AdminSessionSnapshot['status'],
+  isRoot,
 });
 
 export const testAdminDeps = (admin: ReturnType<typeof inMemoryAdmin>) => ({

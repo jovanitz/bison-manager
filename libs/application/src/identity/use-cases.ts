@@ -28,7 +28,7 @@ export const makeRegisterIdentitySession =
     readonly email: string | null;
     readonly context: SessionContext;
   }): Promise<
-    Result<{ readonly sessionId: SessionId }, IdentityUseCaseError>
+    Result<{ readonly sessionId: SessionId | null }, IdentityUseCaseError>
   > => {
     const userId = makeUserId(input.userId);
     if (!userId.ok) return err(userId.error);
@@ -45,6 +45,9 @@ export const makeRegisterIdentitySession =
       { userId: userId.value, email: input.email },
       occurredAt,
     );
+    // Org-less identity: nothing to bind a session to. The actor path 401s; the
+    // identity creates an organization via the identity-level endpoint instead.
+    if (!membership) return ok({ sessionId: null });
 
     // Initial expiry per the session policy of the account kind (dual clock:
     // both anchors are the login instant, so it resolves to now + idle TTL).

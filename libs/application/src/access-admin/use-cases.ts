@@ -1,25 +1,20 @@
 import { type Result, err, ok } from '@acme/shared';
-import { makeAccountId, makeMembershipId } from '@acme/domain';
+import { makeAccountId } from '@acme/domain';
 import type { AccessAction, AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import {
-  guardGrantedPermissions,
-  holdsAdminCapability,
-  parseGrantedPermissions,
-} from './deps';
+import { guardRootTarget } from './deps';
 import type { AccessAdminDeps } from './deps';
+import { makeUpdateUserPermissions } from './mutations/permissions-use-cases';
 import {
   makeListSessions,
   makeRevokeAllSessions,
   makeRevokeSession,
-} from './session-use-cases';
+} from './mutations/session-use-cases';
 import {
   accountAlreadyDisabled,
   accountAlreadyStaff,
   accountNotDisabled,
   accountNotFound,
-  cannotOrphanAccount,
-  membershipNotFound,
 } from './errors';
 import type { AccessAdminUseCaseError } from './errors';
 import type { AdminAccountSnapshot } from './ports';
@@ -53,6 +48,13 @@ const loadAuthorizedAccount = async (
 
   const account = await deps.admin.findAccount(accountId.value);
   if (!account) return err(accountNotFound(`No account ${input.accountId}.`));
+
+  // Super-admin protection: no one but the root may touch the root's account.
+  const rootGuard = guardRootTarget({
+    targetIsRoot: account.hostsRoot,
+    actor: input.actor,
+  });
+  if (!rootGuard.ok) return err(rootGuard.error);
   return ok({ account, now });
 };
 
@@ -133,67 +135,7 @@ export const makePromoteAccountToStaff =
     return ok(undefined);
   };
 
-export const makeUpdateUserPermissions =
-  (deps: AccessAdminDeps) =>
-  async (input: {
-    readonly actor: AccessActor;
-    readonly membershipId: string;
-    readonly permissions: ReadonlyArray<{
-      readonly action: string;
-      readonly scope: string;
-    }>;
-  }): AdminResult => {
-    const membershipId = makeMembershipId(input.membershipId);
-    if (!membershipId.ok) return err(membershipId.error);
-    const permissions = parseGrantedPermissions(input.permissions);
-    if (!permissions.ok) return err(permissions.error);
-
-    const membership = await deps.admin.findMembership(membershipId.value);
-    if (!membership) {
-      return err(membershipNotFound(`No membership ${input.membershipId}.`));
-    }
-
-    const now = deps.clock.now().toISOString();
-    const authorized = authorizeAccessAction({
-      actor: input.actor,
-      action: 'permissions.update',
-      resource: { accountId: membership.accountId },
-      now,
-    });
-    if (!authorized.ok) return err(authorized.error);
-
-    const coherent = guardGrantedPermissions(
-      permissions.value,
-      membership.accountKind,
-    );
-    if (!coherent.ok) return err(coherent.error);
-
-    // Anti-orphan: only a change that strips the governing capability needs
-    // the account to retain another administrator — verified atomically by
-    // the adapter (locked count), so concurrent demotions cannot both pass.
-    const demotesAdmin =
-      holdsAdminCapability(membership.permissions) &&
-      !holdsAdminCapability(permissions.value);
-    const result = await deps.admin.updatePermissions(
-      membership.id,
-      permissions.value,
-      {
-        type: 'permissions.updated',
-        membershipId: membership.id,
-        actorMembershipId: input.actor.membership.id,
-        before: membership.permissions,
-        after: permissions.value,
-        occurredAt: now,
-      },
-      demotesAdmin,
-    );
-    if (result.orphaned) {
-      return err(
-        cannotOrphanAccount('An account must keep at least one administrator.'),
-      );
-    }
-    return ok(undefined);
-  };
+export { makeUpdateUserPermissions };
 
 export type AccessAdminUseCases = {
   readonly disableAccount: ReturnType<typeof makeDisableAccount>;
@@ -209,7 +151,7 @@ export {
   makeListSessions,
   makeRevokeAllSessions,
   makeRevokeSession,
-} from './session-use-cases';
+} from './mutations/session-use-cases';
 
 export const makeAccessAdminUseCases = (
   deps: AccessAdminDeps,

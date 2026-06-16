@@ -19,6 +19,10 @@ export type AccessMemberSnapshot = {
   readonly membershipId: MembershipId;
   readonly userId: UserId;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** The protected super-admin membership — the UI hides editing it. */
+  readonly isRoot: boolean;
+  /** Soft-blocked within this org (own-scope `members.block`). */
+  readonly blocked: boolean;
 };
 
 /** One entry of a user's organization switcher. */

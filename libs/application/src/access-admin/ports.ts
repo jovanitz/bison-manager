@@ -23,6 +23,8 @@ export type AdminAccountSnapshot = {
   readonly id: AccountId;
   readonly status: AccountStatus;
   readonly kind: AccountKind;
+  /** True if the account hosts the protected super-admin (root) membership. */
+  readonly hostsRoot: boolean;
 };
 
 export type AdminMembershipSnapshot = {
@@ -30,12 +32,16 @@ export type AdminMembershipSnapshot = {
   readonly accountId: AccountId;
   readonly accountKind: AccountKind;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** The protected super-admin membership. */
+  readonly isRoot: boolean;
 };
 
 export type AdminSessionSnapshot = {
   readonly id: SessionId;
   readonly accountId: AccountId;
   readonly status: SessionStatus;
+  /** True if this session belongs to the protected super-admin. */
+  readonly isRoot: boolean;
 };
 
 /** One row of the "active sessions" view: the context captured at the edge. */

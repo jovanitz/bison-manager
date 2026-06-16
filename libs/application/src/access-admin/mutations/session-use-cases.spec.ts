@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AccountId, MembershipId, SessionId } from '@acme/domain';
-import { testAccessActor } from '../access/testing';
-import type { AdminMembershipSnapshot } from './ports';
+import { testAccessActor } from '../../access/testing';
+import type { AdminMembershipSnapshot } from '../ports';
 import {
   inMemoryAdmin,
   testAdminDeps as deps,
   testAdminSession as session,
-} from './testing';
-import { makeAccessAdminUseCases } from './use-cases';
+} from '../testing';
+import { makeAccessAdminUseCases } from '../use-cases';
 
 describe('revokeAllSessions', () => {
   const membership = (): AdminMembershipSnapshot => ({

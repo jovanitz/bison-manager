@@ -1,15 +1,16 @@
 import { type Result, err, ok } from '@acme/shared';
 import { makeMembershipId, makeSessionId } from '@acme/domain';
 import type { AccessActor } from '@acme/domain';
-import { authorizeAccessAction } from '../access/authorize';
+import { authorizeAccessAction } from '../../access/authorize';
 import {
   membershipNotFound,
   sessionAlreadyRevoked,
   sessionNotFound,
-} from './errors';
-import type { AccessAdminUseCaseError } from './errors';
-import type { AccessAdminDeps } from './deps';
-import type { AdminSessionDetail } from './ports';
+} from '../errors';
+import type { AccessAdminUseCaseError } from '../errors';
+import { guardRootTarget } from '../deps';
+import type { AccessAdminDeps } from '../deps';
+import type { AdminSessionDetail } from '../ports';
 
 type AdminResult = Promise<Result<void, AccessAdminUseCaseError>>;
 
@@ -24,6 +25,12 @@ export const makeRevokeSession =
 
     const session = await deps.admin.findSession(sessionId.value);
     if (!session) return err(sessionNotFound(`No session ${input.sessionId}.`));
+
+    const rootGuard = guardRootTarget({
+      targetIsRoot: session.isRoot,
+      actor: input.actor,
+    });
+    if (!rootGuard.ok) return err(rootGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({
@@ -65,6 +72,12 @@ export const makeRevokeAllSessions =
     if (!membership) {
       return err(membershipNotFound(`No membership ${input.membershipId}.`));
     }
+
+    const rootGuard = guardRootTarget({
+      targetIsRoot: membership.isRoot,
+      actor: input.actor,
+    });
+    if (!rootGuard.ok) return err(rootGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({

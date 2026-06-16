@@ -37,6 +37,7 @@ export * from './audit-trail/use-cases';
 export * from './identity/ports';
 export * from './identity/errors';
 export * from './identity/use-cases';
+export * from './identity/create-organization';
 
 // Access invitations: joining an existing account, by invitation only
 export * from './access-invitations/ports';
@@ -48,6 +49,14 @@ export * from './access-members/ports';
 export * from './access-members/errors';
 export * from './access-members/use-cases';
 
+// Access directory: the platform staff directory (a platform-admin read)
+export * from './access-directory/ports';
+export * from './access-directory/use-cases';
+
+// Access block: soft block of an org or an identity (login yes, operate no)
+export * from './access-block/ports';
+export * from './access-block/use-cases';
+
 // Access settings: runtime-editable session policy (owner capability)
 export * from './access-settings/ports';
 export * from './access-settings/errors';
@@ -57,3 +66,8 @@ export * from './access-settings/use-cases';
 export * from './access-client/ports';
 export * from './access-client/errors';
 export * from './access-client/use-cases';
+export * from './access-client/gateways/directory-use-cases';
+export * from './access-client/gateways/invitations-use-cases';
+export * from './access-client/gateways/members-use-cases';
+export * from './access-client/gateways/block-use-cases';
+export * from './access-client/gateways/client/orgs-use-cases';
