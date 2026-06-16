@@ -1,5 +1,7 @@
 import type {
   AccessAdminUseCases,
+  AccessBlockUseCases,
+  AccessDirectoryUseCases,
   AccessInvitationsUseCases,
   AccessMembersUseCases,
   AccessSettingsUseCases,
@@ -10,18 +12,22 @@ import type {
 import type { ApiProcedure } from '../rpc/procedure';
 import { createAccessProcedures } from './access-procedures';
 import { createAdminProcedures } from './admin-procedures';
+import { createBlockProcedures } from './block-procedures';
+import { createDirectoryProcedures } from './directory-procedures';
 import { createImpersonationProcedures } from './impersonation-procedures';
-import { createMembersProcedures } from './members-procedures';
+import { createMembersProcedures } from './members/members-procedures';
 import { createSettingsProcedures } from './settings-procedures';
 
 export type ApiUseCases = {
   readonly access: AccessUseCases;
   readonly auditTrail: AuditTrailUseCases;
   readonly accessAdmin: AccessAdminUseCases;
+  readonly accessDirectory: AccessDirectoryUseCases;
   readonly impersonation: ImpersonationUseCases;
   readonly accessSettings: AccessSettingsUseCases;
   readonly accessInvitations: AccessInvitationsUseCases;
   readonly accessMembers: AccessMembersUseCases;
+  readonly accessBlock: AccessBlockUseCases;
 };
 
 /**
@@ -34,6 +40,8 @@ export const createApiProcedures = (
 ): ReadonlyArray<ApiProcedure> => [
   ...createAccessProcedures(useCases),
   ...createAdminProcedures(useCases.accessAdmin),
+  ...createBlockProcedures(useCases.accessBlock),
+  ...createDirectoryProcedures(useCases.accessDirectory),
   ...createImpersonationProcedures(useCases.impersonation),
   ...createSettingsProcedures(useCases.accessSettings),
   ...createMembersProcedures(

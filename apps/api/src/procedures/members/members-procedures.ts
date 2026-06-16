@@ -3,8 +3,8 @@ import type {
   AccessInvitationsUseCases,
   AccessMembersUseCases,
 } from '@acme/application';
-import { defineApiProcedure } from '../rpc/procedure';
-import type { ApiProcedure } from '../rpc/procedure';
+import { defineApiProcedure } from '../../rpc/procedure';
+import type { ApiProcedure } from '../../rpc/procedure';
 
 const membersInvite = (
   accessInvitations: AccessInvitationsUseCases,

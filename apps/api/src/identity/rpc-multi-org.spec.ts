@@ -51,13 +51,22 @@ describe('multi-organization: one login, several organizations', () => {
       await callRpc(app, 'access.current', { token: owner }),
     );
 
-    // the doctor self-signs-up: their own customer organization
+    // the doctor self-signs-up (org-less) and creates their OWN organization
     const doctorUserId = crypto.randomUUID();
     const firstLogin = await tokenFor({
       userId: doctorUserId,
       sessionId: crypto.randomUUID(),
       email: DOCTOR_EMAIL,
     });
+    const createdHome = await app.request('/id/create-organization', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${firstLogin}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ name: 'Doctor Clinic' }),
+    });
+    expect(createdHome.status).toBe(200);
     const homeOrg = await currentOf(
       await callRpc(app, 'access.current', { token: firstLogin }),
     );

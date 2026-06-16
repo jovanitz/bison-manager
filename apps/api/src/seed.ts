@@ -26,6 +26,7 @@ export const seedWorld = (config: {
       userId: 'user-owner',
       accountId: 'acct-owner',
       permissions: accessPresetPermissions('owner'),
+      isRoot: true,
     },
     {
       id: 'membership-support',

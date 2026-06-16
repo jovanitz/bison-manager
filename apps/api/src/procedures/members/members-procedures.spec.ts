@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { callRpc, errorTag, testRuntime } from '../testing/rpc-harness';
+import { callRpc, errorTag, testRuntime } from '../../testing/rpc-harness';
 
 describe('members.list', () => {
   it('lets the owner list the members of any account', async () => {

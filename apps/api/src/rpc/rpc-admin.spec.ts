@@ -202,3 +202,41 @@ describe('POST /rpc/account.promote', () => {
     expect(await errorTag(repeat)).toBe('app/account-already-staff');
   });
 });
+
+/** The dashboard directory: staff.list (staff.read) + customers.list (customer.search). */
+describe('directory listings', () => {
+  const ids = async (res: Response) =>
+    (
+      (await res.json()) as { data: ReadonlyArray<{ accountId: string }> }
+    ).data.map((r) => r.accountId);
+
+  it('serves the staff directory to an owner, denies support and customers', async () => {
+    const { app } = testRuntime();
+    const ok = await callRpc(app, 'staff.list', { token: 'session-owner' });
+    expect(ok.status).toBe(200);
+    expect((await ids(ok)).sort()).toEqual(['acct-owner', 'acct-support']);
+
+    // staff.read is owner-only: support (a staff account) and customers are denied.
+    const support = await callRpc(app, 'staff.list', {
+      token: 'session-support',
+    });
+    expect(support.status).toBe(403);
+    const customer = await callRpc(app, 'staff.list', {
+      token: 'session-customer',
+    });
+    expect(customer.status).toBe(403);
+    expect(await errorTag(customer)).toBe('app/access-denied');
+  });
+
+  it('serves the customer directory to a customer.search holder, denies plain customers', async () => {
+    const { app } = testRuntime();
+    const ok = await callRpc(app, 'customers.list', { token: 'session-owner' });
+    expect(ok.status).toBe(200);
+    expect(await ids(ok)).toContain('acct-customer');
+
+    const denied = await callRpc(app, 'customers.list', {
+      token: 'session-customer',
+    });
+    expect(denied.status).toBe(403);
+  });
+});

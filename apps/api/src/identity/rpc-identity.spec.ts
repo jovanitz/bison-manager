@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sign } from 'hono/jwt';
 import { createApiRuntime } from '../composition-root';
 import { callRpc } from '../testing/rpc-harness';
+import type { TestApp } from '../testing/rpc-harness';
 
 /**
  * End-to-end identity flow against the real JWT pipeline (in-memory store):
@@ -67,24 +68,38 @@ describe('identity pipeline (Supabase-shaped JWTs)', () => {
     ]);
   });
 
-  it('onboards unknown identities as customers, never as owners', async () => {
+  const createOrg = (app: TestApp, token: string, name: string) =>
+    app.request('/id/create-organization', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+
+  it('leaves an unknown identity org-less until it creates its own org (then customer-admin)', async () => {
     const { app } = identityRuntime();
     await callRpc(app, 'access.current', { token: await ownerToken() });
 
-    const customerToken = await tokenFor({
+    const token = await tokenFor({
       userId: crypto.randomUUID(),
       sessionId: crypto.randomUUID(),
       email: 'customer@example.com',
     });
-    const current = await callRpc(app, 'access.current', {
-      token: customerToken,
-    });
+    // org-less: no membership ⇒ the actor path 401s.
+    expect((await callRpc(app, 'access.current', { token })).status).toBe(401);
+
+    // creates its own org → becomes its admin.
+    expect((await createOrg(app, token, 'My Org')).status).toBe(200);
+
+    const current = await callRpc(app, 'access.current', { token });
     expect(current.status).toBe(200);
     const body = (await current.json()) as {
       data: { permissions: ReadonlyArray<{ action: string; scope: string }> };
     };
     expect(body.data.permissions).toContainEqual({
-      action: 'customer.read',
+      action: 'members.invite',
       scope: 'own',
     });
     expect(body.data.permissions).not.toContainEqual({
@@ -106,6 +121,8 @@ describe('identity pipeline (Supabase-shaped JWTs)', () => {
     expect(
       (await callRpc(app, 'access.current', { token: owner })).status,
     ).toBe(200);
+    // org-less customer creates an org, then its session resolves.
+    expect((await createOrg(app, customer, 'Org')).status).toBe(200);
     expect(
       (await callRpc(app, 'access.current', { token: customer })).status,
     ).toBe(200);

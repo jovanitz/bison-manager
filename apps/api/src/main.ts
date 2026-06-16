@@ -29,6 +29,8 @@ const envSchema = z.object({
   SUPABASE_DB_URL: z.string().min(1).optional(),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_JWT_SECRET: z.string().min(16).optional(),
+  /** Supabase SECRET key — admin provisioning for invitation activation. */
+  SUPABASE_SECRET_KEY: z.string().min(8).optional(),
   BOOTSTRAP_OWNER_EMAIL: z.string().email().optional(),
   /** Comma-separated browser origins for /rpc; defaults to the Vite dev ports. */
   CORS_ORIGINS: z.string().optional(),
@@ -87,6 +89,10 @@ const runtime = createApiRuntime({
   ...(jwksUrl ? { jwksUrl } : {}),
   ...(env.data.SUPABASE_JWT_SECRET
     ? { jwtSecret: env.data.SUPABASE_JWT_SECRET }
+    : {}),
+  ...(env.data.SUPABASE_URL ? { supabaseUrl: env.data.SUPABASE_URL } : {}),
+  ...(env.data.SUPABASE_SECRET_KEY
+    ? { supabaseSecretKey: env.data.SUPABASE_SECRET_KEY }
     : {}),
   bootstrapOwnerEmail: env.data.BOOTSTRAP_OWNER_EMAIL ?? null,
   ...(env.data.AUTH_HOOK_SECRET
