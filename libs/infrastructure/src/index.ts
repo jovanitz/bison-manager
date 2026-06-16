@@ -20,9 +20,16 @@ export * from './auth/jwt-auth-provider';
 export * from './auth/fake-auth-provider';
 export * from './auth/supabase-auth-provider';
 export * from './auth/supabase-auth-api';
+export * from './auth/provisioning/in-memory-identity-provisioner';
 
 // Access client adapters (browser-safe: fetch/ApiClient only)
 export * from './access-client/rpc-access-gateway';
+export * from './access-client/gateways/rpc-directory-gateway';
+export * from './access-client/gateways/rpc-invitations-gateway';
+export * from './access-client/gateways/rpc-activation-gateway';
+export * from './access-client/gateways/rpc-members-gateway';
+export * from './access-client/gateways/rpc-block-gateway';
+export * from './access-client/gateways/client/rpc-orgs-gateway';
 
 // Offline sync
 export * from './sync/dexie-operation-queue';

@@ -1,26 +1,35 @@
 import type {
   AccessAdminRepository,
-  AccessMemberDirectory,
   AdminSessionDetail,
 } from '@acme/application';
 import { accessSessionExpiryFrom } from '@acme/domain';
 import type {
+  AccessAccountDisabled,
+  AccessAccountEnabled,
   AccessAccountPromoted,
   AccessSessionPolicy,
   AccountId,
   MembershipId,
   SessionId,
-  UserId,
 } from '@acme/domain';
-import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
-import type { AccessStoreState } from './in-memory-access-seed';
+import { appendInMemoryAuditRecord } from '../in-memory-audit-trail';
+import type { AccessStoreState } from '../in-memory-access-seed';
 
-const accountKindOf = (state: AccessStoreState, accountId: string) =>
+/** Shared by the admin repo and the member directory (which lives apart). */
+export const accountKindOf = (state: AccessStoreState, accountId: string) =>
   state.customers.has(accountId) ? ('customer' as const) : ('staff' as const);
+
+const accountHostsRoot = (
+  state: AccessStoreState,
+  accountId: string,
+): boolean =>
+  [...state.memberships.values()].some(
+    (m) => m.accountId === accountId && m.isRoot,
+  );
 
 /** Is there an administrator (permissions.update holder) of the account other
  * than `exceptId`? Anchors the anti-orphan invariant. */
-const hasOtherAdmin = (
+export const hasOtherAdmin = (
   state: AccessStoreState,
   accountId: string,
   exceptId: string,
@@ -93,23 +102,36 @@ const revokeActiveSessions = (
   return revoked;
 };
 
+/** Set account status, preserving the soft-block flag + recording the event. */
+const setAccountStatus = (
+  state: AccessStoreState,
+  id: AccountId,
+  status: 'active' | 'disabled',
+  event: AccessAccountDisabled | AccessAccountEnabled,
+): void => {
+  const prev = state.accounts.get(id);
+  state.accounts.set(id, { status, blocked: prev?.blocked ?? false });
+  appendInMemoryAuditRecord(state, event);
+};
+
 export const makeInMemoryAdminRepository = (
   state: AccessStoreState,
 ): AccessAdminRepository => ({
   findAccount: async (id) => {
     const account = state.accounts.get(id);
     return account
-      ? { id, status: account.status, kind: accountKindOf(state, id) }
+      ? {
+          id,
+          status: account.status,
+          kind: accountKindOf(state, id),
+          hostsRoot: accountHostsRoot(state, id),
+        }
       : null;
   },
-  disableAccount: async (id, event) => {
-    state.accounts.set(id, { status: 'disabled' });
-    appendInMemoryAuditRecord(state, event);
-  },
-  enableAccount: async (id, event) => {
-    state.accounts.set(id, { status: 'active' });
-    appendInMemoryAuditRecord(state, event);
-  },
+  disableAccount: async (id, event) =>
+    setAccountStatus(state, id, 'disabled', event),
+  enableAccount: async (id, event) =>
+    setAccountStatus(state, id, 'active', event),
   findMembership: async (id) => {
     const membership = state.memberships.get(id);
     if (!membership) return null;
@@ -118,6 +140,7 @@ export const makeInMemoryAdminRepository = (
       accountId: membership.accountId as AccountId,
       accountKind: accountKindOf(state, membership.accountId),
       permissions: membership.permissions,
+      isRoot: membership.isRoot,
     };
   },
   promoteAccountToStaff: async (id, event, staffPolicy) =>
@@ -140,6 +163,7 @@ export const makeInMemoryAdminRepository = (
       id,
       accountId: membership.accountId as AccountId,
       status: session.status,
+      isRoot: membership.isRoot,
     };
   },
   revokeSession: async (id, event) => {
@@ -151,59 +175,4 @@ export const makeInMemoryAdminRepository = (
   revokeAllSessions: async (membershipId, template) =>
     revokeActiveSessions(state, membershipId, template),
   listSessions: async (membershipId) => listSessions(state, membershipId),
-});
-
-/** Members of one account; removal deletes membership + sessions (cascade). */
-export const makeInMemoryMemberDirectory = (
-  state: AccessStoreState,
-): AccessMemberDirectory => ({
-  listMembers: async (accountId) =>
-    [...state.memberships.entries()]
-      .filter(([, m]) => m.accountId === accountId)
-      .map(([id, m]) => ({
-        membershipId: id as MembershipId,
-        userId: m.userId as UserId,
-        permissions: m.permissions,
-      })),
-
-  removeMember: async (membershipId, event, requireCoAdmin) => {
-    if (
-      requireCoAdmin &&
-      !hasOtherAdmin(state, event.accountId, membershipId)
-    ) {
-      return { orphaned: true };
-    }
-    for (const [sessionId, session] of state.sessions) {
-      if (session.membershipId === membershipId) {
-        state.sessions.delete(sessionId);
-      }
-    }
-    state.memberships.delete(membershipId);
-    appendInMemoryAuditRecord(state, event);
-    return { orphaned: false };
-  },
-
-  listMembershipsByUser: async (userId) =>
-    [...state.memberships.entries()]
-      .filter(([, m]) => m.userId === userId)
-      .map(([id, m]) => ({
-        membershipId: id as MembershipId,
-        accountId: m.accountId as AccountId,
-        accountKind: accountKindOf(state, m.accountId),
-        accountStatus:
-          state.accounts.get(m.accountId)?.status ?? ('active' as const),
-        accountName: state.customers.get(m.accountId)?.displayName ?? null,
-      })),
-
-  switchSession: async (sessionId, toMembershipId, expiresAt, event) => {
-    const session = state.sessions.get(sessionId);
-    if (!session) return;
-    state.sessions.set(sessionId, {
-      ...session,
-      membershipId: toMembershipId,
-      expiresAt,
-      lastSeenAt: event.occurredAt,
-    });
-    appendInMemoryAuditRecord(state, event);
-  },
 });

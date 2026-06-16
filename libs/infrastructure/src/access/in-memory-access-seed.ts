@@ -23,6 +23,8 @@ import type {
 export type SeedAccount = {
   readonly id: string;
   readonly status?: AccountStatus;
+  /** Soft-blocked org: members can sign in but cannot operate. */
+  readonly blocked?: boolean;
 };
 
 export type SeedMembership = {
@@ -30,6 +32,8 @@ export type SeedMembership = {
   readonly userId: string;
   readonly accountId: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** The protected super-admin membership (the bootstrapped owner). */
+  readonly isRoot?: boolean;
 };
 
 export type SeedSession = {
@@ -68,12 +72,17 @@ export type InMemoryAccessSeed = {
    * seeder creates them in auth.users so FK constraints hold.
    */
   readonly users?: ReadonlyArray<{ readonly id: string }>;
+  /** User ids soft-blocked at the identity level (all their orgs). */
+  readonly blockedIdentities?: ReadonlyArray<string>;
+  /** Membership ids soft-blocked at the membership level (one org only). */
+  readonly blockedMemberships?: ReadonlyArray<string>;
 };
 
 export type StoredMembership = {
   readonly userId: string;
   readonly accountId: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  readonly isRoot: boolean;
 };
 
 export type StoredSession = {
@@ -94,13 +103,17 @@ export type StoredInvitation = {
   readonly permissions: ReadonlyArray<AccessPermission>;
   readonly expiresAt: string;
   readonly acceptedAt: string | null;
+  /** SHA-256 of the one-time activation token; null once consumed. */
+  tokenHash: string | null;
 };
 
 export type AccessStoreState = {
   readonly invitations: Map<string, StoredInvitation>;
   /** Runtime-editable session policy; null = domain defaults (version 1). */
   settings: { policies: AccessSessionPolicies; version: number } | null;
-  readonly accounts: Map<string, { status: AccountStatus }>;
+  readonly accounts: Map<string, { status: AccountStatus; blocked: boolean }>;
+  readonly blockedIdentities: Set<string>;
+  readonly blockedMemberships: Set<string>;
   readonly memberships: Map<string, StoredMembership>;
   readonly sessions: Map<string, StoredSession>;
   readonly customers: Map<string, CustomerAccountDetails>;
@@ -114,12 +127,22 @@ export const toAccessStoreState = (
   invitations: new Map(),
   settings: null,
   accounts: new Map(
-    (seed.accounts ?? []).map((a) => [a.id, { status: a.status ?? 'active' }]),
+    (seed.accounts ?? []).map((a) => [
+      a.id,
+      { status: a.status ?? 'active', blocked: a.blocked ?? false },
+    ]),
   ),
+  blockedIdentities: new Set(seed.blockedIdentities ?? []),
+  blockedMemberships: new Set(seed.blockedMemberships ?? []),
   memberships: new Map(
     (seed.memberships ?? []).map((m) => [
       m.id,
-      { userId: m.userId, accountId: m.accountId, permissions: m.permissions },
+      {
+        userId: m.userId,
+        accountId: m.accountId,
+        permissions: m.permissions,
+        isRoot: m.isRoot ?? false,
+      },
     ]),
   ),
   sessions: new Map(

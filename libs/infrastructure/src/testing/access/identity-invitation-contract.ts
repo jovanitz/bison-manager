@@ -38,6 +38,7 @@ export const identityInvitationContract = (
           invitedBy: ids.membershipSupport,
           createdAt: NOW,
           expiresAt: INVITE_EXPIRES,
+          tokenHash: 'token-hash-abc',
         },
         {
           type: 'invitation.created',
@@ -67,6 +68,22 @@ export const identityInvitationContract = (
           'invitee@example.com',
           AFTER_EXPIRY,
         ),
+      ).toBeNull();
+
+      // located by token hash (the activation flow); burned, then no longer found
+      expect(
+        await store.invitations.findPendingByTokenHash('token-hash-abc', NOW),
+      ).toEqual({
+        invitationId,
+        accountId: ids.acctCustomer,
+        email: 'invitee@example.com',
+      });
+      expect(
+        await store.invitations.findPendingByTokenHash('nope', NOW),
+      ).toBeNull();
+      await store.invitations.consumeToken(invitationId);
+      expect(
+        await store.invitations.findPendingByTokenHash('token-hash-abc', NOW),
       ).toBeNull();
 
       const membershipId = crypto.randomUUID() as MembershipId;

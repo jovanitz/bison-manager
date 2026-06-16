@@ -16,14 +16,39 @@ export const createPostgresInvitationStore = (
     await sql.begin(async (tx) => {
       await tx`
         insert into public.invitations
-          (id, account_id, email, permissions, invited_by, created_at, expires_at)
+          (id, account_id, email, permissions, invited_by, created_at,
+           expires_at, token_hash)
         values (${invitation.invitationId}, ${invitation.accountId},
           ${invitation.email}, ${tx.json(invitation.permissions as never)},
           ${invitation.invitedBy}, ${invitation.createdAt},
-          ${invitation.expiresAt})
+          ${invitation.expiresAt}, ${invitation.tokenHash})
       `;
       await insertAuditEvent(tx, event);
     });
+  },
+
+  findPendingByTokenHash: async (tokenHash, now) => {
+    const rows = await sql`
+      select id, account_id, email
+      from public.invitations
+      where token_hash = ${tokenHash}
+        and accepted_at is null
+        and expires_at > ${now}
+      limit 1
+    `;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      invitationId: row['id'] as InvitationId,
+      accountId: row['account_id'] as AccountId,
+      email: row['email'] as string,
+    };
+  },
+
+  consumeToken: async (invitationId) => {
+    await sql`
+      update public.invitations set token_hash = null where id = ${invitationId}
+    `;
   },
 
   findPendingByEmail: async (email, now) => {

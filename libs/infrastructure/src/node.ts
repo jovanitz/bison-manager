@@ -7,3 +7,7 @@
  * composition roots (apps/api) may import this module.
  */
 export * from './access/postgres/postgres-access-store';
+
+// Server-only auth adapters (node:crypto / admin secret key — never the browser).
+export * from './auth/provisioning/node-secret-token-service';
+export * from './auth/provisioning/supabase-admin-provisioner';

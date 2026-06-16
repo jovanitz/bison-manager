@@ -21,6 +21,8 @@ type ActorRow = {
   readonly permissions: AccessActor['permissions'];
   readonly account_status: string;
   readonly account_kind: string;
+  readonly is_root: boolean;
+  readonly blocked: boolean;
 };
 
 /**
@@ -41,8 +43,12 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         m.user_id,
         m.account_id,
         m.permissions,
+        m.is_root,
         a.status as account_status,
-        a.kind as account_kind
+        a.kind as account_kind,
+        (a.blocked or m.blocked or exists (
+          select 1 from public.blocked_identities bi where bi.user_id = m.user_id
+        )) as blocked
       from public.sessions s
       join public.memberships m on m.id = s.membership_id
       join public.accounts a on a.id = m.account_id
@@ -65,6 +71,8 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
       },
       accountStatus: row.account_status as AccountStatus,
       accountKind: row.account_kind as AccountKind,
+      isRoot: row.is_root,
+      blocked: row.blocked,
       session: {
         id: sessionId,
         status: row.session_status as SessionStatus,

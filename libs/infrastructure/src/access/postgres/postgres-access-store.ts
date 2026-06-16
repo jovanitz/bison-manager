@@ -3,6 +3,7 @@ import type {
   AccessActorReader,
   AccessAdminRepository,
   AccessAuditTrail,
+  AccessBlockStore,
   AccessGrantExpiryRecorder,
   AccessGrantRepository,
   AccessInvitationStore,
@@ -11,12 +12,15 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  StaffDirectory,
 } from '@acme/application';
 import { createPostgresActorReader } from './actor-reader';
 import { createPostgresAdminRepository } from './admin-repository';
+import { createPostgresBlockStore } from './block/block-store';
 import {
   createPostgresAuditTrail,
   createPostgresCustomerDirectory,
+  createPostgresStaffDirectory,
 } from './audit-and-directory';
 import {
   createPostgresGrantExpiryRecorder,
@@ -46,11 +50,13 @@ export type PostgresAccessStore = {
   readonly admin: AccessAdminRepository;
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
+  readonly staffDirectory: StaffDirectory;
   readonly onboarding: IdentityOnboardingRepository;
   readonly sessionPolicies: AccessSessionPolicyStore;
   readonly sessionActivity: AccessSessionActivityRecorder;
   readonly invitations: AccessInvitationStore;
   readonly members: AccessMemberDirectory;
+  readonly blocks: AccessBlockStore;
   readonly close: () => Promise<void>;
 };
 
@@ -69,11 +75,13 @@ export const createPostgresAccessStore = (config: {
     admin: createPostgresAdminRepository(sql),
     grants: createPostgresGrantRepository(sql),
     customers: createPostgresCustomerDirectory(sql),
+    staffDirectory: createPostgresStaffDirectory(sql),
     onboarding: createPostgresIdentityOnboarding(sql),
     sessionPolicies: createPostgresSessionPolicyStore(sql),
     sessionActivity: createPostgresSessionActivityRecorder(sql),
     invitations: createPostgresInvitationStore(sql),
     members: createPostgresMemberDirectory(sql),
+    blocks: createPostgresBlockStore(sql),
     close: () => sql.end(),
   };
 };

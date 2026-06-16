@@ -1,4 +1,8 @@
-import type { AccessAuditTrail, CustomerDirectory } from '@acme/application';
+import type {
+  AccessAuditTrail,
+  CustomerDirectory,
+  StaffDirectory,
+} from '@acme/application';
 import type { AccessAuditEvent, AccountId } from '@acme/domain';
 import type { Sql } from 'postgres';
 import { insertAuditEvent, isUuid, isoOf } from './rows';
@@ -68,5 +72,25 @@ export const createPostgresCustomerDirectory = (
       status: row['status'] as string,
       createdAt: isoOf(row['created_at'] as Date),
     };
+  },
+});
+
+/**
+ * The platform staff directory — the mirror image of the customer one: it lists
+ * exactly the accounts the customer directory hides (`kind='staff'`). Read-only
+ * and account-spanning; the `staff.read` policy check happens in the use case.
+ */
+export const createPostgresStaffDirectory = (sql: Sql): StaffDirectory => ({
+  listStaff: async () => {
+    const rows = await sql`
+      select id, display_name, email from public.accounts
+      where kind = 'staff'
+      order by email asc nulls last, id asc
+    `;
+    return rows.map((row) => ({
+      accountId: row['id'] as AccountId,
+      email: row['email'] as string | null,
+      displayName: row['display_name'] as string | null,
+    }));
   },
 });

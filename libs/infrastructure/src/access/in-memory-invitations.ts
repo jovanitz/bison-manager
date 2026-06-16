@@ -14,8 +14,31 @@ export const makeInMemoryInvitationStore = (
       permissions: invitation.permissions,
       expiresAt: invitation.expiresAt,
       acceptedAt: null,
+      tokenHash: invitation.tokenHash,
     });
     appendInMemoryAuditRecord(state, event);
+  },
+
+  findPendingByTokenHash: async (tokenHash, now) => {
+    for (const invitation of state.invitations.values()) {
+      if (
+        invitation.tokenHash === tokenHash &&
+        invitation.acceptedAt === null &&
+        new Date(invitation.expiresAt).getTime() > new Date(now).getTime()
+      ) {
+        return {
+          invitationId: invitation.invitationId,
+          accountId: invitation.accountId as never,
+          email: invitation.email,
+        };
+      }
+    }
+    return null;
+  },
+
+  consumeToken: async (invitationId) => {
+    const invitation = state.invitations.get(invitationId);
+    if (invitation) invitation.tokenHash = null;
   },
 
   findPendingByEmail: async (email, now) => {

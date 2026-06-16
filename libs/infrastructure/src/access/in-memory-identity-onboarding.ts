@@ -15,12 +15,17 @@ import type { AccessStoreState } from './in-memory-access-seed';
 const storeMembership = (
   state: AccessStoreState,
   membership: NewIdentityMembership,
+  isRoot: boolean,
 ): void => {
-  state.accounts.set(membership.accountId, { status: 'active' });
+  state.accounts.set(membership.accountId, {
+    status: 'active',
+    blocked: false,
+  });
   state.memberships.set(membership.membershipId, {
     userId: membership.userId,
     accountId: membership.accountId,
     permissions: membership.permissions,
+    isRoot,
   });
 };
 
@@ -61,19 +66,15 @@ export const makeInMemoryIdentityOnboarding = (
   sessionExists: async (sessionId) => state.sessions.has(sessionId),
 
   rootAdminExists: async () =>
-    [...state.memberships.values()].some((membership) =>
-      membership.permissions.some(
-        (p) => p.action === 'permissions.update' && p.scope === 'any',
-      ),
-    ),
+    [...state.memberships.values()].some((membership) => membership.isRoot),
 
   createOwnerMembership: async (membership, event) => {
-    storeMembership(state, membership);
+    storeMembership(state, membership, true);
     appendInMemoryAuditRecord(state, event);
   },
 
   createCustomerMembership: async (membership) => {
-    storeMembership(state, membership);
+    storeMembership(state, membership, false);
     state.customers.set(membership.accountId, {
       accountId: membership.accountId,
       displayName: membership.displayName,
@@ -96,6 +97,7 @@ export const makeInMemoryIdentityOnboarding = (
       userId: membership.userId,
       accountId: membership.accountId,
       permissions: membership.permissions,
+      isRoot: false,
     });
     appendInMemoryAuditRecord(state, event);
   },

@@ -35,7 +35,12 @@ const findAccount = async (
 ): Promise<AdminAccountSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select id, status, kind from public.accounts where id = ${id}
+    select a.id, a.status, a.kind,
+      exists (
+        select 1 from public.memberships m
+        where m.account_id = a.id and m.is_root
+      ) as hosts_root
+    from public.accounts a where a.id = ${id}
   `;
   const row = rows[0];
   if (!row) return null;
@@ -43,6 +48,7 @@ const findAccount = async (
     id: row['id'] as AccountId,
     status: row['status'] as AccountStatus,
     kind: row['kind'] as AccountKind,
+    hostsRoot: row['hosts_root'] as boolean,
   };
 };
 
@@ -52,7 +58,7 @@ const findMembership = async (
 ): Promise<AdminMembershipSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select m.id, m.account_id, m.permissions, a.kind
+    select m.id, m.account_id, m.permissions, m.is_root, a.kind
     from public.memberships m
     join public.accounts a on a.id = m.account_id
     where m.id = ${id}
@@ -64,6 +70,7 @@ const findMembership = async (
     accountId: row['account_id'] as AccountId,
     accountKind: row['kind'] as AccountKind,
     permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
+    isRoot: row['is_root'] as boolean,
   };
 };
 

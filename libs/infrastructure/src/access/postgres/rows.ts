@@ -56,6 +56,14 @@ export const grantFromRow = (row: GrantRow): AccessGrant => ({
 const eventAccountId = (event: AccessAuditEvent): string | null => {
   if ('accountId' in event) return event.accountId;
   if ('targetAccountId' in event) return event.targetAccountId;
+  // Org block/unblock: the subject IS an account. Identity blocks carry a user
+  // id in `subjectId`, which must NOT land in the account_id FK column.
+  if (
+    (event.type === 'access.blocked' || event.type === 'access.unblocked') &&
+    event.subjectKind === 'org'
+  ) {
+    return event.subjectId;
+  }
   return null;
 };
 

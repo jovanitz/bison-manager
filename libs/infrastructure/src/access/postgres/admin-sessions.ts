@@ -22,7 +22,7 @@ export const findSession = async (
 ): Promise<AdminSessionSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select s.id, s.status, m.account_id
+    select s.id, s.status, m.account_id, m.is_root
     from public.sessions s
     join public.memberships m on m.id = s.membership_id
     where s.id = ${id}
@@ -33,6 +33,7 @@ export const findSession = async (
     id: row['id'] as SessionId,
     accountId: row['account_id'] as AdminSessionSnapshot['accountId'],
     status: row['status'] as SessionStatus,
+    isRoot: row['is_root'] as boolean,
   };
 };
 

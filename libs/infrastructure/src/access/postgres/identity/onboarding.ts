@@ -20,8 +20,6 @@ import type { SqlLike } from '../rows';
  * auth.users rows are GoTrue's: a real sign-in guarantees they exist before
  * this code runs, so nothing here writes to the auth schema.
  */
-const ROOT_ADMIN_MARKER = [{ action: 'permissions.update', scope: 'any' }];
-
 const listActiveSessions = async (
   sql: Sql,
   membershipId: MembershipId,
@@ -44,6 +42,7 @@ const insertMembershipBundle = async (
   tx: SqlLike,
   membership: NewIdentityMembership,
   kind: 'staff' | 'customer',
+  isRoot: boolean,
 ): Promise<void> => {
   await tx`
     insert into public.accounts (id, display_name, email, kind, created_at)
@@ -51,10 +50,11 @@ const insertMembershipBundle = async (
       ${membership.email}, ${kind}, ${membership.occurredAt})
   `;
   await tx`
-    insert into public.memberships (id, user_id, account_id, permissions, created_at)
+    insert into public.memberships
+      (id, user_id, account_id, permissions, is_root, created_at)
     values (${membership.membershipId}, ${membership.userId},
       ${membership.accountId}, ${tx.json(membership.permissions as never)},
-      ${membership.occurredAt})
+      ${isRoot}, ${membership.occurredAt})
   `;
 };
 
@@ -74,10 +74,11 @@ const acceptInvitation = async (
       where id = ${invitationId}
     `;
     await tx`
-      insert into public.memberships (id, user_id, account_id, permissions, created_at)
+      insert into public.memberships
+        (id, user_id, account_id, permissions, is_root, created_at)
       values (${membership.membershipId}, ${membership.userId},
         ${membership.accountId}, ${tx.json(membership.permissions as never)},
-        ${membership.occurredAt})
+        false, ${membership.occurredAt})
     `;
     await insertAuditEvent(tx, event);
   });
@@ -114,26 +115,22 @@ export const createPostgresIdentityOnboarding = (
   },
 
   rootAdminExists: async () => {
-    // sql.json: a plain string param would arrive as a jsonb *scalar* and
-    // containment would never match.
     const rows = await sql`
-      select 1 from public.memberships
-      where permissions @> ${sql.json(ROOT_ADMIN_MARKER as never)}
-      limit 1
+      select 1 from public.memberships where is_root limit 1
     `;
     return rows.length > 0;
   },
 
   createOwnerMembership: async (membership, event) => {
     await sql.begin(async (tx) => {
-      await insertMembershipBundle(tx, membership, 'staff');
+      await insertMembershipBundle(tx, membership, 'staff', true);
       await insertAuditEvent(tx, event);
     });
   },
 
   createCustomerMembership: async (membership) => {
     await sql.begin(async (tx) => {
-      await insertMembershipBundle(tx, membership, 'customer');
+      await insertMembershipBundle(tx, membership, 'customer', false);
     });
   },
 

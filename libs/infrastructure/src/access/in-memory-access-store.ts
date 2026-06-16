@@ -2,6 +2,7 @@ import type {
   AccessActorReader,
   AccessAdminRepository,
   AccessAuditTrail,
+  AccessBlockStore,
   AccessGrantExpiryRecorder,
   AccessGrantRepository,
   AccessInvitationStore,
@@ -10,6 +11,7 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  StaffDirectory,
 } from '@acme/application';
 import type {
   AccessGrant,
@@ -22,10 +24,9 @@ import {
   appendInMemoryAuditRecord,
   makeInMemoryAuditTrail,
 } from './in-memory-audit-trail';
-import {
-  makeInMemoryAdminRepository,
-  makeInMemoryMemberDirectory,
-} from './in-memory-admin-repository';
+import { makeInMemoryAdminRepository } from './admin/in-memory-admin-repository';
+import { makeInMemoryMemberDirectory } from './admin/in-memory-member-directory';
+import { makeInMemoryBlockStore } from './in-memory-block-store';
 import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
 import { makeInMemoryInvitationStore } from './in-memory-invitations';
 import {
@@ -53,11 +54,13 @@ export type InMemoryAccessStore = {
   readonly admin: AccessAdminRepository;
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
+  readonly staffDirectory: StaffDirectory;
   readonly onboarding: IdentityOnboardingRepository;
   readonly sessionPolicies: AccessSessionPolicyStore;
   readonly sessionActivity: AccessSessionActivityRecorder;
   readonly invitations: AccessInvitationStore;
   readonly members: AccessMemberDirectory;
+  readonly blocks: AccessBlockStore;
 };
 
 const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
@@ -76,6 +79,11 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
       accountKind: state.customers.has(membership.accountId)
         ? ('customer' as const)
         : ('staff' as const),
+      isRoot: membership.isRoot,
+      blocked:
+        (account.blocked ?? false) ||
+        state.blockedIdentities.has(membership.userId) ||
+        state.blockedMemberships.has(session.membershipId),
       session: {
         id: sessionId,
         status: session.status,
@@ -140,10 +148,24 @@ export const createInMemoryAccessStore = (
     admin: makeInMemoryAdminRepository(state),
     grants: makeGrantRepository(state),
     customers: makeCustomerDirectory(state),
+    // Staff = every account that is NOT in the customer directory. In-memory
+    // accounts carry no name/email columns, so both surface as null here; the
+    // Postgres adapter reads the real values.
+    staffDirectory: {
+      listStaff: async () =>
+        [...state.accounts.keys()]
+          .filter((id) => !state.customers.has(id))
+          .map((id) => ({
+            accountId: id as AccountId,
+            email: null,
+            displayName: null,
+          })),
+    },
     onboarding: makeInMemoryIdentityOnboarding(state),
     sessionPolicies: makeInMemorySessionPolicyStore(state),
     sessionActivity: makeInMemorySessionActivityRecorder(state),
     invitations: makeInMemoryInvitationStore(state),
     members: makeInMemoryMemberDirectory(state),
+    blocks: makeInMemoryBlockStore(state),
   };
 };

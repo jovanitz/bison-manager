@@ -21,12 +21,8 @@ import { memberDirectoryContract } from './member-directory-contract';
 
 export type { AccessStorePorts } from './access-store-fixtures';
 
-/**
- * Contract test for the access store: the six ports every implementation
- * (in-memory, Postgres/Supabase) must satisfy identically. `makeStore` must
- * return a store containing exactly the given seed — and nothing else — so
- * implementations with shared state (a database) must isolate per call.
- */
+/** Contract every access store (in-memory, Postgres) must satisfy identically;
+ * `makeStore` must return exactly the given seed (DBs isolate per call). */
 export const accessStoreContract = (
   name: string,
   makeStore: (
@@ -109,17 +105,20 @@ export const accessStoreContract = (
         id: ids.acctSupport,
         status: 'active',
         kind: 'staff',
+        hostsRoot: false,
       });
       expect(await store.admin.findMembership(ids.membershipSupport)).toEqual({
         id: ids.membershipSupport,
         accountId: ids.acctSupport,
         accountKind: 'staff',
         permissions: accessPresetPermissions('support'),
+        isRoot: false,
       });
       expect(await store.admin.findSession(ids.sessionSupport)).toEqual({
         id: ids.sessionSupport,
         accountId: ids.acctSupport,
         status: 'active',
+        isRoot: false,
       });
       expect(await store.admin.findAccount('nope' as AccountId)).toBeNull();
       expect(
