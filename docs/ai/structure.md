@@ -23,8 +23,8 @@ libs/domain/src/
 
 - A feature is a folder; its files are the pieces of that feature.
 - The layer still decides _what kind_ of code lives there (rules in `domain`,
-  use cases in `application`, adapters in `infrastructure`/`platform`, screens in
-  `ui`); the **feature folder** decides _which_ slice.
+  use cases + flows in `application`, adapters in `infrastructure`/`platform`,
+  screens + stores in `ui`); the **feature folder** decides _which_ slice.
 - `shared` is the exception: small cross-cutting utilities live flat.
 
 ## Enforced limits

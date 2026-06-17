@@ -16,7 +16,7 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 | **After editing a file**         | `post-edit-check` hook → prettier + eslint (+SonarJS)                            | Guardrail        | **yes** — on lint/boundary error       |
 | **While building (on demand)**   | `impact`, `consumers`, `perf`, `gaps`, `dead-code`, `doctor`                     | Sensor           | no                                     |
 | **Complex / user-facing task**   | `e2e` (browser + `window.__app__`), via verify-runtime skill                     | Sensor           | nudge only                             |
-| **Before delivering (Stop)**     | `quality`(+build) · `structure` · `cycles` · `gaps`                              | Guardrail        | **yes**                                |
+| **Before delivering (Stop)**     | `quality`(+build) · `structure` · `cycles` · `gaps` · `rules` · `formal`         | Guardrail        | **yes**                                |
 | **git commit** (any agent/human) | `.githooks/pre-commit` → protected-files guard + lint staged                     | Guardrail        | **yes** (`--no-verify` to bypass)      |
 | **git push** (any agent/human)   | `.githooks/pre-push` → `pnpm gate`                                               | Guardrail        | **yes** (`--no-verify` to bypass)      |
 | **In CI (merge)**                | Stop-hook set + `coverage` + `doctor`; `dead-code`/`audit`/`skill-scan` advisory | Guardrail/Sensor | **yes** (advisory ones don't)          |
@@ -27,6 +27,12 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 
 ## What each tool does (one line)
 
+> The tools are declared once in `scripts/harness/manifest.mjs` (single source of
+> truth) and grouped by purpose: **check** (the blocking gate), **analyze**,
+> **secure**, **inspect**, **meta**. `pnpm harness` prints the grouped tree;
+> `pnpm harness <group>` runs a whole group; `pnpm harness check` is the gate
+> (= what the Stop hook and `pnpm gate` run); `pnpm harness <tool>` runs one.
+
 **Guides (read for knowledge)**
 
 - `CLAUDE.md` — the index; points to everything else.
@@ -36,6 +42,7 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 - `structure.md` — small files, ≤8 files/folder, screaming folders.
 - `security.md` — rules for sensitive features (auth, tokens, permissions).
 - `auth.md` — how this app's authentication & access model actually works (the model).
+- `flows.md` — one-way UI→Store→Controller→Use case→Domain; headless flows (UI + MCP reuse).
 - `workflow.md` — the step-by-step loop to build a feature.
 - `capabilities.json` — the layer rules in machine-readable form.
 
@@ -46,6 +53,8 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 - `cycles` — any circular imports? — **madge**
 - `gaps` — any use case/adapter without a test? (TDD gate) — **custom Node scan** (imports + naming conventions)
 - `coverage` — core coverage floor (domain ≥90, application ≥75)? — **Vitest + @vitest/coverage-v8**
+- `formal` — does a pure rule hold for ALL inputs (auth policy, guards)? — **dependency-free PBT + BFS model-check** (`*.formal.spec.ts`)
+- `purity` — are the pure layers free of side effects / non-determinism? — **call-level scan** (console/clock/RNG/timers/DOM/net) over domain+application
 - `impact` — which projects/platforms does this change reach? — **Nx affected** (project graph) + `project.json` tags
 - `consumers` — exactly which files import what I changed? — **custom Node** reverse-import graph (resolves `@acme/*` via tsconfig paths)
 - `perf` — bundle size + speed of the pure core — **Vite build** (gzip sizes) + **Vitest bench**

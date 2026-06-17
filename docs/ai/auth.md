@@ -177,9 +177,11 @@ action is unrepresentable by design ([events](../../libs/domain/src/access/event
   (JWT via JWKS), the RPC `ApiClient` gateways (bearer attached).
 - **apps/api** — the procedure registry + pipeline + `composition-root.ts` (the
   only place adapters are wired).
-- **libs/ui** — `dashboard/` (staff) and `client/` (customer self-serve) screens;
-  authorization is server-side, the UI only **hides** what would be denied
-  (`holdsAction`).
+- **libs/ui** — `dashboard/` (staff) and `client/` (customer self-serve) screens
+  - stores; authorization is server-side. The UI only **hides** what would be
+    denied, via capability flags the flow controller derives with `holdsAction` /
+    `isPlatformAdmin` (`application/src/flows/capabilities.ts`) — not in the
+    component. See [flows.md](flows.md).
 
 ## Per-user-type capabilities (today)
 

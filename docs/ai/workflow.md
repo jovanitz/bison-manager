@@ -27,19 +27,27 @@ if a use case or adapter has no test.
    contract test as the in-memory one. Register it and run
    `nx test infrastructure` (or `platform`).
 
-5. **Exercise UI states.** Render the screen against mock use cases (see
-   [item-screen.spec.tsx](../../libs/ui/src/example/item-screen.spec.tsx));
-   simulate offline/failure by injecting the in-memory queue or a failing
-   `ApiClient`.
+5. **Compose the flow (cross-module / screen orchestration).** If the feature
+   needs more than one use case, derived flags, or a ViewModel, write a headless
+   **controller** in `application/src/flows` and register it in the matching
+   catalog. Spec it with fake deps, including a **mock-MCP run by name**. The
+   component must hold none of this logic. See [flows.md](flows.md).
 
-6. **Wire it.** Add the concrete adapter in `apps/*/composition-root.ts`. This is
+6. **Exercise UI states.** Put a thin **store** over the controller, then render
+   the screen against mock use cases (see
+   [item-screen.spec.tsx](../../libs/ui/src/example/item-screen.spec.tsx) and
+   [manage-org-section.spec.tsx](../../libs/ui/src/client/manage-org/manage-org-section.spec.tsx));
+   simulate failure by injecting a failing `ApiClient`. The component only reads
+   the ViewModel and dispatches.
+
+7. **Wire it.** Add the concrete adapter in `apps/*/composition-root.ts`. This is
    the only place the slice becomes "real".
 
-7. **Verify & evaluate.** Run the quality gate (`pnpm harness quality`), then use
+8. **Verify & evaluate.** Run the quality gate (`pnpm harness quality`), then use
    the other **sensors** in [sensors.md](sensors.md) (`impact`, `perf`, `gaps`) to
    check reach, performance and gaps before declaring done.
 
-8. **Validate at runtime (complex / user-facing tasks only).** If the task changes
+9. **Validate at runtime (complex / user-facing tasks only).** If the task changes
    user-observable behavior (a flow, screen, routing, auth, data rendering), prove
    it in a real browser **before delivering**: write/extend an `e2e` that drives it
    as a user and asserts on internal state via the bridge (`window.__app__`), then
