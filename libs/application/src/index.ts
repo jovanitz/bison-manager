@@ -71,3 +71,16 @@ export * from './access-client/gateways/invitations-use-cases';
 export * from './access-client/gateways/members-use-cases';
 export * from './access-client/gateways/block-use-cases';
 export * from './access-client/gateways/client/orgs-use-cases';
+
+// Flows: headless controllers + enumerable registries. The UI stores and a
+// future MCP server both drive these — orchestration lives here, never in a
+// component or a reactive store.
+export * from './flows/capabilities';
+export * from './flows/registry-types';
+export * from './flows/client/org-admin';
+export * from './flows/client/home';
+export * from './flows/client/gate';
+export * from './flows/client/registry';
+export * from './flows/dashboard/queries';
+export * from './flows/dashboard/commands';
+export * from './flows/dashboard/registry';
