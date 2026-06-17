@@ -4,18 +4,24 @@
  * Blocks edits to protected harness/config files. Strict: exit 2 vetoes the
  * tool call and feeds the reason back to the model.
  */
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Shared with the git pre-commit hook — one source of truth for protected files.
-const { isProtected } = await import(
+const { isProtectedChange } = await import(
   path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
     'protected-files.mjs',
   )
 );
+
+/** Already committed (tracked in HEAD)? A brand-new file is not — so creating a
+ * new app/lib's project.json is allowed; only editing an existing one is blocked. */
+const isTracked = (cwd, rel) =>
+  spawnSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd }).status === 0;
 
 let payload = {};
 try {
@@ -33,12 +39,13 @@ const rel = path
   .split(path.sep)
   .join('/');
 
-if (isProtected(rel)) {
+if (isProtectedChange(rel, { tracked: isTracked(cwd, rel) })) {
   process.stderr.write(
     `Blocked by harness: "${rel}" is a protected config file (it defines the ` +
       `architecture rules — layer tags / boundaries — the harness enforces). Do ` +
       `not edit it directly — ask the user to confirm this change first, then it ` +
-      `can be made manually.`,
+      `can be made manually. (Creating a NEW app/lib's project.json is allowed; ` +
+      `only modifying an existing one is blocked.)`,
   );
   process.exit(2);
 }

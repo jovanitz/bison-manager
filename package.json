@@ -20,7 +20,7 @@
     "affected:build": "nx affected -t build",
     "graph": "nx graph",
     "harness": "node scripts/harness/cli.mjs",
-    "gate": "pnpm harness quality --build && pnpm harness structure && pnpm harness cycles && pnpm harness gaps && pnpm harness rules",
+    "gate": "pnpm harness check",
     "verify": "pnpm harness e2e",
     "web": "nx serve web",
     "dashboard": "nx serve dashboard",

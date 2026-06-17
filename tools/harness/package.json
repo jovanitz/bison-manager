@@ -1,0 +1,10 @@
+{
+  "name": "@harness/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable AI-development harness: a grouped tool dispatcher over a project-supplied manifest + harness.config. The engine is project-agnostic; a consuming repo provides its manifest (tool list), config (limits/protected files/conventions) and plugins.",
+  "exports": {
+    ".": "./src/index.mjs"
+  }
+}

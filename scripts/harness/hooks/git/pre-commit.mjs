@@ -13,7 +13,7 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { isProtected } = await import(
+const { isProtectedChange } = await import(
   path.join(here, '..', '..', 'protected-files.mjs')
 );
 
@@ -24,8 +24,18 @@ const staged = git('diff', '--cached', '--name-only', '--diff-filter=ACM')
   .split('\n')
   .filter(Boolean);
 
-// 1) Protected files.
-const blocked = staged.filter(isProtected);
+// Newly-ADDED paths are allowed to introduce a project.json (scaffolding a new
+// app/lib); only MODIFYING an existing one is a tamper-guarded change.
+const added = new Set(
+  git('diff', '--cached', '--name-only', '--diff-filter=A')
+    .split('\n')
+    .filter(Boolean),
+);
+
+// 1) Protected files (existing project.json + the fixed harness files).
+const blocked = staged.filter((f) =>
+  isProtectedChange(f, { tracked: !added.has(f) }),
+);
 if (blocked.length) {
   process.stderr.write(
     `\n✖ Commit blocked: protected files changed:\n  ${blocked.join('\n  ')}\n` +

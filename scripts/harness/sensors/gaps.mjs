@@ -11,6 +11,7 @@
  */
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import harnessConfig from '../../../harness.config.mjs';
 
 const args = process.argv.slice(2);
 const getArg = (name) => {
@@ -132,8 +133,16 @@ const add = (type, severity, file, message, suggestion) =>
     suggestion,
   });
 
-const ADAPTER_DIR =
-  /\/(?:infrastructure\/src\/(?:api|persistence|sync|auth)|platform\/src\/(?:browser|capacitor|tauri))\//;
+// Detection conventions come from harness.config.mjs (portable); the defaults
+// here match this repo, so behavior is unchanged when config is present.
+const CONV = harnessConfig.conventions ?? {};
+const ADAPTER_DIR = new RegExp(
+  CONV.adapterDir ??
+    '\\/(?:infrastructure\\/src\\/(?:api|persistence|sync|auth)|platform\\/src\\/(?:browser|capacitor|tauri))\\/',
+);
+const USE_CASE_FILE = new RegExp(CONV.useCaseFile ?? 'use-cases?\\.ts$');
+const SCREEN_FILE = new RegExp(CONV.screenFile ?? '-screen\\.tsx$');
+const DOMAIN_LAYER = CONV.domainLayer ?? 'domain';
 
 for (const f of sourceFiles) {
   const r = rel(f);
@@ -165,7 +174,7 @@ for (const f of sourceFiles) {
   }
 
   // 2) Use-case files with no spec.
-  if (/use-cases?\.ts$/.test(base) && !isExercised(f)) {
+  if (USE_CASE_FILE.test(base) && !isExercised(f)) {
     add(
       'untested-use-case',
       'high',
@@ -177,7 +186,7 @@ for (const f of sourceFiles) {
   }
 
   // 3) Screens without a component test.
-  if (/-screen\.tsx$/.test(base) && !isExercised(f)) {
+  if (SCREEN_FILE.test(base) && !isExercised(f)) {
     add(
       'untested-screen',
       'medium',
@@ -189,7 +198,7 @@ for (const f of sourceFiles) {
   }
 
   // 4) Domain logic without a spec.
-  if (layerOf(f) === 'domain' && !isExercised(f)) {
+  if (layerOf(f) === DOMAIN_LAYER && !isExercised(f)) {
     const content = readFileSync(f, 'utf8');
     if (/export\s+(?:const|function)\s/.test(content)) {
       add(

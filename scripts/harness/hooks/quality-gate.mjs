@@ -107,7 +107,30 @@ if (!r.ok) {
   );
 }
 
-// 6) If THIS change touched the harness itself, validate it stays portable across
+// 6) Formal verification: the pure core's properties + model-checks must hold.
+// Sub-second; a failure carries a reproducible seed + counterexample input.
+const f = runSensor('formal.mjs');
+if (!f.ok) {
+  veto(
+    `Formal verification failed (a property or model-check found a counterexample):\n\n` +
+      `${f.report?.output || f.report?.summary || f.res?.stderr || ''}\n\n` +
+      `Re-run to reproduce: pnpm harness formal\n`,
+  );
+}
+
+// 6b) Purity: the pure layers (domain/application) must be side-effect-free.
+const pu = runSensor('purity.mjs');
+if (!pu.ok) {
+  const lines = (pu.report?.violations || [])
+    .map((v) => `- ${v.file}:${v.line} — ${v.rule}`)
+    .join('\n');
+  veto(
+    `Purity violations in the pure layers (side effects / non-determinism that ` +
+      `belong behind a port or an injected clock/ids):\n\n${lines}\n`,
+  );
+}
+
+// 7) If THIS change touched the harness itself, validate it stays portable across
 // Claude / Codex / git / CI (doctor). Only fires when harness files changed, so
 // normal app work doesn't pay for it.
 const changed = [

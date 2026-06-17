@@ -1,84 +1,28 @@
 #!/usr/bin/env node
 /**
- * Harness CLI — single entry point for the harness SENSORS.
- * Each subcommand prints JSON to stdout so the model (or CI) can parse it.
- * The sensor logic lives once in scripts/harness/sensors/; this is just a
- * surface over it (so are the hooks and skills). See docs/ai/harness.md.
+ * Harness CLI — this project's thin shim over the portable @harness/core engine.
  *
- *   pnpm harness gaps [--layer=<name>]   Find development gaps (untested
- *                                        adapters/use-cases/screens, TODOs).
- *   pnpm harness impact [--base --head] Blast radius of a change (affected
- *                                        projects, platforms, risk hint).
- *   pnpm harness perf [--app --skip-build] Bundle size (raw+gzip) + benchmarks
- *                                        of the pure core.
- *   pnpm harness quality [--all]        Quality gate: lint+typecheck+test
- *                                        (affected, or all with --all).
- *   pnpm harness generate-feature <name> Generator: copy the example slice into
- *                                        a new feature (then wire + verify).
+ * The engine (tools/harness/src) is project-agnostic; this shim feeds it THIS
+ * repo's manifest (the tool list) + the directory the tool scripts live in.
+ * The manifest (manifest.mjs) is the single source of truth; see docs/ai/harness.md.
+ *
+ *   pnpm harness                  Print the grouped tool tree.
+ *   pnpm harness <group>          Run every tool in a group (check|analyze|…).
+ *   pnpm harness check            The blocking gate set (matches the Stop hook).
+ *   pnpm harness <tool> [args…]   Run one tool (args passed through).
  */
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { runHarnessCli } from '../../tools/harness/src/index.mjs';
+import { GROUPS, TOOLS } from './manifest.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const [cmd, ...rest] = process.argv.slice(2);
 
-const COMMANDS = {
-  // Sensors (feedback controls — observe, return JSON)
-  gaps: 'sensors/gaps.mjs',
-  impact: 'sensors/impact.mjs',
-  perf: 'sensors/perf.mjs',
-  quality: 'sensors/quality.mjs',
-  structure: 'sensors/structure.mjs',
-  cycles: 'sensors/cycles.mjs',
-  consumers: 'sensors/consumers.mjs',
-  'dead-code': 'sensors/dead-code.mjs',
-  coverage: 'sensors/coverage.mjs',
-  e2e: 'sensors/e2e.mjs',
-  audit: 'sensors/audit.mjs',
-  'skill-scan': 'sensors/skill-scan.mjs',
-  doctor: 'sensors/doctor.mjs',
-  rules: 'sensors/rules.mjs',
-  // Generators (write code — not controls)
-  'generate-feature': 'generators/generate-feature.mjs',
-};
-
-function help() {
-  process.stdout.write(
-    'harness <command> [options]\n\n' +
-      'Sensors (observe → JSON):\n' +
-      '  gaps      Find development gaps (untested adapters/use-cases/screens, TODOs)\n' +
-      '  impact    Blast radius of a change (affected projects, platforms, risk)\n' +
-      '  perf      Bundle size (raw+gzip) + benchmarks of the pure core\n' +
-      '  quality   Quality gate: lint + typecheck + test (--build, --all)\n' +
-      '  structure Folder/file organization (files-per-folder, oversized files)\n' +
-      '  cycles    Circular import dependencies (madge, file level)\n' +
-      '  consumers File-level blast radius: who imports the changed/named files\n' +
-      '  dead-code Unused files/exports/types (knip)\n' +
-      '  coverage  Per-layer line coverage floor on the pure core (domain/application)\n' +
-      '  e2e       Browser-level verification (Playwright) + runtime bridge introspection\n' +
-      '  audit     Dependency CVE scan (pnpm audit / OSV)\n' +
-      '  skill-scan Agent-surface security scan of skills/MCP (NVIDIA SkillSpector)\n' +
-      '  rules     Business-rules doc in sync with the code (--write regenerates)\n' +
-      '  doctor    Self-check the harness (hooks, scripts, capabilities↔eslint)\n\n' +
-      'Generators (write code):\n' +
-      '  generate-feature <name>   Copy the example slice into a new feature\n',
-  );
-}
-
-if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
-  help();
-  process.exit(cmd ? 0 : 1);
-}
-
-const script = COMMANDS[cmd];
-if (!script) {
-  process.stderr.write(`Unknown command: ${cmd}\n\n`);
-  help();
-  process.exit(1);
-}
-
-const res = spawnSync(process.execPath, [path.join(here, script), ...rest], {
-  stdio: 'inherit',
-});
-process.exit(res.status ?? 1);
+process.exit(
+  runHarnessCli({
+    scriptsDir: here,
+    groups: GROUPS,
+    tools: TOOLS,
+    argv: process.argv.slice(2),
+  }),
+);

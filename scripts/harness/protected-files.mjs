@@ -1,18 +1,15 @@
 /**
- * The single source of truth for files the harness protects from edits.
- * Used by BOTH the Claude pre-edit guard and the git pre-commit hook, so the
- * rule is identical no matter which agent (or a human) is at the keyboard.
+ * Project shim over @harness/core's protected-files rules: binds THIS repo's
+ * `protectedFiles` list (from harness.config) so the guards keep the same API.
+ * Used by BOTH the Claude pre-edit guard and the git pre-commit hook.
  */
-export const PROTECTED = [
-  'eslint.config.mjs',
-  'docs/ai/capabilities.json',
-  'nx.json',
-  'tsconfig.base.json',
-  'pnpm-lock.yaml',
-  'pnpm-workspace.yaml',
-  '.claude/settings.json',
-];
+import harnessConfig from '../../harness.config.mjs';
+import * as core from '../../tools/harness/src/hooks/protected-files.mjs';
 
-/** A repo-relative path (posix separators) is protected? */
-export const isProtected = (rel) =>
-  PROTECTED.includes(rel) || /(^|\/)project\.json$/.test(rel);
+export const PROTECTED = harnessConfig.protectedFiles;
+export const isProjectJson = core.isProjectJson;
+export const isAlwaysProtected = (rel) =>
+  core.isAlwaysProtected(rel, PROTECTED);
+export const isProtected = (rel) => core.isProtected(rel, PROTECTED);
+export const isProtectedChange = (rel, { tracked }) =>
+  core.isProtectedChange(rel, { tracked, protectedFiles: PROTECTED });

@@ -13,6 +13,8 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { TOOLS } from '../manifest.mjs';
+import harnessConfig from '../../../harness.config.mjs';
 
 const args = process.argv.slice(2);
 const getArg = (n) => {
@@ -55,9 +57,14 @@ try {
   /* missing */
 }
 check('cli.mjs present', !!cli);
-// Auto-discovered (no hardcoded list to drift): every sensor/generator file must
-// be wired into the CLI — so it's reachable from `pnpm harness` (Codex/CI/humans,
-// not Claude-only) — and every CLI command must point to a script that exists.
+check(
+  'cli.mjs dispatches from the manifest',
+  /manifest\.mjs/.test(cli),
+  'the CLI must import scripts/harness/manifest.mjs (the single source of truth)',
+);
+// The manifest (manifest.mjs) is the single source of truth. Every sensor/
+// generator file must be declared there — so it's reachable from `pnpm harness`
+// (Codex/CI/humans, not Claude-only) — and every declared script must exist.
 const discovered = [];
 for (const group of ['sensors', 'generators']) {
   const dir = path.join(ROOT, 'scripts/harness', group);
@@ -65,58 +72,60 @@ for (const group of ['sensors', 'generators']) {
   for (const f of readdirSync(dir))
     if (f.endsWith('.mjs')) discovered.push(`${group}/${f}`);
 }
-const registered = [
-  ...cli.matchAll(/'((?:sensors|generators)\/[\w-]+\.mjs)'/g),
-].map((m) => m[1]);
+const registered = TOOLS.map((t) => t.script);
 for (const rel of discovered) {
   check(
-    `script ${rel} is wired into the CLI`,
+    `script ${rel} is declared in the manifest`,
     registered.includes(rel),
-    'register it in scripts/harness/cli.mjs — else it is not reachable by Codex/CI',
+    'add it to scripts/harness/manifest.mjs — else it is not reachable by Codex/CI',
   );
 }
 for (const rel of registered) {
-  check(`CLI command script ${rel} exists`, exists(`scripts/harness/${rel}`));
+  check(`manifest tool script ${rel} exists`, exists(`scripts/harness/${rel}`));
 }
 
 // 3) capabilities.json in sync with ESLint enforce-module-boundaries.
-try {
-  const caps = JSON.parse(read('docs/ai/capabilities.json')).layers;
-  const eslint = read('eslint.config.mjs');
-  const re =
-    /sourceTag:\s*'layer:([\w-]+)'[\s\S]*?onlyDependOnLibsWithTags:\s*\[([\s\S]*?)\]/g;
-  const eslintMap = {};
-  let m;
-  while ((m = re.exec(eslint))) {
-    const tags = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]);
-    eslintMap[m[1]] = tags.includes('*')
-      ? new Set(['*'])
-      : new Set(tags.map((t) => t.replace('layer:', '')));
-  }
-  for (const [layer, def] of Object.entries(caps)) {
-    const fromEslint = eslintMap[layer];
-    if (!fromEslint) {
-      check(
-        `capabilities[${layer}] has an ESLint rule`,
-        false,
-        'no matching sourceTag',
-      );
-      continue;
+// Project-specific (layer-tagged boundaries) — declared in harness.config.mjs;
+// a project without it skips this check, keeping doctor portable.
+const capCheck = harnessConfig.capabilitiesCheck;
+if (capCheck)
+  try {
+    const caps = JSON.parse(read(capCheck.capabilities)).layers;
+    const eslint = read(capCheck.eslint);
+    const re =
+      /sourceTag:\s*'layer:([\w-]+)'[\s\S]*?onlyDependOnLibsWithTags:\s*\[([\s\S]*?)\]/g;
+    const eslintMap = {};
+    let m;
+    while ((m = re.exec(eslint))) {
+      const tags = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+      eslintMap[m[1]] = tags.includes('*')
+        ? new Set(['*'])
+        : new Set(tags.map((t) => t.replace('layer:', '')));
     }
-    const expected = fromEslint.has('*')
-      ? new Set(['*'])
-      : new Set([layer, ...def.mayImport]);
-    const a = [...expected].sort().join(',');
-    const b = [...fromEslint].sort().join(',');
-    check(
-      `capabilities[${layer}] matches ESLint`,
-      a === b,
-      a === b ? '' : `caps={${a}} eslint={${b}}`,
-    );
+    for (const [layer, def] of Object.entries(caps)) {
+      const fromEslint = eslintMap[layer];
+      if (!fromEslint) {
+        check(
+          `capabilities[${layer}] has an ESLint rule`,
+          false,
+          'no matching sourceTag',
+        );
+        continue;
+      }
+      const expected = fromEslint.has('*')
+        ? new Set(['*'])
+        : new Set([layer, ...def.mayImport]);
+      const a = [...expected].sort().join(',');
+      const b = [...fromEslint].sort().join(',');
+      check(
+        `capabilities[${layer}] matches ESLint`,
+        a === b,
+        a === b ? '' : `caps={${a}} eslint={${b}}`,
+      );
+    }
+  } catch (e) {
+    check('capabilities/eslint comparable', false, String(e).slice(0, 120));
   }
-} catch (e) {
-  check('capabilities/eslint comparable', false, String(e).slice(0, 120));
-}
 
 // 4) git available (affected-based sensors need it).
 check('git repo present', exists('.git'));

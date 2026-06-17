@@ -13,9 +13,10 @@
  */
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import harnessConfig from '../../../harness.config.mjs';
 
-const MAX_FILES_PER_DIR = 8; // avoid "dozens of files in one folder"
-const MAX_FILE_LOC = 250; // raw-line backstop above ESLint's max-lines (200)
+const MAX_FILES_PER_DIR = harnessConfig.structure?.maxFilesPerDir ?? 8;
+const MAX_FILE_LOC = harnessConfig.structure?.maxFileLoc ?? 250;
 
 const args = process.argv.slice(2);
 const getArg = (n) => {
