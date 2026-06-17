@@ -58,11 +58,11 @@ If we ever want to measure "how well does the AI perform here", that is a separa
 Harness
 ├── Guides (feedforward)
 │   ├── CLAUDE.md (root index) + libs/*/CLAUDE.md + apps/*/CLAUDE.md
-│   ├── docs/ai/{architecture,constraints,workflow,security,structure}.md
+│   ├── docs/ai/{architecture,constraints,workflow,security,structure,flows,auth,methodology,harness-overview,sensors}.md
 │   ├── docs/ai/capabilities.json   (machine-readable rules; verified by `doctor`)
 │   └── hooks: session-context, prompt-reminder   (inject guides at runtime)
-├── Sensors (feedback)            → catalog: docs/ai/sensors.md
-│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,cycles,consumers,dead-code,coverage,e2e,audit,skill-scan,doctor}.mjs
+├── Sensors (feedback)            → catalog: docs/ai/sensors.md · grouped by the manifest (check/analyze/secure/inspect/meta)
+│   ├── computational: scripts/harness/sensors/{gaps,impact,perf,quality,structure,cycles,consumers,dead-code,coverage,formal,purity,e2e,audit,skill-scan,doctor}.mjs
 │   │   (gaps respects scripts/harness/harness-ignore.json + // harness-ignore)
 │   │   (impact = project-level, drives the gate; consumers = file-level review aid)
 │   ├── clean-code: eslint.config.mjs (max-lines/complexity/… + eslint-plugin-sonarjs)
@@ -70,12 +70,12 @@ Harness
 │   ├── dead-code: knip (knip.json) · coverage: vitest v8 (domain/application floor)
 │   ├── runtime: e2e (Playwright + window.__app__ bridge) — opt-in, complex tasks
 │   ├── security: audit (pnpm/OSV deps) · skill-scan (SkillSpector skills/MCP) · /security-review (app-code, inferential)
-│   ├── exposed as CLI: pnpm harness <sensor>
+│   ├── exposed as CLI: pnpm harness <group|sensor> (e.g. `harness check` = the gate)
 │   ├── exposed as skills: find-gaps, evaluate-impact, evaluate-performance, …
 │   └── hook: post-edit-check (lint the touched file)
 ├── Guardrails (vetoing sensors)
-│   ├── hook: pre-edit-guard (PreToolUse) — blocks protected files + project.json tags
-│   ├── hook: quality-gate (Stop) — blocks finishing (quality+structure+cycles+gaps; build = CI)
+│   ├── hook: pre-edit-guard (PreToolUse) — blocks protected files + EXISTING project.json (new ones allowed)
+│   ├── hook: quality-gate (Stop) — blocks finishing (quality+structure+cycles+gaps+rules+formal+purity; build = CI)
 │   └── CI (.github/workflows/ci.yml) — Stop-hook set + coverage block; dead-code advisory
 ├── Generators (write code) → scripts/harness/generators/generate-feature.mjs (CRUD only)
 └── Runtime  → Claude Code (loop, tool routing, stop) — not ours to build
@@ -83,11 +83,21 @@ Harness
 
 ## One engine, many surfaces
 
-Each sensor's logic lives **once** in `scripts/harness/sensors/`. Hooks, the CLI,
-and skills are just _surfaces_ that invoke it — they never re-implement it. (E.g.
-the `quality-gate` guardrail calls the `quality` sensor.)
+Each sensor's logic lives **once** (in `scripts/harness/sensors/`, with the
+project-agnostic engine + hook runners extracted to the portable **`@harness/core`**
+package under `tools/harness/`). Hooks, the CLI, and skills are just _surfaces_
+that invoke it — they never re-implement it. (E.g. the `quality-gate` guardrail
+calls the `quality` sensor.)
 
-See [sensors.md](sensors.md) for the sensor catalog and how to run each.
+The tool catalog is declared **once** in `scripts/harness/manifest.mjs` (the
+single source of truth) and grouped by purpose — **check** (the gate) / analyze /
+secure / inspect / meta. The CLI, the Stop-hook gate, `doctor`, the docs and the
+future MCP namespaces all DERIVE from it. Project-specific values live in
+`harness.config.mjs`; domain-coupled sensors (`rules`, `formal`) are plugins.
+
+See [sensors.md](sensors.md) for the sensor catalog and how to run each, and
+[tools/harness/README.md](../../tools/harness/README.md) for adopting the core in
+another project.
 
 ## Portability (Claude + Codex)
 
@@ -110,8 +120,10 @@ agent-independent (Codex/Cursor/humans), not just Claude.
 
 1. **Logic goes in the engine** (`scripts/harness/sensors/` or `generators/`),
    never embedded in a hook or skill — those stay thin surfaces.
-2. **New sensor/generator → register it in `scripts/harness/cli.mjs`** so it's
-   reachable as `pnpm harness <cmd>` (i.e. by Codex/CI/humans, not Claude-only).
+2. **New sensor/generator → declare it in `scripts/harness/manifest.mjs`** (the
+   single source of truth: name, group, blocking, script) so it's reachable as
+   `pnpm harness <cmd>` and picked up by `doctor` (i.e. by Codex/CI/humans, not
+   Claude-only). The CLI + Stop gate derive from the manifest.
 3. **New skill → it must wrap a `pnpm harness <cmd>`** (a skill is never the only
    way to run something).
 4. **Update `AGENTS.md`** when you add a capability or a rule (Codex's entry point).

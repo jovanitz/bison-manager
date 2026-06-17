@@ -11,7 +11,7 @@ apps, this is a composition root.
 - **The pipeline:** every capability is one `ApiProcedure`
   ([src/procedure.ts](src/procedure.ts)) declared in the registry
   ([src/procedures/](src/procedures/)) — name + zod schema + required action +
-  use-case handler; all nine access use cases are declared there.
+  use-case handler; every access use case is declared there.
   [src/rpc-routes.ts](src/rpc-routes.ts) generates `POST /rpc/<name>` routes:
   actor middleware ([src/actor-middleware.ts](src/actor-middleware.ts), 401
   fail-closed) → zod parse (400) → handler → `Result`-tag → HTTP
