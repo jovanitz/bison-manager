@@ -166,6 +166,55 @@ export default [
       ],
     },
   },
+  // Application is orchestration — framework-free like domain. No UI framework
+  // and no state/reactivity lib; stores live in `ui`, controllers stay headless
+  // so the UI and a future MCP server reuse them identically.
+  {
+    files: ['libs/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'react', message: 'Application must stay framework-free (no React).' },
+            { name: 'react-dom', message: 'Application must stay framework-free (no React).' },
+            { name: 'zustand', message: 'Application must not import state libs — stores live in ui.' },
+          ],
+          patterns: [
+            { group: ['zustand/*'], message: 'Application must not import state libs — stores live in ui.' },
+            { group: ['@acme/infrastructure', '@acme/platform', '@acme/ui'], message: 'Application must not import outer layers.' },
+          ],
+        },
+      ],
+    },
+  },
+  // UI is store-mediated: feature/shell components read ViewModels + dispatch.
+  // Only store builders (store/hooks.ts) may read the DI context. The auth-entry
+  // leaf screens (login / activation) call a single auth use case, not flow
+  // orchestration, so they are the explicit, reviewed exceptions.
+  {
+    files: ['libs/ui/src/client/**/*.{ts,tsx}', 'libs/ui/src/dashboard/**/*.{ts,tsx}'],
+    ignores: [
+      '**/store/**',
+      '**/*.spec.{ts,tsx}', // tests wire UseCasesProvider with mocks
+      '**/*login-screen*',
+      '**/*activate-invitation-screen*',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/di/use-cases-context'],
+              message:
+                'Components are store-mediated: read ViewModels + dispatch. Wire stores from useUseCases only in store/hooks.ts.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // ── Clean code (Sonar-like), scoped to app code. Harness scripts (.mjs) and
   // config files are intentionally exempt.
   { files: APP_CODE, rules: CLEAN_CODE_RULES },

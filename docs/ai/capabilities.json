@@ -25,7 +25,9 @@
       "tag": "layer:domain",
       "path": "libs/domain",
       "responsibility": "Entities, value objects, business rules, domain events. Pure.",
-      "mayImport": ["shared"],
+      "mayImport": [
+        "shared"
+      ],
       "forbidden": [
         "application",
         "infrastructure",
@@ -42,8 +44,11 @@
     "application": {
       "tag": "layer:application",
       "path": "libs/application",
-      "responsibility": "Use cases, port TYPES, DTOs. Orchestration only.",
-      "mayImport": ["domain", "shared"],
+      "responsibility": "Use cases, port TYPES, DTOs, and flows (headless controllers + ViewModel/registry). Orchestration only — framework-free.",
+      "mayImport": [
+        "domain",
+        "shared"
+      ],
       "forbidden": [
         "infrastructure",
         "platform",
@@ -53,35 +58,59 @@
         "db",
         "http",
         "auth",
-        "native"
+        "native",
+        "state"
       ]
     },
     "infrastructure": {
       "tag": "layer:infrastructure",
       "path": "libs/infrastructure",
       "responsibility": "Adapters: Dexie, REST, JWT auth, sync engine.",
-      "mayImport": ["application", "domain", "shared"],
-      "forbidden": ["platform", "ui"]
+      "mayImport": [
+        "application",
+        "domain",
+        "shared"
+      ],
+      "forbidden": [
+        "platform",
+        "ui"
+      ]
     },
     "platform": {
       "tag": "layer:platform",
       "path": "libs/platform",
       "responsibility": "Device ports + browser/Capacitor/Tauri adapters.",
-      "mayImport": ["application", "domain", "shared"],
-      "forbidden": ["infrastructure", "ui"]
+      "mayImport": [
+        "application",
+        "domain",
+        "shared"
+      ],
+      "forbidden": [
+        "infrastructure",
+        "ui"
+      ]
     },
     "ui": {
       "tag": "layer:ui",
       "path": "libs/ui",
-      "responsibility": "Design system + feature screens. Consume use cases via UseCasesProvider.",
-      "mayImport": ["application", "shared"],
-      "forbidden": ["infrastructure", "platform", "domain"]
+      "responsibility": "Design system + feature screens + stores. Components read ViewModels via stores and dispatch actions; orchestration lives in application flows.",
+      "mayImport": [
+        "application",
+        "shared"
+      ],
+      "forbidden": [
+        "infrastructure",
+        "platform",
+        "domain"
+      ]
     },
     "app": {
       "tag": "layer:app",
       "path": "apps/*",
       "responsibility": "Composition roots. The only place concrete adapters are wired.",
-      "mayImport": ["*"],
+      "mayImport": [
+        "*"
+      ],
       "forbidden": []
     }
   },
@@ -93,6 +122,9 @@
     "adaptersAreFactoryFunctions": true,
     "diIsExplicitParameters": true,
     "noDIContainer": true,
-    "businessLogicIsFrameworkFree": ["domain", "application"]
+    "businessLogicIsFrameworkFree": [
+      "domain",
+      "application"
+    ]
   }
 }
