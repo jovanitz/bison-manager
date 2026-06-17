@@ -19,7 +19,6 @@ export * from './example/item-screen';
 export * from './access/access-login-screen';
 
 // Staff dashboard: login-only auth gate + staff/customer directory tables
-export * from './dashboard/admin-access';
 export * from './dashboard/login-screen';
 export * from './dashboard/require-admin';
 export * from './dashboard/dashboard-screen';

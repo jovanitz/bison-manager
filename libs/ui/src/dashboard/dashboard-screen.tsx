@@ -1,31 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type {
   CustomerAccountSummary,
   StaffAccountSummary,
 } from '@acme/application';
-import { useUseCases } from '../di/use-cases-context';
-import { holdsAction } from './admin-access';
+import { useDashboardStore, useStore } from './store/hooks';
+import type { DashboardStore } from './store/dashboard-store';
 import { InviteMemberForm } from './invitations/invite-member-form';
 import { ManagePermissionsForm } from './permissions/manage-permissions-form';
 import { BlockButtons } from './block/block-buttons';
 
 /**
- * The staff dashboard, deliberately unstyled (native HTML): two tables — staff
- * and customers — plus sign-out. It reads the directory through the `directory`
- * use cases; both reads are reauthorized server-side. Rendered only once
- * `RequireAdmin` has confirmed an authorized platform admin.
+ * The staff dashboard. Pure presentation: it reads the ViewModel (staff +
+ * customers + canBlock) from the dashboard store and dispatches the org
+ * soft-block action. Composition + capability derivation live in the controller.
  */
-type DashboardData = {
-  readonly staff: ReadonlyArray<StaffAccountSummary>;
-  readonly customers: ReadonlyArray<CustomerAccountSummary>;
-  readonly canBlock: boolean;
-};
-
-type DashboardState =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'error'; readonly message: string }
-  | { readonly kind: 'ready'; readonly data: DashboardData };
-
 const StaffTable = ({
   rows,
 }: {
@@ -54,9 +42,11 @@ const StaffTable = ({
 const CustomersTable = ({
   rows,
   canBlock,
+  onBlock,
 }: {
   readonly rows: ReadonlyArray<CustomerAccountSummary>;
   readonly canBlock: boolean;
+  readonly onBlock: (id: string, blocked: boolean) => Promise<string>;
 }) => (
   <table aria-label="customers">
     <thead>
@@ -75,7 +65,10 @@ const CustomersTable = ({
           <td>{row.accountId}</td>
           {canBlock ? (
             <td>
-              <BlockButtons subject="org" id={row.accountId} />
+              <BlockButtons
+                label="block org"
+                onBlock={(blocked) => onBlock(row.accountId, blocked)}
+              />
             </td>
           ) : null}
         </tr>
@@ -84,58 +77,19 @@ const CustomersTable = ({
   </table>
 );
 
-const useDashboardData = (): DashboardState => {
-  const { access, directory } = useUseCases();
-  const [state, setState] = useState<DashboardState>({ kind: 'loading' });
+const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
+  const vm = useStore(store, (s) => s.vm);
+  const error = useStore(store, (s) => s.error);
 
   useEffect(() => {
-    if (!directory) {
-      setState({
-        kind: 'error',
-        message: 'Directory use cases are not wired.',
-      });
-      return;
-    }
-    let live = true;
-    void (async () => {
-      const [staff, customers, snapshot] = await Promise.all([
-        directory.listStaff(),
-        directory.listCustomers(),
-        access?.currentAccess(),
-      ]);
-      if (!live) return;
-      if (!staff.ok)
-        return setState({ kind: 'error', message: staff.error.message });
-      if (!customers.ok)
-        return setState({ kind: 'error', message: customers.error.message });
-      setState({
-        kind: 'ready',
-        data: {
-          staff: staff.value,
-          customers: customers.value,
-          canBlock:
-            snapshot?.ok === true &&
-            holdsAction(snapshot.value, 'access.block'),
-        },
-      });
-    })();
-    return () => {
-      live = false;
-    };
-  }, [directory, access]);
-
-  return state;
-};
-
-export const DashboardScreen = () => {
-  const { access } = useUseCases();
-  const state = useDashboardData();
+    void store.getState().load();
+  }, [store]);
 
   return (
     <main aria-label="dashboard">
       <header>
         <h1>Staff dashboard</h1>
-        <button type="button" onClick={() => void access?.signOut()}>
+        <button type="button" onClick={() => void store.getState().signOut()}>
           Sign out
         </button>
       </header>
@@ -143,23 +97,32 @@ export const DashboardScreen = () => {
       <InviteMemberForm />
       <ManagePermissionsForm />
 
-      {state.kind === 'loading' ? <p>Loading…</p> : null}
-      {state.kind === 'error' ? <p role="alert">{state.message}</p> : null}
-      {state.kind === 'ready' ? (
+      {!vm && !error ? <p>Loading…</p> : null}
+      {error ? <p role="alert">{error}</p> : null}
+      {vm ? (
         <>
           <section aria-label="staff section">
-            <h2>Staff ({state.data.staff.length})</h2>
-            <StaffTable rows={state.data.staff} />
+            <h2>Staff ({vm.staff.length})</h2>
+            <StaffTable rows={vm.staff} />
           </section>
           <section aria-label="customers section">
-            <h2>Customers ({state.data.customers.length})</h2>
+            <h2>Customers ({vm.customers.length})</h2>
             <CustomersTable
-              rows={state.data.customers}
-              canBlock={state.data.canBlock}
+              rows={vm.customers}
+              canBlock={vm.canBlock}
+              onBlock={(id, blocked) =>
+                store.getState().setOrgBlocked(id, blocked)
+              }
             />
           </section>
         </>
       ) : null}
     </main>
   );
+};
+
+export const DashboardScreen = () => {
+  const store = useDashboardStore();
+  if (!store) return <p>Dashboard use cases are not wired.</p>;
+  return <DashboardView store={store} />;
 };

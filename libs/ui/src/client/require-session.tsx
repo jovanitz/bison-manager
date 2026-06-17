@@ -1,47 +1,31 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
-import { useUseCases } from '../di/use-cases-context';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ClientLoginScreen } from './client-login-screen';
+import { useSessionStore, useStore } from './store/hooks';
+import type { SessionStore } from './store/session-store';
 
 /**
- * Client session gate. Resolves the session + access snapshot and re-resolves
- * on every auth change. Anonymous → login; authenticated but ORG-LESS → create
- * your first organization; soft-blocked → notice; otherwise → the app.
+ * Client session gate. All decisions live in the headless `resolveClientGate`
+ * controller (driven through the session store); this component is only the
+ * reactive shell — it subscribes to auth changes and renders one view per state.
  */
-type GateState =
-  | 'loading'
-  | 'anonymous'
-  | 'no-org'
-  | 'blocked'
-  | 'authenticated';
-
-/** Org-less identity: create your own organization (you become its admin). */
-const CreateOrgForm = ({ onCreated }: { readonly onCreated: () => void }) => {
-  const { orgs } = useUseCases();
+const CreateOrgForm = ({ store }: { readonly store: SessionStore }) => {
   const [name, setName] = useState('');
-  const [error, setError] = useState<string | undefined>();
-  if (!orgs) return <p>Org use cases are not wired in this app yet.</p>;
-
-  const submit = async (event: FormEvent) => {
+  const error = useStore(store, (s) => s.createError);
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    setError(undefined);
-    const result = await orgs.createOrganization(name);
-    if (result.ok) onCreated();
-    else setError(result.error.message);
+    void store.getState().create(name);
   };
-
   return (
-    <form aria-label="create organization" onSubmit={(e) => void submit(e)}>
+    <form aria-label="create organization" onSubmit={submit}>
       <h1>Create your organization</h1>
       <p>You don’t belong to an organization yet. Create one to get started.</p>
       <label>
         Organization name
-        <input value={name} onChange={(e) => setName(e.target.value)} required />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
       </label>
       <button type="submit">Create organization</button>
       {error ? <p role="alert">{error}</p> : null}
@@ -49,36 +33,25 @@ const CreateOrgForm = ({ onCreated }: { readonly onCreated: () => void }) => {
   );
 };
 
-export const RequireSession = ({
+const SessionGate = ({
+  store,
   children,
 }: {
+  readonly store: SessionStore;
   readonly children: ReactNode;
 }) => {
-  const { access } = useUseCases();
-  const [state, setState] = useState<GateState>('loading');
-
-  const resolve = useCallback(async () => {
-    if (!access) return;
-    const session = await access.getSession();
-    if (!session.ok) return setState('anonymous');
-    const snapshot = await access.currentAccess();
-    // Valid Supabase session but no actor ⇒ authenticated yet org-less.
-    if (!snapshot.ok) return setState('no-org');
-    setState(snapshot.value.blocked ? 'blocked' : 'authenticated');
-  }, [access]);
+  const gate = useStore(store, (s) => s.gate);
 
   useEffect(() => {
-    if (!access) return;
-    void resolve();
-    const unsubscribe = access.onAuthChange(() => void resolve());
-    return unsubscribe;
-  }, [access, resolve]);
+    const s = store.getState();
+    void s.resolveGate();
+    return s.subscribe();
+  }, [store]);
 
-  if (!access) return <p>Access use cases are not wired in this app yet.</p>;
-  if (state === 'loading') return <p>Loading…</p>;
-  if (state === 'authenticated') return <>{children}</>;
-  if (state === 'no-org') return <CreateOrgForm onCreated={() => void resolve()} />;
-  if (state === 'blocked') {
+  if (gate === 'loading') return <p>Loading…</p>;
+  if (gate === 'authenticated') return <>{children}</>;
+  if (gate === 'no-org') return <CreateOrgForm store={store} />;
+  if (gate === 'blocked') {
     return (
       <section aria-label="blocked">
         <h1>Access blocked</h1>
@@ -86,11 +59,21 @@ export const RequireSession = ({
           Your access is blocked — you can sign in, but operations are
           unavailable. Please contact support.
         </p>
-        <button type="button" onClick={() => void access.signOut()}>
+        <button type="button" onClick={() => void store.getState().signOut()}>
           Sign out
         </button>
       </section>
     );
   }
   return <ClientLoginScreen />;
+};
+
+export const RequireSession = ({
+  children,
+}: {
+  readonly children: ReactNode;
+}) => {
+  const store = useSessionStore();
+  if (!store) return <p>Access use cases are not wired in this app yet.</p>;
+  return <SessionGate store={store}>{children}</SessionGate>;
 };

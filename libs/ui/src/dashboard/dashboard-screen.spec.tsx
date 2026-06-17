@@ -4,13 +4,18 @@ import { accessGatewayError } from '@acme/application';
 import { mockAccessUseCases, mockItems } from '../access/testing';
 import { UseCasesProvider } from '../di/use-cases-context';
 import { DashboardScreen } from './dashboard-screen';
-import { mockDirectory } from './testing';
+import { mockBlock, mockDirectory } from './testing';
 import { render, screen, waitFor, within } from '@testing-library/react';
 
 const renderScreen = (directory = mockDirectory()) =>
   render(
     <UseCasesProvider
-      useCases={{ items: mockItems, access: mockAccessUseCases({}), directory }}
+      useCases={{
+        items: mockItems,
+        access: mockAccessUseCases({}),
+        directory,
+        block: mockBlock(),
+      }}
     >
       <DashboardScreen />
     </UseCasesProvider>,

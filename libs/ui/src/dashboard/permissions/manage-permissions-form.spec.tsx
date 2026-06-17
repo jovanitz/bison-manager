@@ -4,7 +4,7 @@ import type { MembersUseCases } from '@acme/application';
 import { mockAccessUseCases, mockItems } from '../../access/testing';
 import { UseCasesProvider } from '../../di/use-cases-context';
 import { ManagePermissionsForm } from './manage-permissions-form';
-import { adminAccess, mockMembers } from '../testing';
+import { adminAccess, mockBlock, mockMembers } from '../testing';
 
 const renderForm = (members: MembersUseCases = mockMembers()) =>
   render(
@@ -15,6 +15,7 @@ const renderForm = (members: MembersUseCases = mockMembers()) =>
           currentAccess: async () => ({ ok: true, value: adminAccess }),
         }),
         members,
+        block: mockBlock(),
       }}
     >
       <ManagePermissionsForm />
@@ -30,7 +31,10 @@ const selectMember = async (value: string) => {
 
 describe('ManagePermissionsForm', () => {
   it('shows a member’s current permissions and adds one', async () => {
-    const updatePermissions = vi.fn(async () => ({ ok: true, value: undefined }));
+    const updatePermissions = vi.fn(async () => ({
+      ok: true,
+      value: undefined,
+    }));
     renderForm(mockMembers({ updatePermissions }));
 
     await selectMember('m-staff');

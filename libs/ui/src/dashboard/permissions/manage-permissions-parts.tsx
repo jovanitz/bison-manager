@@ -61,12 +61,14 @@ export const MemberDetail = ({
   canEdit,
   canBlock,
   onAdd,
+  onBlock,
 }: {
   readonly member: MemberSummaryDto;
   readonly notice: string | undefined;
   readonly canEdit: boolean;
   readonly canBlock: boolean;
   readonly onAdd: (action: string, scope: string) => void;
+  readonly onBlock: (blocked: boolean) => Promise<string>;
 }) => (
   <div>
     <p>Current permissions:</p>
@@ -85,7 +87,7 @@ export const MemberDetail = ({
         {canBlock ? (
           <p>
             Identity access:{' '}
-            <BlockButtons subject="identity" id={member.userId} />
+            <BlockButtons label="block identity" onBlock={onBlock} />
           </p>
         ) : null}
       </>

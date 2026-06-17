@@ -1,47 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ok } from '@acme/shared';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { mockItems } from '../../access/testing';
-import { UseCasesProvider } from '../../di/use-cases-context';
 import { BlockButtons } from './block-buttons';
-import { mockBlock } from '../testing';
 
+/**
+ * BlockButtons is now pure presentation: it calls `onBlock(blocked)` and shows
+ * the notice the action returns. Which use case runs is decided in the
+ * controller (covered by the flows specs).
+ */
 describe('BlockButtons', () => {
-  it('blocks and unblocks an org', async () => {
-    const blockOrg = vi.fn(async () => ok(undefined));
-    const unblockOrg = vi.fn(async () => ok(undefined));
-    render(
-      <UseCasesProvider
-        useCases={{ items: mockItems, block: mockBlock({ blockOrg, unblockOrg }) }}
-      >
-        <BlockButtons subject="org" id="acct-1" />
-      </UseCasesProvider>,
+  it('dispatches block / unblock and shows the returned notice', async () => {
+    const onBlock = vi.fn(async (blocked: boolean) =>
+      blocked ? 'Blocked' : 'Unblocked',
     );
+    render(<BlockButtons label="block org" onBlock={onBlock} />);
+
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));
-    await waitFor(() => expect(blockOrg).toHaveBeenCalledWith('acct-1'));
+    await waitFor(() => expect(onBlock).toHaveBeenCalledWith(true));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Blocked'),
+    );
+
     fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
-    await waitFor(() => expect(unblockOrg).toHaveBeenCalledWith('acct-1'));
-  });
-
-  it('blocks an identity', async () => {
-    const blockIdentity = vi.fn(async () => ok(undefined));
-    render(
-      <UseCasesProvider
-        useCases={{ items: mockItems, block: mockBlock({ blockIdentity }) }}
-      >
-        <BlockButtons subject="identity" id="user-1" />
-      </UseCasesProvider>,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
-    await waitFor(() => expect(blockIdentity).toHaveBeenCalledWith('user-1'));
-  });
-
-  it('renders nothing when block is not wired', () => {
-    const { container } = render(
-      <UseCasesProvider useCases={{ items: mockItems }}>
-        <BlockButtons subject="org" id="acct-1" />
-      </UseCasesProvider>,
-    );
-    expect(container).toBeEmptyDOMElement();
+    await waitFor(() => expect(onBlock).toHaveBeenCalledWith(false));
   });
 });
