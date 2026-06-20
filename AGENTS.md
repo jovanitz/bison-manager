@@ -24,14 +24,15 @@ knowledge.
 
 ## Your gate — run it (CI enforces the same)
 
-The harness is **one CLI**; every capability is reachable here, no Claude needed:
+The harness is **one CLI**, grouped by purpose; every capability is reachable
+here, no Claude needed. The blocking gate is one command (it derives from
+`scripts/harness/manifest.mjs`, so it can never drift from a hand-kept list):
 
 ```bash
-pnpm harness quality      # lint + typecheck + test  (add --build to match CI)
-pnpm harness structure    # small files / folders
-pnpm harness cycles       # circular imports
-pnpm harness gaps         # untested use case/adapter (TDD gate)
-# also: coverage · impact · consumers · perf · dead-code · audit · e2e · doctor
+pnpm harness check        # the gate: quality + structure + cycles + gaps + rules + formal + purity
+pnpm harness              # print the grouped tree (check/analyze/secure/inspect/meta)
+pnpm harness <tool>       # one tool, e.g. `gaps --layer=domain`, `purity`, `impact`
+pnpm harness <group>      # a whole group, e.g. `analyze`, `secure`
 ```
 
 ## If you are NOT Claude Code (e.g. Codex)
@@ -39,11 +40,11 @@ pnpm harness gaps         # untested use case/adapter (TDD gate)
 Claude Code auto-runs guardrails (pre-edit / post-edit / Stop gate) and triggers
 skills. **Those do not fire for you.** So:
 
-- **Before declaring work done, run the gate yourself:**
-  `pnpm harness quality && pnpm harness structure && pnpm harness cycles && pnpm harness gaps`
+- **Before declaring work done, run the gate yourself:** `pnpm harness check`
   (for a complex/user-facing task, also `pnpm harness e2e`).
 - **Don't edit protected files** without confirming: `eslint.config.mjs`,
-  `**/project.json`, `tsconfig.base.json`, `docs/ai/capabilities.json`, lockfiles.
+  `docs/ai/capabilities.json`, `tsconfig.base.json`, lockfiles, `.claude/settings.json`,
+  and an EXISTING `**/project.json` (a new app/lib's project.json is allowed).
 - CI runs all of this regardless of the agent — a green CI means the rules held.
 
 ## Changing the harness?

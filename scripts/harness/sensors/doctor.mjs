@@ -173,6 +173,19 @@ check('AGENTS.md present (Codex entry point)', exists('AGENTS.md'));
 const agents = exists('AGENTS.md') ? read('AGENTS.md') : '';
 check('AGENTS.md documents the CLI gate', agents.includes('pnpm harness'));
 check('AGENTS.md points to shared rules (docs/ai)', agents.includes('docs/ai'));
+// Anti-drift: AGENTS.md must DELEGATE to the canonical, derived sources rather
+// than carry a stale copy — the manifest-derived gate + the authoritative rules.
+// So it can't silently diverge from CLAUDE.md as tools/rules evolve.
+check(
+  'AGENTS.md delegates the gate to `harness check` (no drifting && chain)',
+  /harness check/.test(agents),
+  'point other agents at `pnpm harness check` (derives from the manifest)',
+);
+check(
+  'AGENTS.md references capabilities.json (rules, not a copy)',
+  agents.includes('capabilities.json'),
+  'link docs/ai/capabilities.json so AGENTS.md cannot drift from the real rules',
+);
 
 // Agent-agnostic git hooks (fire for Codex/humans too) + their wiring.
 check('git hook .githooks/pre-commit present', exists('.githooks/pre-commit'));

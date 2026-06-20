@@ -70,6 +70,35 @@ export default {
     domainLayer: 'domain',
   },
 
+  /**
+   * `runtime-advice` sensor — diff paths that touch a "faked seam": something the
+   * simulated test tier (vitest: jsdom/happy-dom/in-memory adapters) replaces
+   * with a fake, so a defect there is invisible until the REAL app runs. A change
+   * matching one is worth runtime validation; a change matching NONE needs none —
+   * the simulated tier already covers it (the whole point: don't pay e2e by
+   * default). See docs/ai/methodology.md ("When does e2e earn its cost?").
+   * Advisory only — never blocks. Each entry is a RegExp source string.
+   *
+   * Deliberately NOT here: real adapters (libs/infrastructure*, libs/platform).
+   * `gaps` already gates those with a contract test, so nudging would be noise.
+   * What's left is exactly the seams nothing else covers.
+   */
+  runtimeSeams: [
+    {
+      match: '^apps\\/[^/]+\\/src\\/composition-root\\.ts$',
+      fakes: 'the real composition root (tests inject DI mocks, never boot it)',
+      suggest:
+        'boot it headless in a smoke test, or e2e the wired app (`pnpm harness e2e`)',
+    },
+    {
+      match: '^apps\\/[^/]+\\/src\\/(?:app\\.tsx|main\\.ts)$',
+      fakes:
+        'the real app-shell / router / boot (screens are tested in isolation)',
+      suggest:
+        'e2e — only a real browser exercises routing, lazy chunks and boot',
+    },
+  ],
+
   /** SessionStart orientation lines (joined and injected as context). */
   orientation: [
     'Acme AI harness active.',

@@ -134,6 +134,15 @@ export const TOOLS = [
     summary: 'Bundle size (raw+gzip) + benchmarks of the pure core',
     script: 'sensors/perf.mjs',
   },
+  {
+    name: 'runtime-advice',
+    group: 'analyze',
+    kind: 'static',
+    blocking: false,
+    summary:
+      'Does this diff touch a faked seam (→ runtime validation earns its cost)?',
+    script: 'sensors/runtime-advice.mjs',
+  },
   // ── secure ────────────────────────────────────────────────────────────────
   {
     name: 'audit',
@@ -159,6 +168,15 @@ export const TOOLS = [
     blocking: false,
     summary: 'Browser-level verification (Playwright) + runtime bridge',
     script: 'sensors/e2e.mjs',
+  },
+  {
+    name: 'e2e-auth',
+    group: 'inspect',
+    kind: 'runtime',
+    blocking: false,
+    summary:
+      'Backend e2e: real Supabase + API + web/dashboard/client (Docker-heavy)',
+    script: 'sensors/e2e-auth.mjs',
   },
   // ── meta: self-care + generators ──────────────────────────────────────────
   {

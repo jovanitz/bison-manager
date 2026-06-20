@@ -160,15 +160,29 @@ if (changed.some((f) => HARNESS_RE.test(f))) {
   }
 }
 
-// 7) Runtime-validation reminder (opt-in, NON-BLOCKING). When a task is marked as
-// needing runtime validation (.harness/require-e2e) and no passing `e2e` run has
-// cleared it, nudge — but allow delivery (the user chose warn, not block).
+// 8) Runtime-validation reminder (opt-in, NON-BLOCKING). Two cases, both nudges:
 if (existsSync(path.join(cwd, '.harness', 'require-e2e'))) {
+  // (a) The task was explicitly marked and no passing `e2e` run cleared it.
   process.stderr.write(
     `Reminder: this task is marked as requiring runtime validation but no passing ` +
       `e2e run has cleared it. Run \`pnpm harness e2e\` to validate the running app ` +
       `(reads window.__app__). This is a nudge, not a block.`,
   );
+} else {
+  // (b) Targeted: nudge ONLY if the diff touched a faked seam — something the
+  // simulated tier can't see (the `runtime-advice` sensor decides; a change
+  // confined to domain/application/pure-UI matches none → silence). This stops
+  // us paying for e2e by default while still pointing it where it matters.
+  const ra = runSensor('runtime-advice.mjs');
+  if (ra.report?.needsRuntime) {
+    const lines = (ra.report.seams || [])
+      .map((s) => `- ${s.file} — fakes ${s.fakes}\n  → ${s.suggest}`)
+      .join('\n');
+    process.stderr.write(
+      `Reminder: this change touches a faked seam the simulated tests can't see. ` +
+        `Consider runtime validation before delivering (nudge, not a block):\n\n${lines}\n`,
+    );
+  }
 }
 
 process.exit(0);

@@ -14,23 +14,31 @@ it — none re-implement it.
 
 ## Catalog
 
-| Sensor         | Answers                                                                                  | CLI                                                                         | Skill                  |
-| -------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------- |
-| **gaps**       | Untested adapters/use-cases/screens/domain logic, TODOs                                  | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
-| **impact**     | Blast radius: affected projects, platforms, risk                                         | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
-| **perf**       | Bundle size (raw+gzip) + benchmarks of the pure core                                     | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
-| **quality**    | Quality gate: lint + typecheck + test (`--build` to match CI)                            | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
-| **structure**  | File/folder organization: files-per-folder (≤8), oversized files; screaming arch         | `pnpm harness structure`                                                    | —                      |
-| **cycles**     | Circular import dependencies (file level, via madge)                                     | `pnpm harness cycles`                                                       | —                      |
-| **consumers**  | File-level blast radius: who imports the changed/named files (direct + transitive)       | `pnpm harness consumers [<file>…]`                                          | —                      |
-| **dead-code**  | Unused files / exports / types (knip)                                                    | `pnpm harness dead-code`                                                    | —                      |
-| **coverage**   | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)             | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
-| **formal**     | Property-based tests + exhaustive BFS model-checks of the pure core (`*.formal.spec.ts`) | `pnpm harness formal`                                                       | —                      |
-| **purity**     | Pure layers (domain/application) free of side effects / non-determinism (call-level)     | `pnpm harness purity`                                                       | —                      |
-| **e2e**        | Browser-level verification (Playwright) + runtime bridge introspection                   | `pnpm harness e2e`                                                          | `verify-runtime`       |
-| **audit**      | Dependency CVE scan (`pnpm audit` / OSV) — software supply chain                         | `pnpm harness audit [--level=high]`                                         | —                      |
-| **skill-scan** | Agent-surface security scan of skills/MCP (NVIDIA SkillSpector; skips if not installed)  | `pnpm harness skill-scan`                                                   | —                      |
-| **doctor**     | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git)  | `pnpm harness doctor`                                                       | —                      |
+| Sensor             | Answers                                                                                          | CLI                                                                         | Skill                  |
+| ------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------------------- |
+| **gaps**           | Untested adapters/use-cases/screens/domain logic, TODOs                                          | `pnpm harness gaps [--layer=<name>]`                                        | `find-gaps`            |
+| **impact**         | Blast radius: affected projects, platforms, risk                                                 | `pnpm harness impact [--base=<ref> --head=<ref>]`                           | `evaluate-impact`      |
+| **perf**           | Bundle size (raw+gzip) + benchmarks of the pure core                                             | `pnpm harness perf [--app=<name>] [--no-bundle\|--no-bench] [--skip-build]` | `evaluate-performance` |
+| **quality**        | Quality gate: lint + typecheck + **unit + integration** tests, simulated (`--build` to match CI) | `pnpm harness quality [--build] [--all]`                                    | `evaluate-quality`     |
+| **structure**      | File/folder organization: files-per-folder (≤8), oversized files; screaming arch                 | `pnpm harness structure`                                                    | —                      |
+| **cycles**         | Circular import dependencies (file level, via madge)                                             | `pnpm harness cycles`                                                       | —                      |
+| **consumers**      | File-level blast radius: who imports the changed/named files (direct + transitive)               | `pnpm harness consumers [<file>…]`                                          | —                      |
+| **dead-code**      | Unused files / exports / types (knip)                                                            | `pnpm harness dead-code`                                                    | —                      |
+| **coverage**       | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)                     | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
+| **formal**         | Property-based tests + exhaustive BFS model-checks of the pure core (`*.formal.spec.ts`)         | `pnpm harness formal`                                                       | —                      |
+| **purity**         | Pure layers (domain/application) free of side effects / non-determinism (call-level)             | `pnpm harness purity`                                                       | —                      |
+| **runtime-advice** | Does this diff touch a **faked seam** → runtime validation earns its cost? (else none)           | `pnpm harness runtime-advice [--base=<ref> --head=<ref>]`                   | —                      |
+| **e2e**            | **Real-browser** verification (Playwright/Chromium) + runtime bridge — web-only, no backend      | `pnpm harness e2e`                                                          | `verify-runtime`       |
+| **e2e-auth**       | Backend e2e: real Supabase + API + all apps (web login, staff dashboard, customer onboarding)    | `pnpm harness e2e-auth`                                                     | —                      |
+| **audit**          | Dependency CVE scan (`pnpm audit` / OSV) — software supply chain                                 | `pnpm harness audit [--level=high]`                                         | —                      |
+| **skill-scan**     | Agent-surface security scan of skills/MCP (NVIDIA SkillSpector; skips if not installed)          | `pnpm harness skill-scan`                                                   | —                      |
+| **doctor**         | Self-check the harness (hooks wired, scripts present, capabilities↔eslint in sync, git)          | `pnpm harness doctor`                                                       | —                      |
+
+> **Test levels:** two sensors cover three levels. `quality` runs **unit +
+> integration**, both _simulated_ (Node/jsdom/happy-dom, in-memory adapters — no
+> browser, no DB, no network); `e2e` runs the **real-browser** level (Chromium +
+> running app). The full taxonomy and the simulated↔real line live in
+> [methodology.md](methodology.md#the-three-test-levels--unit--integration-simulated--e2e).
 
 ## When to reach for which
 
@@ -78,7 +86,9 @@ it — none re-implement it.
 - ✅ `coverage` — `scripts/harness/sensors/coverage.mjs` (CI gate; not in Stop hook)
 - ✅ `formal` — `scripts/harness/sensors/formal.mjs` (PBT + BFS model-check; `*.formal.spec.ts`; engine in `libs/application/src/access/_formal/property.ts`; also the Stop-hook guardrail + `pnpm gate`)
 - ✅ `purity` — `scripts/harness/sensors/purity.mjs` (engine in `@harness/core`; call-level side-effect/determinism check on the pure layers; Stop-hook guardrail + `pnpm gate`)
-- ✅ `e2e` — `scripts/harness/sensors/e2e.mjs` (Playwright; runtime validation)
+- ✅ `runtime-advice` — `scripts/harness/sensors/runtime-advice.mjs` (faked-seam detector; seams in `harness.config.mjs`; advisory, drives the Stop-hook e2e nudge)
+- ✅ `e2e` — `scripts/harness/sensors/e2e.mjs` (Playwright; web-only runtime validation; `playwright.config.ts`, ignores `e2e/auth/**`)
+- ✅ `e2e-auth` — `scripts/harness/sensors/e2e-auth.mjs` (backend e2e; `playwright.auth.config.ts` global-setup boots Supabase + API + web/dashboard/client; specs: web login, staff dashboard, customer onboarding; Docker-heavy, on-demand)
 - ✅ `audit` — `scripts/harness/sensors/audit.mjs` (pnpm audit; advisory in CI)
 - ✅ `skill-scan` — `scripts/harness/sensors/skill-scan.mjs` (SkillSpector; skips if absent)
 - ✅ `doctor` — `scripts/harness/sensors/doctor.mjs` (smoke-tests the fast sensors)
@@ -90,14 +100,27 @@ it — none re-implement it.
 - **CI (blocks merge)**: the Stop-hook set + `coverage`; `dead-code`, `audit`,
   `skill-scan` run **advisory** (visible, non-blocking — security baseline to
   promote to blocking once the tree is clean).
-- **On-demand only**: `impact`, `consumers`, `perf`, `doctor`.
+- **On-demand only**: `impact`, `consumers`, `perf`, `runtime-advice`, `doctor`.
 - **Security**: `audit` = dependency CVEs (software supply chain); `skill-scan` =
   agent surface (skills/MCP). Complement `/security-review` (app-code semantics).
   See [security.md](security.md).
-- **Runtime validation (opt-in, complex/user-facing tasks)**: `e2e`. Mark the task
-  (`.harness/require-e2e`), build/run it; a pass clears the mark. The Stop hook
-  **nudges (non-blocking)** if the mark is still set. See the **verify-runtime**
-  skill and [workflow.md](workflow.md) step 8.
+- **Runtime validation (opt-in, only when e2e earns its cost)**: `e2e`. The Stop
+  hook decides _when to nudge_ via `runtime-advice`: if the diff touches a **faked
+  seam** (a composition root, the app-shell/router — see `harness.config.mjs`
+  `runtimeSeams`) it **nudges (non-blocking)**; a change confined to
+  domain/application/pure-UI gets no nudge. You can also mark a task explicitly
+  (`.harness/require-e2e`); a passing `e2e` clears it. See the **verify-runtime**
+  skill, the criterion in
+  [methodology.md](methodology.md#when-does-e2e-earn-its-cost-dont-pay-it-by-default),
+  and [workflow.md](workflow.md) step 9.
+- **Backend e2e (heavy, Docker)**: `e2e-auth` boots the real local Supabase + API +
+  all three apps and drives them for real (web login, staff dashboard sign-in,
+  customer onboarding) — the only suite that exercises the live frontend↔backend
+  seam. Its own config keeps the cheap web-only `e2e` Docker-free.
+- **CI**: both run as dedicated jobs in `.github/workflows/ci.yml` — `e2e`
+  (Chromium, no backend) and `e2e-auth` (installs the Supabase CLI, `supabase
+start`s the Docker stack, injects the live publishable key, then runs). Separate
+  from the affected gate so their cost is isolated.
 
 ## Not a sensor
 

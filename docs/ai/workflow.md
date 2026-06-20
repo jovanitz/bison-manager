@@ -47,13 +47,19 @@ if a use case or adapter has no test.
    the other **sensors** in [sensors.md](sensors.md) (`impact`, `perf`, `gaps`) to
    check reach, performance and gaps before declaring done.
 
-9. **Validate at runtime (complex / user-facing tasks only).** If the task changes
-   user-observable behavior (a flow, screen, routing, auth, data rendering), prove
-   it in a real browser **before delivering**: write/extend an `e2e` that drives it
-   as a user and asserts on internal state via the bridge (`window.__app__`), then
-   run `pnpm harness e2e`. Use the **verify-runtime** skill — it's opt-in (mark with
-   `.harness/require-e2e`), and the Stop hook reminds you if you forget. Pure
-   `domain`/`application` changes skip this (unit/contract tests suffice).
+9. **Validate at runtime — only when e2e earns its cost.** e2e is expensive, so
+   spend it by rule, not by default: a gap needs e2e **only if reproducing it
+   needs something real the simulated tier fakes** — the router/app-shell, the
+   composition root, a real adapter feeding a user flow, or the live
+   frontend↔backend seam. Then write/extend an `e2e` that drives it as a user and
+   asserts on internal state via the bridge (`window.__app__`), and run
+   `pnpm harness e2e` (the **verify-runtime** skill: mark with
+   `.harness/require-e2e`, the Stop hook reminds you). A change confined to
+   `domain`/`application`/pure UI **skips this** — the simulated tier (unit +
+   integration) already covers it; and prefer pushing a faked-seam gap down to the
+   cheapest level that sees it (contract test, composition-root smoke test) before
+   reaching for e2e. See
+   [methodology.md](methodology.md#when-does-e2e-earn-its-cost-dont-pay-it-by-default).
 
 > **Sensitive feature?** (auth, tokens, permissions, payments) Don't use
 > `generate-feature` (CRUD-only). Follow [security.md](security.md) and run

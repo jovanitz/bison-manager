@@ -8,6 +8,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // The auth suite needs the real backend (Supabase + API) — it has its own
+  // heavy config (playwright.auth.config.ts, the `e2e-auth` sensor). Keep this
+  // default config web-only and cheap.
+  testIgnore: '**/auth/**',
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,

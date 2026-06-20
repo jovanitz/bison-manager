@@ -97,3 +97,63 @@ jobs:
         run: pnpm harness coverage
       - name: Harness doctor (health + Claude/Codex portability)
         run: pnpm harness doctor
+
+  # Web-only e2e (cheap): real Chromium against `pnpm web`, no backend. Its own
+  # job so it parallels the gate; CI=true makes Playwright always start a fresh
+  # server (reuseExistingServer is false in CI).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Harness e2e (web-only)
+        run: pnpm harness e2e
+
+  # Backend e2e (heavy, Docker): real local Supabase + API + the three apps. A
+  # separate job because it needs Docker + the Supabase CLI and takes minutes.
+  e2e-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # Boot the stack in its own step so the (slow, first-run) Docker image
+      # pulls aren't bounded by global-setup's timeout. global-setup then re-runs
+      # `supabase start` idempotently (a fast no-op) and seeds the owner user.
+      - name: Start local Supabase (Docker)
+        run: supabase start
+      # The publishable key is deterministic from the committed config, but inject
+      # the live value as belt-and-suspenders so a CLI key-format change can't
+      # break auth. The apps read VITE_SUPABASE_ANON_KEY; global-setup reads
+      # SUPABASE_ANON_KEY (both default to the committed key when unset).
+      - name: Local Supabase key → env
+        run: |
+          PK=$(supabase status -o env | grep '^PUBLISHABLE_KEY=' | cut -d'"' -f2)
+          {
+            echo "VITE_SUPABASE_ANON_KEY=$PK"
+            echo "SUPABASE_ANON_KEY=$PK"
+          } >> "$GITHUB_ENV"
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Harness e2e-auth (real backend)
+        run: pnpm harness e2e-auth

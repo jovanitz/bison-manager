@@ -74,18 +74,123 @@ TDD-the-process can't be mechanically proven, but its **outcomes are gated**:
 - **`coverage`** holds a per-layer floor (domain ≥ 90 %, application ≥ 75 %) in CI.
 - **contract tests** prove every adapter satisfies its port.
 
-### The test pyramid (and its runtime top)
+### The three test levels — `unit` · `integration (simulated)` · `e2e`
+
+Keep these separate; they answer different questions. **The level is defined by
+_what a test wires_, not by which vitest `environment` it runs in** (the
+environment only says whether a DOM is available — jsdom/happy-dom/Node — it is
+not the test level). And the primary axis is **simulated vs real**: everything
+below e2e runs simulated — no real browser, no real DB, no network, in-memory
+adapters — so it stays fast and deterministic. **e2e is the only level that runs
+the real thing** (a real browser against a running app).
 
 ```
-        e2e (browser, runtime-state aware)   ← complex / user-facing tasks only
-      component (screens vs mock use cases)
-    contract (adapters satisfy their port)
-  unit (domain rules, use cases) ← the wide base, where TDD lives
+              ┌─────────────────────────────────────────────── REAL
+   e2e        │ real browser (Chromium) + running dev server + window.__app__
+              │ "does it work as a user sees it?"  · opt-in, complex/UI tasks
+──────────────┼─────────────────────────────────────────────── SIMULATED
+  integration │ several pieces wired through a PORT against in-memory fakes:
+   (simulated)│  • use case  — makeXUseCases(deps(inMemoryRepo())): use case + fake repo
+              │  • contract  — an adapter satisfies its port (in-memory/fake backend)
+              │  • component — a screen vs mock use cases (UI→Store→Controller→use case)
+              │  • api route — a procedure end-to-end via in-memory app.request(...)
+              │ "do the seams fit?" — the bulk of the suite
+   unit       │ ONE pure unit, ZERO ports/adapters — a domain rule in isolation
+              │ entities, value objects, pure domain services · clock/ids are params
+              └───────────────────────────────────────────────
 ```
 
-Most work lives in the base (fast, deterministic, TDD). The **e2e top is opt-in**
-and only for tasks that change user-observable behavior: drive it as a user and
-assert on internal state via the runtime bridge (`window.__app__`). See the
-**verify-runtime** skill and [sensors.md](sensors.md) (`e2e`).
+| Level           | Real/simulated | What it wires                                   | Where it lives                                                                                                                                     | Question                       |
+| --------------- | -------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **unit**        | simulated      | one pure unit, **no ports/adapters**            | any pure function with no ports — mostly `domain` (entities, value objects, services), plus pure `shared`/`api` helpers (e.g. `statusForErrorTag`) | a pure rule holds in isolation |
+| **integration** | simulated      | several units **through a port, against fakes** | `application` use-case specs, adapter contract tests, screen tests, api route tests                                                                | the seams fit, against fakes   |
+| **e2e**         | **real**       | a real browser + running app                    | `e2e/*.spec.ts` + `window.__app__` bridge                                                                                                          | it works as a user sees it     |
+
+> **Why use cases are `integration`, not `unit`:** a use-case spec wires
+> `makeItemUseCases(deps(inMemoryRepo()))` — a use case _through its port_ against
+> an in-memory fake. That is integration (sociable), even though it's pure and
+> fast. A genuine unit here touches no port: a domain entity or value object. (We
+> don't classify by speed or by `environment`; we classify by what's wired.)
+>
+> In practice this repo crosses **no real boundary below e2e** — even the
+> "integration" tests use in-memory fakes — so really there are **two tiers that
+> run**: _simulated_ (all of vitest) and _real_ (e2e). The unit↔integration split
+> is a secondary distinction _within_ the simulated tier.
+
+Most work lives in the **simulated** tier (fast, deterministic, where TDD lives).
+The **real e2e top is opt-in** and only for tasks that change user-observable
+behavior: drive it as a user and assert on internal state via the runtime bridge
+(`window.__app__`). See the **verify-runtime** skill.
+
+**Which sensor runs which level:** the **`quality`** gate runs `unit` +
+`integration` (vitest, simulated — this is what the Stop hook enforces); the
+separate **`e2e`** sensor runs the real-browser level (Playwright, on-demand —
+never in the gate). They are deliberately different sensors because one is cheap
+and always-on, the other is heavy and opt-in.
+
+### When does e2e earn its cost? (don't pay it by default)
+
+e2e is expensive (boots a browser + a real app), so it is **opt-in, never the
+gate**. The rule for spending it is mechanical:
+
+> **A gap is _e2e-irreducible_ iff reproducing it needs something REAL that the
+> simulated tier replaces with a fake.** Enumerate what the simulated tier fakes,
+> and you have the exact (small) set of bugs only e2e can see.
+
+| The simulated tier fakes…                                                                      | A bug that lives there…                            | Caught cheapest by                                                     |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| the browser engine (jsdom/happy-dom: no layout, no CSS, no real DOM)                           | layout hides a control, real event semantics       | **e2e** (rare — usually not worth it)                                  |
+| the real adapters (Dexie/IndexedDB, REST/`fetch`, native SDK)                                  | bad query, serialization, error mapping            | **contract test** vs the real adapter (`fake-indexeddb`) — _not_ e2e   |
+| the composition root (tests inject DI mocks, never boot `apps/*/composition-root.ts`)          | wrong adapter wired, env misread, missing provider | a **Node smoke test** that constructs the composition root — _not_ e2e |
+| the router / app-shell / lazy chunks / `import.meta.env` guards                                | broken route, chunk fails to load, build guard     | **e2e** (needs a real build + serve)                                   |
+| the network between frontend and backend (api tested in-memory; UI vs mocks — they never meet) | the live frontend↔backend contract is broken       | **e2e** (the only place the two real processes meet)                   |
+
+**Everything else — `domain` rules, use-case orchestration, ViewModel
+derivation, component behavior — is already covered by the simulated tier.
+Requiring e2e there is pure waste.**
+
+**Push the gap down to the cheapest level that can _see_ the faked seam.** Most
+"faked seam" gaps are closed without a browser: an adapter bug → a contract test;
+a wiring bug → a composition-root smoke test in Node. That shrinks e2e's
+irreducible niche to three things: **the real router/app-shell/bundling, the
+real frontend↔backend seam driven as a user, and real-engine interaction bugs.**
+Few e2e, each high-value.
+
+Worked examples (which level catches which bug):
+
+| Bug                                                              | Lives in              | Caught by                                        |
+| ---------------------------------------------------------------- | --------------------- | ------------------------------------------------ |
+| `createItem` accepts an empty name                               | `domain` rule         | **unit**                                         |
+| a blocked member still sees the admin button                     | capabilities + screen | **integration** (component vs mock use cases)    |
+| the Dexie adapter drops the `archived` flag on read              | real adapter          | **contract test** (real adapter, fake IndexedDB) |
+| the web app wires REST but forgets the token provider → all anon | composition root      | **Node smoke test** of `composition-root.ts`     |
+| after login the router doesn't redirect to `/home`               | real router/app-shell | **e2e only**                                     |
+| login passes in tests but the real `fetch` drops the auth header | front↔back network    | **e2e only**                                     |
+
+So the default answer to "should this change get an e2e?" is **no** — unless the
+diff touches a faked seam (a composition root, the router/app-shell, a real
+adapter feeding a user flow, or the live auth/network seam). A change confined to
+`domain`/`application`/pure UI needs none.
+
+#### Current e2e coverage (be honest)
+
+The e2e _machinery_ is wired (Playwright + Chromium, the `window.__app__` bridge,
+the `e2e`/`e2e-auth`/`runtime-advice` sensors), but coverage is **deliberately
+sparse** — don't assume a flow has an e2e just because the rail exists.
+
+| Flow                                | e2e today | Sensor / how                                                                             |
+| ----------------------------------- | --------- | ---------------------------------------------------------------------------------------- |
+| Item CRUD on `/` (create → archive) | ✅ yes    | `e2e` — runs against `pnpm web` alone (real composition root + Dexie/IndexedDB + router) |
+| Login / auth on `/login` (web)      | ✅ yes    | `e2e-auth` — boots local Supabase + API + web; global-setup seeds the bootstrap owner    |
+| Staff dashboard sign-in (`:4201`)   | ✅ yes    | `e2e-auth` — owner@local.dev passes `RequireAdmin`, the directory loads                  |
+| Customer onboarding (`:4202`)       | ✅ yes    | `e2e-auth` — a fresh sign-up has no org → create-organization → home                     |
+
+Two configs, two sensors: **`e2e`** (`playwright.config.ts`) is web-only and
+cheap — for flows that need no backend; **`e2e-auth`**
+(`playwright.auth.config.ts`) is the suite that drives the real backend, so it is
+heavy and Docker-dependent (it `supabase start`s the local stack and boots the
+API + all three apps — web, dashboard, client). They are split on purpose: the
+cheap web e2e must not pay for Docker. The API's CORS allowlist must include each
+app's port (4200/4201/4202) — the auth config sets `CORS_ORIGINS` accordingly.
 
 See [sensors.md](sensors.md) and [workflow.md](workflow.md).
