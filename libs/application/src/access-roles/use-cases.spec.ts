@@ -111,6 +111,18 @@ describe('access roles', () => {
     expect(world.removed).toEqual(['role-x']);
   });
 
+  it('refuses to delete a default (template-derived) role', async () => {
+    const role = roleFixture('role-default', null, undefined, 'support');
+    const world = makeWorld({ roles: [role], assignments: 0 });
+    const result = await world.useCases.deleteRole({
+      actor: testAccessActor({ preset: 'owner' }),
+      roleId: 'role-default',
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.tag).toBe('app/role-is-default');
+    expect(world.removed).toEqual([]);
+  });
+
   it('lists platform roles plus the account’s own roles', async () => {
     const world = makeWorld({
       roles: [roleFixture('r-plat', null), roleFixture('r-acct', 'acct-1')],
@@ -146,9 +158,11 @@ const roleFixture = (
   permissions: ReadonlyArray<{ action: string; scope: string }> = [
     { action: 'staff.read', scope: 'any' },
   ],
+  templateKey: string | null = null,
 ): Role => ({
   id: id as RoleId,
   name: id as Role['name'],
   accountId: accountId as Role['accountId'],
   permissions: permissions as Role['permissions'],
+  templateKey,
 });

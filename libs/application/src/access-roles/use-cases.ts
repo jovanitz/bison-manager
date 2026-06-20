@@ -5,86 +5,31 @@ import {
   err,
   ok,
 } from '@acme/shared';
-import {
-  createRole as createRoleEntity,
-  makeAccessPermission,
-  makeAccountId,
-  makeRoleName,
-} from '@acme/domain';
-import type {
-  AccessActor,
-  AccessPermission,
-  AccountId,
-  AccountKind,
-  Role,
-  RoleId,
-} from '@acme/domain';
+import { createRole as createRoleEntity, makeRoleName } from '@acme/domain';
+import type { AccessActor, Role, RoleId } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import { guardGrantedPermissions } from '../access-admin/deps';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import { makeAssignMemberRoles } from './assign';
+import { makeInstallDefaults, makeResetRole } from './lifecycle/defaults';
+import {
+  ROLE_ACTION,
+  guardRolePermissions,
+  parseAccountId,
+  type RawPermission,
+} from './guards';
 import type { RoleStore } from './ports';
-import { roleInUse, roleNotFound, type RoleUseCaseError } from './errors';
+import {
+  roleInUse,
+  roleIsDefault,
+  roleNotFound,
+  type RoleUseCaseError,
+} from './errors';
 
 export type AccessRolesDeps = {
   readonly roles: RoleStore;
   readonly admin: AccessAdminRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
-};
-
-type RawPermission = { readonly action: string; readonly scope: string };
-
-// Managing roles is "deciding who-can-do-what" — gated by the same action as
-// editing permissions. Root/owner bypass (ADR-0011) covers themselves.
-const ROLE_ACTION = 'permissions.update' as const;
-
-// A platform role (no account) is staff-grade; an account-scoped role is for a
-// customer org, so it must obey the customer coherence rules (no `any`).
-const kindOf = (accountId: AccountId | null): AccountKind =>
-  accountId === null ? 'staff' : 'customer';
-
-const parseAccountId = (
-  raw: string | null,
-): Result<AccountId | null, RoleUseCaseError> => {
-  if (raw === null) return ok(null);
-  const parsed = makeAccountId(raw);
-  return parsed.ok ? ok(parsed.value) : err(parsed.error);
-};
-
-const parsePermissions = (
-  raw: ReadonlyArray<RawPermission>,
-): Result<ReadonlyArray<AccessPermission>, RoleUseCaseError> => {
-  const out: AccessPermission[] = [];
-  for (const entry of raw) {
-    const permission = makeAccessPermission(entry);
-    if (!permission.ok) return err(permission.error);
-    out.push(permission.value);
-  }
-  return ok(out);
-};
-
-/** Coherent, authorized permission set for a role on the given account. */
-const guardRolePermissions = (
-  actor: AccessActor,
-  accountId: AccountId | null,
-  raw: ReadonlyArray<RawPermission>,
-  now: string,
-): Result<ReadonlyArray<AccessPermission>, RoleUseCaseError> => {
-  const authorized = authorizeAccessAction({
-    actor,
-    action: ROLE_ACTION,
-    resource: { accountId },
-    now,
-  });
-  if (!authorized.ok) return err(authorized.error);
-  const permissions = parsePermissions(raw);
-  if (!permissions.ok) return permissions;
-  const coherent = guardGrantedPermissions(
-    permissions.value,
-    kindOf(accountId),
-  );
-  return coherent.ok ? ok(permissions.value) : err(coherent.error);
 };
 
 export const makeCreateRole =
@@ -178,6 +123,11 @@ export const makeDeleteRole =
       now,
     });
     if (!authorized.ok) return err(authorized.error);
+    if (role.templateKey !== null) {
+      return err(
+        roleIsDefault('A default role cannot be deleted; reset it instead.'),
+      );
+    }
     const assignments = await deps.roles.countAssignments(role.id);
     if (assignments > 0) {
       return err(
@@ -194,6 +144,8 @@ export type AccessRolesUseCases = {
   readonly updateRole: ReturnType<typeof makeUpdateRole>;
   readonly deleteRole: ReturnType<typeof makeDeleteRole>;
   readonly assignMemberRoles: ReturnType<typeof makeAssignMemberRoles>;
+  readonly resetRole: ReturnType<typeof makeResetRole>;
+  readonly installDefaults: ReturnType<typeof makeInstallDefaults>;
 };
 
 export const makeAccessRolesUseCases = (
@@ -204,4 +156,6 @@ export const makeAccessRolesUseCases = (
   updateRole: makeUpdateRole(deps),
   deleteRole: makeDeleteRole(deps),
   assignMemberRoles: makeAssignMemberRoles(deps),
+  resetRole: makeResetRole(deps),
+  installDefaults: makeInstallDefaults(deps),
 });

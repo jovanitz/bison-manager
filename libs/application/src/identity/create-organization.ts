@@ -19,6 +19,12 @@ export type CreateOrganizationDeps = {
     IdentityOnboardingRepository,
     'createCustomerMembership'
   >;
+  /**
+   * Seed the org's default roles (ADR-0012). Loosely typed to avoid coupling
+   * identity to the roles error type; idempotent and best-effort — a failure
+   * leaves the owner (own-scope bypass) able to install/reset later.
+   */
+  readonly installDefaults: (accountId: AccountId) => Promise<unknown>;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 };
@@ -57,6 +63,8 @@ export const makeCreateOrganization =
       permissions: accessPresetPermissions('customer-admin'),
       occurredAt: deps.clock.now().toISOString(),
     });
+    // ADR-0012: a new org starts "organized" with its own resettable defaults.
+    await deps.installDefaults(accountId);
     return ok({ accountId, membershipId });
   };
 

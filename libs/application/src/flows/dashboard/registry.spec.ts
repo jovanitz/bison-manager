@@ -71,6 +71,7 @@ const deps = (over: Partial<DashboardFlowDeps> = {}): DashboardFlowDeps =>
       listRoles: async () => ok([]),
       createRole: async () => ok({ roleId: 'role-1' }),
       deleteRole: async () => ok(undefined),
+      resetRole: async () => ok(undefined),
       assignRoles: async () => ok(undefined),
     },
     ...over,
@@ -186,6 +187,7 @@ describe('dashboard flows', () => {
       'roles.create',
       'roles.delete',
       'roles.assign',
+      'roles.reset',
     ]) {
       expect(must(name)).toBeDefined();
     }

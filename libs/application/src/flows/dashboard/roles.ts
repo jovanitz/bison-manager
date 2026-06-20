@@ -49,6 +49,12 @@ export const deletePlatformRole = (
   input: { readonly roleId: string },
 ): Promise<Result<void, DashboardError>> => deps.roles.deleteRole(input.roleId);
 
+/** Command: reset a default role to its factory template (ADR-0012). */
+export const resetPlatformRole = (
+  deps: { readonly roles: RolesGateway },
+  input: { readonly roleId: string },
+): Promise<Result<void, DashboardError>> => deps.roles.resetRole(input.roleId);
+
 /** Command: replace a membership's whole role assignment (ADR-0011). */
 export const assignMemberRoles = (
   deps: { readonly roles: RolesGateway },

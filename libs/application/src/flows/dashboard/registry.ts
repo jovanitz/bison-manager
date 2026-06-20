@@ -19,6 +19,7 @@ import {
   createPlatformRole,
   deletePlatformRole,
   loadPlatformRoles,
+  resetPlatformRole,
 } from './roles';
 
 /** Everything a STAFF-side caller (the dashboard store or a staff MCP) wires once. */
@@ -136,6 +137,13 @@ export const DASHBOARD_FLOWS: ReadonlyArray<FlowCommand<DashboardFlowDeps>> = [
     input: assignRolesInput,
     run: (deps, input) =>
       assignMemberRoles(deps, assignRolesInput.parse(input)),
+  },
+  {
+    name: 'roles.reset',
+    kind: 'command',
+    description: 'Reset a default role to its factory template (ADR-0012).',
+    input: deleteRoleInput,
+    run: (deps, input) => resetPlatformRole(deps, deleteRoleInput.parse(input)),
   },
 ];
 

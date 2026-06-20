@@ -8,16 +8,20 @@ const NOW = '2026-06-15T12:00:00.000Z';
 
 const makeWorld = () => {
   const created: NewIdentityMembership[] = [];
+  const seeded: string[] = [];
   const createOrganization = makeCreateOrganization({
     onboarding: {
       createCustomerMembership: async (m) => {
         created.push(m);
       },
     },
+    installDefaults: async (accountId) => {
+      seeded.push(accountId);
+    },
     clock: fixedClock(new Date(NOW)),
     ids: sequentialIdGenerator('id'),
   });
-  return { createOrganization, created };
+  return { createOrganization, created, seeded };
 };
 
 describe('makeCreateOrganization', () => {
@@ -37,6 +41,8 @@ describe('makeCreateOrganization', () => {
     if (r.ok) {
       expect(r.value.accountId).toBe(world.created[0]?.accountId);
       expect(r.value.membershipId).toBe(world.created[0]?.membershipId);
+      // ADR-0012: the new org's default roles are seeded on creation
+      expect(world.seeded).toEqual([r.value.accountId]);
     }
   });
 

@@ -76,6 +76,8 @@ export type RoleSummaryDto = {
     readonly action: string;
     readonly scope: string;
   }>;
+  /** Factory template key (ADR-0012); non-null = a default (resettable). */
+  readonly templateKey: string | null;
 };
 
 /**
@@ -97,6 +99,10 @@ export type RolesGateway = {
     }>;
   }) => Promise<Result<{ readonly roleId: string }, DirectoryGatewayError>>;
   readonly deleteRole: (
+    roleId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  /** Reset a default role to its factory template (ADR-0012). */
+  readonly resetRole: (
     roleId: string,
   ) => Promise<Result<void, DirectoryGatewayError>>;
   /** Replace a membership's whole role assignment (ADR-0011, roles-only). */

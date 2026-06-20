@@ -8,6 +8,7 @@ import {
   createPlatformRole,
   deletePlatformRole,
   loadPlatformRoles,
+  resetPlatformRole,
 } from './roles';
 
 const snapshot = (
@@ -37,6 +38,7 @@ const rolesGateway = (over: Partial<RolesGateway> = {}): RolesGateway =>
     listRoles: async () => ok([]),
     createRole: async () => ok({ roleId: 'r-new' }),
     deleteRole: async () => ok(undefined),
+    resetRole: async () => ok(undefined),
     assignRoles: async () => ok(undefined),
     ...over,
   }) as RolesGateway;
@@ -99,5 +101,16 @@ describe('dashboard role flows', () => {
       membershipId: 'm-1',
       roleIds: ['r1', 'r2'],
     });
+  });
+
+  it('resetPlatformRole forwards the role id', async () => {
+    const resetRole = vi.fn(async () => ok(undefined));
+    await resetPlatformRole(
+      { roles: rolesGateway({ resetRole }) },
+      {
+        roleId: 'r-7',
+      },
+    );
+    expect(resetRole).toHaveBeenCalledWith('r-7');
   });
 });
