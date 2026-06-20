@@ -4,6 +4,7 @@ import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../../access/authorize';
 import {
   guardGrantedPermissions,
+  guardOwnerTarget,
   guardRootTarget,
   holdsAdminCapability,
   parseGrantedPermissions,
@@ -39,6 +40,17 @@ export const makeUpdateUserPermissions =
       actor: input.actor,
     });
     if (!rootGuard.ok) return err(rootGuard.error);
+    // Owner protection: a same-account non-owner peer cannot re-permission the
+    // account owner, even with the owner's own permission set.
+    const ownerGuard = guardOwnerTarget({
+      target: {
+        isAccountOwner: membership.isAccountOwner,
+        accountId: membership.accountId,
+        membershipId: membership.id,
+      },
+      actor: input.actor,
+    });
+    if (!ownerGuard.ok) return err(ownerGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({

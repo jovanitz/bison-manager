@@ -21,7 +21,6 @@ import { memberDirectoryContract } from './member-directory-contract';
 import { roleStoreContract } from './role-store-contract';
 
 export type { AccessStorePorts } from './access-store-fixtures';
-
 /** Contract every access store (in-memory, Postgres) must satisfy identically; `makeStore` must return exactly the given seed (DBs isolate per call). */
 export const accessStoreContract = (
   name: string,
@@ -113,6 +112,7 @@ export const accessStoreContract = (
         accountKind: 'staff',
         permissions: accessPresetPermissions('support'),
         isRoot: false,
+        isAccountOwner: false,
       });
       expect(await store.admin.findSession(ids.sessionSupport)).toEqual({
         id: ids.sessionSupport,

@@ -2,7 +2,7 @@ import { type Clock, type Result, err, ok } from '@acme/shared';
 import { makeMembershipId } from '@acme/domain';
 import type { AccessActor, AccountId, RoleId } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import { guardRootTarget } from '../access-admin/deps';
+import { guardOwnerTarget, guardRootTarget } from '../access-admin/deps';
 import { membershipNotFound } from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import type { RoleStore } from './ports';
@@ -58,6 +58,17 @@ export const makeAssignMemberRoles =
       actor: input.actor,
     });
     if (!rootGuard.ok) return err(rootGuard.error);
+    // Owner protection: a same-account non-owner peer cannot reassign the
+    // account owner's roles.
+    const ownerGuard = guardOwnerTarget({
+      target: {
+        isAccountOwner: membership.isAccountOwner,
+        accountId: membership.accountId,
+        membershipId: membership.id,
+      },
+      actor: input.actor,
+    });
+    if (!ownerGuard.ok) return err(ownerGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({

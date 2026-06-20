@@ -141,6 +141,7 @@ export const makeInMemoryAdminRepository = (
       accountKind: accountKindOf(state, membership.accountId),
       permissions: membership.permissions,
       isRoot: membership.isRoot,
+      isAccountOwner: membership.isAccountOwner,
     };
   },
   promoteAccountToStaff: async (id, event, staffPolicy) =>

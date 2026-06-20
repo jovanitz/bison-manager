@@ -6,7 +6,11 @@ import {
 } from '@acme/domain';
 import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import { guardRootTarget, holdsAdminCapability } from '../access-admin/deps';
+import {
+  guardOwnerTarget,
+  guardRootTarget,
+  holdsAdminCapability,
+} from '../access-admin/deps';
 import {
   accountNotFound,
   cannotOrphanAccount,
@@ -80,6 +84,15 @@ export const makeRemoveMember =
       actor: input.actor,
     });
     if (!rootGuard.ok) return err(rootGuard.error);
+    const ownerGuard = guardOwnerTarget({
+      target: {
+        isAccountOwner: membership.isAccountOwner,
+        accountId: membership.accountId,
+        membershipId: membership.id,
+      },
+      actor: input.actor,
+    });
+    if (!ownerGuard.ok) return err(ownerGuard.error);
 
     const now = deps.clock.now().toISOString();
     const authorized = authorizeAccessAction({

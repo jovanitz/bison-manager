@@ -1,6 +1,12 @@
 import { type Clock, type Result, err, ok } from '@acme/shared';
 import { isCustomerDelegableAction, makeAccessPermission } from '@acme/domain';
-import type { AccessActor, AccessPermission, AccountKind } from '@acme/domain';
+import type {
+  AccessActor,
+  AccessPermission,
+  AccountId,
+  AccountKind,
+  MembershipId,
+} from '@acme/domain';
 import { accessDenied } from '../access/errors';
 import type { AccessSessionPolicyStore } from '../access-settings/ports';
 import { notDelegableToCustomer, requiresStaffAccount } from './errors';
@@ -43,6 +49,34 @@ export const guardRootTarget = (input: {
     // Denied with the SAME generic access-denied as any other refusal — never
     // a distinct tag — so the response can't be used to discover who is root.
     return err(accessDenied('The super-admin cannot be modified.'));
+  }
+  return ok(undefined);
+};
+
+/**
+ * Account-owner protection (ADR-0011 ownership flag): a mutation whose TARGET is
+ * the account owner is refused for a SAME-account member who is not themselves
+ * an owner — a co-admin granted the owner's full permission set still cannot
+ * re-permission, reset the roles of, or expel the owner. Self, a fellow owner of
+ * the same account, and root (or out-of-account staff the policy already
+ * authorized) are allowed. Generic access-denied, like every other refusal.
+ */
+export const guardOwnerTarget = (input: {
+  readonly target: {
+    readonly isAccountOwner: boolean;
+    readonly accountId: AccountId;
+    readonly membershipId: MembershipId;
+  };
+  readonly actor: AccessActor;
+}): Result<void, AccessAdminUseCaseError> => {
+  const { target, actor } = input;
+  if (!target.isAccountOwner) return ok(undefined);
+  if (actor.isRoot) return ok(undefined);
+  if (actor.membership.id === target.membershipId) return ok(undefined);
+  const sameAccountPeer =
+    actor.membership.accountId === target.accountId && !actor.isAccountOwner;
+  if (sameAccountPeer) {
+    return err(accessDenied('The account owner is protected.'));
   }
   return ok(undefined);
 };

@@ -36,6 +36,8 @@ export type AdminMembershipSnapshot = {
   readonly permissions: ReadonlyArray<AccessPermission>;
   /** The protected super-admin membership. */
   readonly isRoot: boolean;
+  /** The account owner — protected from same-account non-owner peers. */
+  readonly isAccountOwner: boolean;
 };
 
 export type AdminSessionSnapshot = {

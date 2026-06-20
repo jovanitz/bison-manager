@@ -58,7 +58,8 @@ const findMembership = async (
 ): Promise<AdminMembershipSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select m.id, m.account_id, m.permissions, m.is_root, a.kind
+    select m.id, m.account_id, m.permissions, m.is_root, m.is_account_owner,
+      a.kind
     from public.memberships m
     join public.accounts a on a.id = m.account_id
     where m.id = ${id}
@@ -71,6 +72,7 @@ const findMembership = async (
     accountKind: row['kind'] as AccountKind,
     permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
     isRoot: row['is_root'] as boolean,
+    isAccountOwner: row['is_account_owner'] as boolean,
   };
 };
 

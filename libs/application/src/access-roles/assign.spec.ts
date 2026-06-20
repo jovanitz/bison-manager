@@ -18,13 +18,14 @@ const roleFixture = (id: string, accountId: string | null): Role => ({
 
 const membershipFixture = (
   accountId: string,
-  isRoot = false,
+  extra: { readonly isRoot?: boolean; readonly isAccountOwner?: boolean } = {},
 ): AdminMembershipSnapshot => ({
   id: 'm-1' as MembershipId,
   accountId: accountId as AccountId,
   accountKind: 'customer',
   permissions: [],
-  isRoot,
+  isRoot: extra.isRoot ?? false,
+  isAccountOwner: extra.isAccountOwner ?? false,
 });
 
 const makeWorld = (input: {
@@ -121,5 +122,38 @@ describe('assign member roles', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.tag).toBe('app/membership-not-found');
+  });
+
+  it('protects the account owner from a same-account non-owner peer', async () => {
+    const world = makeWorld({
+      roles: [roleFixture('r-plat', null)],
+      membership: membershipFixture('acct-1', { isAccountOwner: true }),
+    });
+    // a peer with the owner's permissions but isAccountOwner=false
+    const result = await world.assignMemberRoles({
+      actor: testAccessActor({ preset: 'owner', accountId: 'acct-1' }),
+      membershipId: 'm-1',
+      roleIds: ['r-plat'],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.tag).toBe('app/access-denied');
+    expect(world.assigned).toEqual([]);
+  });
+
+  it('lets a fellow owner of the same account reassign the owner', async () => {
+    const world = makeWorld({
+      roles: [roleFixture('r-plat', null)],
+      membership: membershipFixture('acct-1', { isAccountOwner: true }),
+    });
+    const result = await world.assignMemberRoles({
+      actor: testAccessActor({
+        preset: 'owner',
+        accountId: 'acct-1',
+        isAccountOwner: true,
+      }),
+      membershipId: 'm-1',
+      roleIds: ['r-plat'],
+    });
+    expect(result.ok).toBe(true);
   });
 });
