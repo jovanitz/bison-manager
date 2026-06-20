@@ -39,6 +39,12 @@ export type Role = {
   /** The owning account, or `null` for a platform-wide role. */
   readonly accountId: AccountId | null;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /**
+   * Provenance (ADR-0012): the factory template this role derives from, or
+   * `null` for a custom role. Template-derived roles are non-deletable and
+   * resettable; custom roles are free-form.
+   */
+  readonly templateKey: string | null;
 };
 
 /** Assemble a valid Role from already-branded parts plus a raw name. */
@@ -47,6 +53,8 @@ export const createRole = (input: {
   readonly name: string;
   readonly accountId: AccountId | null;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** Defaults to `null` (a custom role); set when instantiating a template. */
+  readonly templateKey?: string | null;
 }): Result<Role, AccessDomainError> => {
   const name = makeRoleName(input.name);
   if (!name.ok) return err(name.error);
@@ -55,5 +63,6 @@ export const createRole = (input: {
     name: name.value,
     accountId: input.accountId,
     permissions: input.permissions,
+    templateKey: input.templateKey ?? null,
   });
 };

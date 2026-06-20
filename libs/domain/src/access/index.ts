@@ -2,6 +2,7 @@ export * from './errors';
 export * from './value-objects';
 export * from './permission';
 export * from './role/role';
+export * from './role/templates';
 export * from './events';
 export * from './actor';
 export * from './presets';
