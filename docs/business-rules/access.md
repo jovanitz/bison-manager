@@ -165,8 +165,9 @@ generated — they are behavior, not documentation:
 | `roles.create` | `permissions.update` | Create a permission bundle: platform-wide (accountId null) or scoped to one customer org. Account-scoped roles may not hold any-scoped power. |
 | `roles.list` | `permissions.update` | List the roles available to an account: the platform-wide roles plus that account's own (accountId null lists platform roles only). |
 | `roles.update` | `permissions.update` | Rotate a role's name and permission set (live reference: every membership holding it sees the change on its next request). |
-| `roles.delete` | `permissions.update` | Delete a role. Refused while any membership still holds it (blocked-in-use), so authority never vanishes silently. |
+| `roles.delete` | `permissions.update` | Delete a custom role (refused while in use). A default role is refused too — reset it instead (ADR-0012), so authority never vanishes silently. |
 | `roles.assign` | `permissions.update` | Replace a membership's role assignment with the given set (ADR-0011, roles-only). Each role must exist and be reachable by the account. |
+| `roles.reset` | `permissions.update` | Reset a default role to its factory template (name + permissions, same id, assignments kept). Custom roles have no template and are refused. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.

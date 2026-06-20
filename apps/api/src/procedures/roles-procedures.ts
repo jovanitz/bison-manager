@@ -31,6 +31,19 @@ const rolesAssign = (accessRoles: AccessRolesUseCases): ApiProcedure =>
       }),
   });
 
+/** Reset a default role to its factory template (ADR-0012) — the safety net. */
+const rolesReset = (accessRoles: AccessRolesUseCases): ApiProcedure =>
+  defineApiProcedure({
+    name: 'roles.reset',
+    summary:
+      'Reset a default role to its factory template (name + permissions, same ' +
+      'id, assignments kept). Custom roles have no template and are refused.',
+    action: 'permissions.update',
+    input: z.object({ roleId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessRoles.resetRole({ actor, roleId: input.roleId }),
+  });
+
 /**
  * Dynamic role management (ADR-0011): named permission bundles, platform-wide
  * (`accountId: null`) or scoped to one customer org. Gated by the same action
@@ -95,12 +108,13 @@ export const createRolesProcedures = (
   defineApiProcedure({
     name: 'roles.delete',
     summary:
-      'Delete a role. Refused while any membership still holds it ' +
-      '(blocked-in-use), so authority never vanishes silently.',
+      'Delete a custom role (refused while in use). A default role is refused ' +
+      'too — reset it instead (ADR-0012), so authority never vanishes silently.',
     action: 'permissions.update',
     input: z.object({ roleId: z.string().min(1) }).strict(),
     handler: ({ actor, input }) =>
       accessRoles.deleteRole({ actor, roleId: input.roleId }),
   }),
   rolesAssign(accessRoles),
+  rolesReset(accessRoles),
 ];

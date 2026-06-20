@@ -118,8 +118,15 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accounts: store.admin,
     clock,
   });
+  const accessRoles = makeAccessRolesUseCases({
+    roles: store.roles,
+    admin: store.admin,
+    clock,
+    ids,
+  });
   const { createOrganization } = makeCreateOrganizationUseCases({
     onboarding: store.onboarding,
+    installDefaults: accessRoles.installDefaults,
     clock,
     ids,
   });
@@ -175,12 +182,6 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accounts: store.admin,
     sessionPolicies: store.sessionPolicies,
     clock,
-  });
-  const accessRoles = makeAccessRolesUseCases({
-    roles: store.roles,
-    admin: store.admin,
-    clock,
-    ids,
   });
   const procedures = createApiProcedures({
     access,

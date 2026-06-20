@@ -106,6 +106,7 @@ describe('the rpc pipeline', () => {
       'roles.create',
       'roles.delete',
       'roles.list',
+      'roles.reset',
       'roles.update',
       'session.switch-account',
       'sessions.list',
