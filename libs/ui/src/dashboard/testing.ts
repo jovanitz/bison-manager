@@ -123,6 +123,14 @@ export const testRoles: ReadonlyArray<RoleSummaryDto> = [
     name: 'Support',
     accountId: null,
     permissions: [{ action: 'staff.read', scope: 'any' }],
+    templateKey: 'support', // a default (resettable, non-deletable)
+  },
+  {
+    id: 'role-custom',
+    name: 'Bespoke',
+    accountId: null,
+    permissions: [{ action: 'audit.read', scope: 'any' }],
+    templateKey: null, // a custom role (deletable, not resettable)
   },
 ];
 
@@ -132,6 +140,7 @@ export const mockRoles = (
   listRoles: async () => ok(testRoles),
   createRole: async () => ok({ roleId: 'role-new' }),
   deleteRole: async () => ok(undefined),
+  resetRole: async () => ok(undefined),
   assignRoles: async () => ok(undefined),
   ...overrides,
 });

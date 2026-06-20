@@ -6,6 +6,7 @@ import {
   createPlatformRole,
   deletePlatformRole,
   loadPlatformRoles,
+  resetPlatformRole,
 } from '@acme/application';
 
 /** Reactive store for the dashboard's dynamic-role management (ADR-0011). Dumb. */
@@ -21,6 +22,8 @@ export type RolesStoreState = {
     readonly scope: string;
   }) => Promise<void>;
   readonly deleteRole: (roleId: string) => Promise<void>;
+  /** Reset a default role to its factory template (ADR-0012), then reload. */
+  readonly resetRole: (roleId: string) => Promise<void>;
 };
 
 export type RolesStoreDeps = {
@@ -60,6 +63,15 @@ export const createRolesStore = (deps: RolesStoreDeps) =>
         return;
       }
       set({ notice: 'Role deleted.' });
+      await get().load();
+    },
+    resetRole: async (roleId) => {
+      const result = await resetPlatformRole(deps, { roleId });
+      if (!result.ok) {
+        set({ notice: result.error.message });
+        return;
+      }
+      set({ notice: 'Role reset to its default.' });
       await get().load();
     },
   }));

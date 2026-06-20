@@ -72,6 +72,21 @@ describe('RolesSection', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('offers Reset (not Delete) on a default role, with a badge', async () => {
+    const resetRole = vi.fn(async () => ({
+      ok: true as const,
+      value: undefined,
+    }));
+    renderSection(mockRoles({ resetRole }));
+    expect(await screen.findByText('Support')).toBeInTheDocument();
+    // the default (templateKey set) is badged and resettable
+    expect(screen.getByLabelText('default role')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(resetRole).toHaveBeenCalledWith('role-support'));
+    // the custom role keeps a Delete button
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
   it('renders nothing when roles are not wired', () => {
     render(
       <UseCasesProvider useCases={{ items: mockItems }}>

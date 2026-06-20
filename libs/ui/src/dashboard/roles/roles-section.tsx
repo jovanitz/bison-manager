@@ -69,7 +69,12 @@ const RolesView = ({ store }: { readonly store: RolesStore }) => {
         <tbody>
           {(vm?.roles ?? []).map((role) => (
             <tr key={role.id}>
-              <td>{role.name}</td>
+              <td>
+                {role.name}
+                {role.templateKey !== null ? (
+                  <span aria-label="default role"> (default)</span>
+                ) : null}
+              </td>
               <td>{role.accountId === null ? 'platform' : role.accountId}</td>
               <td>
                 {role.permissions
@@ -78,12 +83,21 @@ const RolesView = ({ store }: { readonly store: RolesStore }) => {
               </td>
               {canManage ? (
                 <td>
-                  <button
-                    type="button"
-                    onClick={() => void store.getState().deleteRole(role.id)}
-                  >
-                    Delete
-                  </button>
+                  {role.templateKey !== null ? (
+                    <button
+                      type="button"
+                      onClick={() => void store.getState().resetRole(role.id)}
+                    >
+                      Reset
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void store.getState().deleteRole(role.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </td>
               ) : null}
             </tr>
