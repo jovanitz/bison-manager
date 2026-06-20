@@ -7,6 +7,7 @@ import type {
   ItemUseCases,
   MembersUseCases,
   OrgsUseCases,
+  RolesGateway,
 } from '@acme/application';
 
 /**
@@ -31,6 +32,8 @@ export type AppUseCases = {
   readonly members?: MembersUseCases;
   /** Present in the staff dashboard: soft-block orgs / identities. */
   readonly block?: BlockUseCases;
+  /** Present in the staff dashboard: manage dynamic roles (ADR-0011). */
+  readonly roles?: RolesGateway;
   /** Present in the client app: the caller's orgs + switching between them. */
   readonly orgs?: OrgsUseCases;
 };

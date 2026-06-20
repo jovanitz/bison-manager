@@ -39,6 +39,7 @@ const deps = (over: Partial<DashboardFlowDeps> = {}): DashboardFlowDeps =>
     directory: {
       listStaff: async () => ok([]),
       listCustomers: async () => ok([]),
+      listOrphans: async () => ok([]),
     },
     members: {
       listMembers: async () =>
@@ -55,12 +56,22 @@ const deps = (over: Partial<DashboardFlowDeps> = {}): DashboardFlowDeps =>
       removeMember: async () => ok(undefined),
       setMemberBlocked: async () => ok(undefined),
     },
-    invitations: { invite: async () => ok({ invitationId: 'i', token: 't' }) },
+    invitations: {
+      invite: async () => ok({ invitationId: 'i', token: 't' }),
+      listPending: async () => ok([]),
+      regenerate: async () => ok({ token: 't' }),
+    },
     block: {
       blockOrg: async () => ok(undefined),
       unblockOrg: async () => ok(undefined),
       blockIdentity: async () => ok(undefined),
       unblockIdentity: async () => ok(undefined),
+    },
+    roles: {
+      listRoles: async () => ok([]),
+      createRole: async () => ok({ roleId: 'role-1' }),
+      deleteRole: async () => ok(undefined),
+      assignRoles: async () => ok(undefined),
     },
     ...over,
   }) as unknown as DashboardFlowDeps;
@@ -167,6 +178,17 @@ describe('dashboard flows', () => {
       blocked: true,
     });
     expect(bad.success).toBe(false);
+  });
+
+  it('exposes the role flows in the registry (behavior in roles.spec)', () => {
+    for (const name of [
+      'roles.load',
+      'roles.create',
+      'roles.delete',
+      'roles.assign',
+    ]) {
+      expect(must(name)).toBeDefined();
+    }
   });
 
   it('enumerates every dashboard flow with name, kind and schema (MCP discovery)', () => {

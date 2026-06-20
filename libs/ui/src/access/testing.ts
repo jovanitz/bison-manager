@@ -39,6 +39,7 @@ export const mockAccessUseCases = (
   onAuthChange: () => () => undefined,
   requestPasswordReset: async () => ok(undefined),
   changePassword: async () => ok(testAuthSession),
+  needsBootstrap: async () => ok(false),
   ...overrides,
 });
 

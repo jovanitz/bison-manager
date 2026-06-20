@@ -1,12 +1,15 @@
 import type { Result } from '@acme/shared';
-import type { StaffAccountSummary } from '../../access-directory/ports';
+import type {
+  OrphanIdentitySummary,
+  StaffAccountSummary,
+} from '../../access-directory/ports';
 import type { CustomerAccountSummary } from '../../impersonation/ports';
 import type { DirectoryGateway, DirectoryGatewayError } from '../ports';
 
 /**
- * The directory bundle the admin dashboard consumes: two read flows that the
- * server reauthorizes. Thin on purpose — like the rest of the access client,
- * it only forwards to the gateway; every real decision is server-side.
+ * The directory bundle the admin dashboard consumes: read flows the server
+ * reauthorizes. Thin on purpose — like the rest of the access client, it only
+ * forwards to the gateway; every real decision is server-side.
  */
 export type DirectoryUseCases = {
   readonly listStaff: () => Promise<
@@ -15,6 +18,9 @@ export type DirectoryUseCases = {
   readonly listCustomers: () => Promise<
     Result<ReadonlyArray<CustomerAccountSummary>, DirectoryGatewayError>
   >;
+  readonly listOrphans: () => Promise<
+    Result<ReadonlyArray<OrphanIdentitySummary>, DirectoryGatewayError>
+  >;
 };
 
 export const makeDirectoryUseCases = (deps: {
@@ -22,4 +28,5 @@ export const makeDirectoryUseCases = (deps: {
 }): DirectoryUseCases => ({
   listStaff: () => deps.gateway.listStaff(),
   listCustomers: () => deps.gateway.listCustomers(),
+  listOrphans: () => deps.gateway.listOrphans(),
 });

@@ -2,6 +2,7 @@ import type { AccessActor } from '../actor';
 import { accessGrantAllows } from '../grant/grant';
 import { accessPermissionAllows } from '../permission';
 import type { AccessResource } from '../permission';
+import { isGrantOnlyAction } from '../value-objects';
 import type { AccessAction, AccessGrantId } from '../value-objects';
 
 /**
@@ -24,6 +25,8 @@ export type AccessDenialReason =
 
 export type AccessDecision =
   | { readonly allowed: true; readonly source: 'permission' }
+  | { readonly allowed: true; readonly source: 'root' }
+  | { readonly allowed: true; readonly source: 'owner' }
   | {
       readonly allowed: true;
       readonly source: 'grant';
@@ -35,6 +38,31 @@ const accessDenied = (reason: AccessDenialReason): AccessDecision => ({
   allowed: false,
   reason,
 });
+
+/**
+ * Ownership bypass (ADR-0011): authority from an identity flag, not a permission
+ * list — so root/owner never go stale. Returns a decision to short-circuit, or
+ * `null` to fall through to the permission/grant checks. Liveness gates run
+ * BEFORE this, so a dead account/session/block still denies even root.
+ */
+const ownershipDecision = (
+  actor: AccessActor,
+  resource: AccessResource,
+  action: AccessAction,
+): AccessDecision | null => {
+  // Grant-only actions (customer data, ADR-0010) are never bypassable — even
+  // root/owner need an audited grant, so authority never escapes the audit trail.
+  if (isGrantOnlyAction(action)) return null;
+  if (actor.isRoot) return { allowed: true, source: 'root' };
+  if (
+    actor.isAccountOwner &&
+    resource.accountId !== null &&
+    resource.accountId === actor.membership.accountId
+  ) {
+    return { allowed: true, source: 'owner' };
+  }
+  return null;
+};
 
 export const evaluateAccessPolicy = (input: {
   readonly actor: AccessActor;
@@ -51,6 +79,9 @@ export const evaluateAccessPolicy = (input: {
   }
   // Soft block: authenticated and resolved, but no operation is permitted.
   if (actor.blocked) return accessDenied('blocked');
+
+  const bypass = ownershipDecision(actor, resource, action);
+  if (bypass) return bypass;
 
   const permitted = actor.permissions.some((permission) =>
     accessPermissionAllows({

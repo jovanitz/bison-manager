@@ -4,6 +4,7 @@ import type {
   AccessDirectoryUseCases,
   AccessInvitationsUseCases,
   AccessMembersUseCases,
+  AccessRolesUseCases,
   AccessSettingsUseCases,
   AccessUseCases,
   AuditTrailUseCases,
@@ -16,6 +17,7 @@ import { createBlockProcedures } from './block-procedures';
 import { createDirectoryProcedures } from './directory-procedures';
 import { createImpersonationProcedures } from './impersonation-procedures';
 import { createMembersProcedures } from './members/members-procedures';
+import { createRolesProcedures } from './roles-procedures';
 import { createSettingsProcedures } from './settings-procedures';
 
 export type ApiUseCases = {
@@ -28,6 +30,7 @@ export type ApiUseCases = {
   readonly accessInvitations: AccessInvitationsUseCases;
   readonly accessMembers: AccessMembersUseCases;
   readonly accessBlock: AccessBlockUseCases;
+  readonly accessRoles: AccessRolesUseCases;
 };
 
 /**
@@ -48,4 +51,5 @@ export const createApiProcedures = (
     useCases.accessInvitations,
     useCases.accessMembers,
   ),
+  ...createRolesProcedures(useCases.accessRoles),
 ];

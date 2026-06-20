@@ -81,6 +81,8 @@ export const createApi = (deps: {
   readonly devConsole?: () => string;
   /** GoTrue password-verification hook receiver (login.failed audit). */
   readonly authHook?: AuthHookDeps;
+  /** First-run check: true while no root admin exists (drives the owner sign-up). */
+  readonly needsBootstrap?: () => Promise<boolean>;
 }) => {
   const app = new Hono<ApiEnv>();
 
@@ -89,11 +91,12 @@ export const createApi = (deps: {
   const browserCors = cors({
     origin: [...(deps.corsOrigins ?? [])],
     allowHeaders: ['authorization', 'content-type'],
-    allowMethods: ['POST', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
   });
   app.use('/rpc/*', browserCors);
   app.use('/invitations/*', browserCors);
   app.use('/id/*', browserCors);
+  app.use('/bootstrap-status', browserCors);
 
   app.get('/health', (c) => {
     const body = healthResponseSchema.safeParse({
@@ -124,6 +127,15 @@ export const createApi = (deps: {
   app.post('/invitations/activate', (c) =>
     handleActivate(deps.activateInvitation, c),
   );
+
+  // Public, pre-login first-run check: lets the dashboard show the one-time
+  // owner sign-up only while no root admin exists. Read-only boolean.
+  const needsBootstrap = deps.needsBootstrap;
+  if (needsBootstrap) {
+    app.get('/bootstrap-status', async (c) =>
+      c.json({ needsBootstrap: await needsBootstrap() }),
+    );
+  }
 
   // Identity-level (org-less): a verified user creates their own organization.
   // Available only in real-identity mode (the verifier exists).

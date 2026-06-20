@@ -20,6 +20,8 @@ const actorWith = (overrides: {
   permissions?: ReadonlyArray<AccessPermission>;
   grants?: ReadonlyArray<AccessGrant>;
   blocked?: boolean;
+  isRoot?: boolean;
+  isAccountOwner?: boolean;
 }): AccessActor => ({
   membership: {
     id: 'membership-1' as AccessActor['membership']['id'],
@@ -28,7 +30,8 @@ const actorWith = (overrides: {
   },
   accountStatus: overrides.accountStatus ?? 'active',
   accountKind: 'staff',
-  isRoot: false,
+  isRoot: overrides.isRoot ?? false,
+  isAccountOwner: overrides.isAccountOwner ?? false,
   blocked: overrides.blocked ?? false,
   session: {
     id: 'session-1' as AccessActor['session']['id'],

@@ -29,6 +29,7 @@ export * from './access-client/gateways/rpc-invitations-gateway';
 export * from './access-client/gateways/rpc-activation-gateway';
 export * from './access-client/gateways/rpc-members-gateway';
 export * from './access-client/gateways/rpc-block-gateway';
+export * from './access-client/gateways/rpc-roles-gateway';
 export * from './access-client/gateways/client/rpc-orgs-gateway';
 
 // Offline sync

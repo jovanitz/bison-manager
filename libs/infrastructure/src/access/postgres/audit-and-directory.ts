@@ -93,4 +93,21 @@ export const createPostgresStaffDirectory = (sql: Sql): StaffDirectory => ({
       displayName: row['display_name'] as string | null,
     }));
   },
+  // Org-less "zombies": auth identities with no membership in any account.
+  // Cross-schema (auth.users ⋈ public.memberships) — only the real DB can answer.
+  listOrphanIdentities: async () => {
+    const rows = await sql`
+      select u.id, u.email, u.created_at
+      from auth.users u
+      where not exists (
+        select 1 from public.memberships m where m.user_id = u.id
+      )
+      order by u.created_at asc
+    `;
+    return rows.map((row) => ({
+      userId: row['id'] as string,
+      email: row['email'] as string | null,
+      createdAt: new Date(row['created_at'] as string | Date).toISOString(),
+    }));
+  },
 });

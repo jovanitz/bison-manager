@@ -29,4 +29,13 @@ export const createDirectoryProcedures = (
     input: z.object({}).strict(),
     handler: ({ actor }) => accessDirectory.listCustomers({ actor }),
   }),
+  defineApiProcedure({
+    name: 'identities.orphaned',
+    summary:
+      'List org-less ("zombie") auth identities — sign-ups belonging to no ' +
+      'account — for platform cleanup. Staff-only, gated by staff.read.',
+    action: 'staff.read',
+    input: z.object({}).strict(),
+    handler: ({ actor }) => accessDirectory.listOrphanIdentities({ actor }),
+  }),
 ];

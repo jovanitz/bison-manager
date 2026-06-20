@@ -1,6 +1,10 @@
 import type { Result, TaggedError } from '@acme/shared';
 import type { CurrentAccessDto } from '../access/dto';
-import type { StaffAccountSummary } from '../access-directory/ports';
+import type {
+  OrphanIdentitySummary,
+  StaffAccountSummary,
+} from '../access-directory/ports';
+import type { PendingInvitationSummary } from '../access-invitations/ports';
 import type { CustomerAccountSummary } from '../impersonation/ports';
 
 /** The two failure modes any read through the API can collapse into. */
@@ -33,6 +37,15 @@ export type CurrentAccessGateway = {
       TaggedError<'app/access-gateway-error' | 'app/access-denied'>
     >
   >;
+  /**
+   * First-run check (PRE-AUTH, no bearer): is the instance un-bootstrapped —
+   * i.e. no root admin exists yet? Lets the dashboard offer the one-time owner
+   * sign-up only on a fresh instance. The server's `rootAdminExists` guard is
+   * still the real gate; this only shows/hides the UI.
+   */
+  readonly needsBootstrap: () => Promise<
+    Result<boolean, TaggedError<'app/access-gateway-error'>>
+  >;
 };
 
 /**
@@ -48,6 +61,49 @@ export type DirectoryGateway = {
   readonly listCustomers: () => Promise<
     Result<ReadonlyArray<CustomerAccountSummary>, DirectoryGatewayError>
   >;
+  /** Org-less "zombie" identities, for the platform-cleanup view. */
+  readonly listOrphans: () => Promise<
+    Result<ReadonlyArray<OrphanIdentitySummary>, DirectoryGatewayError>
+  >;
+};
+
+/** A role as the dashboard lists it (ADR-0011); permissions are plain pairs. */
+export type RoleSummaryDto = {
+  readonly id: string;
+  readonly name: string;
+  readonly accountId: string | null;
+  readonly permissions: ReadonlyArray<{
+    readonly action: string;
+    readonly scope: string;
+  }>;
+};
+
+/**
+ * Client-side view of dynamic-role management (ADR-0011). Every call hits an
+ * API procedure (`roles.*`) with the bearer token attached; the server
+ * reauthorizes each (`permissions.update`). The client only forwards.
+ */
+export type RolesGateway = {
+  /** Platform roles (accountId null) plus the given account's own. */
+  readonly listRoles: (
+    accountId: string | null,
+  ) => Promise<Result<ReadonlyArray<RoleSummaryDto>, DirectoryGatewayError>>;
+  readonly createRole: (input: {
+    readonly name: string;
+    readonly accountId: string | null;
+    readonly permissions: ReadonlyArray<{
+      readonly action: string;
+      readonly scope: string;
+    }>;
+  }) => Promise<Result<{ readonly roleId: string }, DirectoryGatewayError>>;
+  readonly deleteRole: (
+    roleId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  /** Replace a membership's whole role assignment (ADR-0011, roles-only). */
+  readonly assignRoles: (input: {
+    readonly membershipId: string;
+    readonly roleIds: ReadonlyArray<string>;
+  }) => Promise<Result<void, DirectoryGatewayError>>;
 };
 
 /** Admin issues an invitation (authenticated `members.invite`). */
@@ -69,6 +125,14 @@ export type InvitationsGateway = {
       DirectoryGatewayError
     >
   >;
+  /** Pending (unexpired, unactivated) invitations — the dashboard list. */
+  readonly listPending: () => Promise<
+    Result<ReadonlyArray<PendingInvitationSummary>, DirectoryGatewayError>
+  >;
+  /** Rotate a pending invitation's link; returns the fresh token once. */
+  readonly regenerate: (
+    invitationId: string,
+  ) => Promise<Result<{ readonly token: string }, DirectoryGatewayError>>;
 };
 
 /** The failure modes the public activation endpoint can surface to the client. */

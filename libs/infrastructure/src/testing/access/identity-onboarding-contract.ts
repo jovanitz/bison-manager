@@ -112,7 +112,7 @@ export const identityOnboardingContract = (
       expect(await store.customers.read(owner.accountId)).toBeNull();
     });
 
-    it('provisions customers into the directory without making them admins', async () => {
+    it('provisions customers into the directory as their account owner', async () => {
       const ids = makeAccessContractIds();
       const store = await makeStore(accessContractSeed(ids));
       const customer = newMembership(ids, 'customer');
@@ -128,6 +128,11 @@ export const identityOnboardingContract = (
         accountId: customer.accountId,
         accountKind: 'customer',
       });
+      // ADR-0011: creating your own org makes you its owner (own-scope bypass).
+      const session = await registerSession(store.onboarding, customer);
+      expect(
+        (await store.actors.findActorBySession(session))?.isAccountOwner,
+      ).toBe(true);
     });
 
     it('lists only the live sessions of a membership', async () => {

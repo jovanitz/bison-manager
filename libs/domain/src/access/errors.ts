@@ -10,6 +10,7 @@ import { defineError, type TaggedError } from '@acme/shared';
 export const invalidAccessId = defineError('domain/invalid-access-id');
 export const invalidAccessAction = defineError('domain/invalid-access-action');
 export const invalidAccessScope = defineError('domain/invalid-access-scope');
+export const invalidRoleName = defineError('domain/invalid-role-name');
 export const invalidGrantReason = defineError('domain/invalid-grant-reason');
 export const invalidGrantExpiry = defineError('domain/invalid-grant-expiry');
 export const grantNotActive = defineError('domain/grant-not-active');
@@ -22,6 +23,7 @@ export type AccessDomainError =
   | TaggedError<'domain/invalid-access-id'>
   | TaggedError<'domain/invalid-access-action'>
   | TaggedError<'domain/invalid-access-scope'>
+  | TaggedError<'domain/invalid-role-name'>
   | TaggedError<'domain/invalid-grant-reason'>
   | TaggedError<'domain/invalid-grant-expiry'>
   | TaggedError<'domain/grant-not-active'>

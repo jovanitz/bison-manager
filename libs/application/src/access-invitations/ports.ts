@@ -5,6 +5,7 @@ import type {
   AccountId,
   AccountKind,
   InvitationId,
+  RoleId,
 } from '@acme/domain';
 
 /**
@@ -18,6 +19,8 @@ export type PendingAccessInvitation = {
   readonly accountId: AccountId;
   readonly accountKind: AccountKind;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** Roles to assign to the membership on acceptance (ADR-0011). */
+  readonly roleIds: ReadonlyArray<RoleId>;
 };
 
 /** A pending invitation located by its one-time activation token (by hash). */
@@ -25,6 +28,19 @@ export type PendingInvitationByToken = {
   readonly invitationId: InvitationId;
   readonly accountId: AccountId;
   readonly email: string;
+};
+
+/**
+ * A pending (unexpired, unaccepted) invitation as the admin dashboard lists it.
+ * Never carries the token — the plaintext is shown once at creation and only its
+ * hash is stored. To get a fresh link, regenerate it.
+ */
+export type PendingInvitationSummary = {
+  readonly invitationId: InvitationId;
+  readonly accountId: AccountId;
+  readonly email: string;
+  readonly createdAt: string;
+  readonly expiresAt: string;
 };
 
 export type AccessInvitationStore = {
@@ -35,6 +51,7 @@ export type AccessInvitationStore = {
       readonly accountId: AccountId;
       readonly email: string;
       readonly permissions: ReadonlyArray<AccessPermission>;
+      readonly roleIds: ReadonlyArray<RoleId>;
       readonly invitedBy: string;
       readonly createdAt: string;
       readonly expiresAt: string;
@@ -59,6 +76,19 @@ export type AccessInvitationStore = {
   ) => Promise<PendingInvitationByToken | null>;
   /** Burns the one-time token (idempotent) so a link cannot be replayed. */
   readonly consumeToken: (invitationId: InvitationId) => Promise<void>;
+  /** Every unexpired, unaccepted invitation — the dashboard's pending list. */
+  readonly listPending: (
+    now: string,
+  ) => Promise<ReadonlyArray<PendingInvitationSummary>>;
+  /**
+   * Rotate a pending invitation's token (new hash + expiry), so the inviter can
+   * re-issue a fresh link. Returns false if no pending invitation matched.
+   */
+  readonly regenerateToken: (
+    invitationId: InvitationId,
+    next: { readonly tokenHash: string; readonly expiresAt: string },
+    now: string,
+  ) => Promise<boolean>;
 };
 
 /**

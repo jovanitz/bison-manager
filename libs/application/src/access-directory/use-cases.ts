@@ -6,7 +6,11 @@ import type {
   CustomerAccountSummary,
   CustomerDirectory,
 } from '../impersonation/ports';
-import type { StaffAccountSummary, StaffDirectory } from './ports';
+import type {
+  OrphanIdentitySummary,
+  StaffAccountSummary,
+  StaffDirectory,
+} from './ports';
 
 export type AccessDirectoryDeps = {
   readonly staffDirectory: StaffDirectory;
@@ -60,9 +64,32 @@ export const makeListCustomers =
     return ok(await deps.customers.search(''));
   };
 
+/**
+ * Org-less ("zombie") identities — sign-ups that belong to no account. A
+ * platform-cleanup read, gated by the same `staff.read` as the staff directory.
+ * The list is empty under an in-memory store (no auth layer to be orphaned from).
+ */
+export const makeListOrphanIdentities =
+  (deps: AccessDirectoryDeps) =>
+  async (input: {
+    readonly actor: AccessActor;
+  }): Promise<
+    Result<ReadonlyArray<OrphanIdentitySummary>, AccessUseCaseError>
+  > => {
+    const authorized = authorizeAccessAction({
+      actor: input.actor,
+      action: 'staff.read',
+      resource: { accountId: null },
+      now: deps.clock.now().toISOString(),
+    });
+    if (!authorized.ok) return err(authorized.error);
+    return ok(await deps.staffDirectory.listOrphanIdentities());
+  };
+
 export type AccessDirectoryUseCases = {
   readonly listStaff: ReturnType<typeof makeListStaff>;
   readonly listCustomers: ReturnType<typeof makeListCustomers>;
+  readonly listOrphanIdentities: ReturnType<typeof makeListOrphanIdentities>;
 };
 
 export const makeAccessDirectoryUseCases = (
@@ -70,4 +97,5 @@ export const makeAccessDirectoryUseCases = (
 ): AccessDirectoryUseCases => ({
   listStaff: makeListStaff(deps),
   listCustomers: makeListCustomers(deps),
+  listOrphanIdentities: makeListOrphanIdentities(deps),
 });

@@ -6,6 +6,7 @@ import {
   makeAccessDirectoryUseCases,
   makeAccessInvitationsUseCases,
   makeAccessMembersUseCases,
+  makeAccessRolesUseCases,
   makeAccessSettingsUseCases,
   makeAccessUseCases,
   makeAuditTrailUseCases,
@@ -163,6 +164,7 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
   const accessInvitations = makeAccessInvitationsUseCases({
     invitations: store.invitations,
     accounts: store.admin,
+    roles: store.roles,
     tokens: createNodeSecretTokenService(),
     provisioner,
     clock,
@@ -174,6 +176,12 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     sessionPolicies: store.sessionPolicies,
     clock,
   });
+  const accessRoles = makeAccessRolesUseCases({
+    roles: store.roles,
+    admin: store.admin,
+    clock,
+    ids,
+  });
   const procedures = createApiProcedures({
     access,
     auditTrail,
@@ -184,12 +192,16 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accessSettings,
     accessInvitations,
     accessMembers,
+    accessRoles,
   });
   const app = createApi({
     procedures,
     resolveActor: access.resolveRequestActor,
     activateInvitation: accessInvitations.activateInvitation,
     createOrganization,
+    // First-run: true while the instance has no root admin (drives the
+    // dashboard's one-time owner sign-up). Same source as the bootstrap guard.
+    needsBootstrap: async () => !(await store.onboarding.rootAdminExists()),
     ...toApiOptions(config, identity, {
       secret: config.authHookSecret ?? null,
       recordFailedLogin: auditTrail.recordFailedLogin,

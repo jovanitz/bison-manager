@@ -11,8 +11,10 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  RoleStore,
   StaffDirectory,
 } from '@acme/application';
+import { resolveActorPermissions } from '@acme/application';
 import type {
   AccessGrant,
   AccessAuditEvent,
@@ -27,6 +29,7 @@ import {
 import { makeInMemoryAdminRepository } from './admin/in-memory-admin-repository';
 import { makeInMemoryMemberDirectory } from './admin/in-memory-member-directory';
 import { makeInMemoryBlockStore } from './in-memory-block-store';
+import { createInMemoryRoleStore } from './role/in-memory-role-store';
 import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
 import { makeInMemoryInvitationStore } from './in-memory-invitations';
 import {
@@ -61,6 +64,7 @@ export type InMemoryAccessStore = {
   readonly invitations: AccessInvitationStore;
   readonly members: AccessMemberDirectory;
   readonly blocks: AccessBlockStore;
+  readonly roles: RoleStore;
 };
 
 const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
@@ -69,6 +73,10 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
     const membership = session && state.memberships.get(session.membershipId);
     const account = membership && state.accounts.get(membership.accountId);
     if (!session || !membership || !account) return null;
+    const roles = membership.roleIds.flatMap((id) => {
+      const role = state.roles.get(id);
+      return role ? [role] : [];
+    });
     return {
       membership: {
         id: session.membershipId as MembershipId,
@@ -80,6 +88,7 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
         ? ('customer' as const)
         : ('staff' as const),
       isRoot: membership.isRoot,
+      isAccountOwner: membership.isAccountOwner,
       blocked:
         (account.blocked ?? false) ||
         state.blockedIdentities.has(membership.userId) ||
@@ -90,7 +99,7 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
         expiresAt: session.expiresAt,
         createdAt: session.createdAt,
       },
-      permissions: membership.permissions,
+      permissions: resolveActorPermissions(membership.permissions, roles),
       grants: [...state.grants.values()].filter(
         (grant) => grant.membershipId === session.membershipId,
       ),
@@ -160,6 +169,8 @@ export const createInMemoryAccessStore = (
             email: null,
             displayName: null,
           })),
+      // No auth layer in memory, so nothing can be orphaned from it.
+      listOrphanIdentities: async () => [],
     },
     onboarding: makeInMemoryIdentityOnboarding(state),
     sessionPolicies: makeInMemorySessionPolicyStore(state),
@@ -167,5 +178,6 @@ export const createInMemoryAccessStore = (
     invitations: makeInMemoryInvitationStore(state),
     members: makeInMemoryMemberDirectory(state),
     blocks: makeInMemoryBlockStore(state),
+    roles: createInMemoryRoleStore(state),
   };
 };

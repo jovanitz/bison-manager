@@ -1,3 +1,4 @@
+import { unionPermissions } from '@acme/application';
 import type { AccessActorReader } from '@acme/application';
 import type {
   AccessActor,
@@ -22,6 +23,8 @@ type ActorRow = {
   readonly account_status: string;
   readonly account_kind: string;
   readonly is_root: boolean;
+  readonly is_account_owner: boolean;
+  readonly role_ids: ReadonlyArray<string>;
   readonly blocked: boolean;
 };
 
@@ -44,6 +47,8 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         m.account_id,
         m.permissions,
         m.is_root,
+        m.is_account_owner,
+        m.role_ids,
         a.status as account_status,
         a.kind as account_kind,
         (a.blocked or m.blocked or exists (
@@ -63,6 +68,15 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
       order by created_at asc
     `;
 
+    // ADR-0011: effective permissions = direct ∪ everything the roles expand to.
+    const roleRows =
+      row.role_ids.length > 0
+        ? await sql<{ permissions: AccessActor['permissions'] }[]>`
+            select permissions from public.roles
+            where id = any(${row.role_ids as unknown as string[]}::uuid[])
+          `
+        : [];
+
     return {
       membership: {
         id: row.membership_id as MembershipId,
@@ -72,6 +86,7 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
       accountStatus: row.account_status as AccountStatus,
       accountKind: row.account_kind as AccountKind,
       isRoot: row.is_root,
+      isAccountOwner: row.is_account_owner,
       blocked: row.blocked,
       session: {
         id: sessionId,
@@ -79,7 +94,10 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         expiresAt: isoOf(row.session_expires_at),
         createdAt: isoOf(row.session_created_at),
       },
-      permissions: row.permissions,
+      permissions: unionPermissions(
+        row.permissions,
+        ...roleRows.map((r) => r.permissions),
+      ),
       grants: grantRows.map((grant) => grantFromRow(grant as never)),
     };
   },

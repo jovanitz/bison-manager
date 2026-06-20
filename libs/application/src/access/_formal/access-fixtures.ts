@@ -24,6 +24,7 @@ export const actorWith = (o: {
   readonly sessionStatus?: AccessActor['session']['status'];
   readonly expiresAt?: string;
   readonly isRoot?: boolean;
+  readonly isAccountOwner?: boolean;
 }): AccessActor => ({
   membership: {
     id: id('m-1'),
@@ -33,6 +34,7 @@ export const actorWith = (o: {
   accountStatus: o.accountStatus ?? 'active',
   accountKind: 'staff',
   isRoot: o.isRoot ?? false,
+  isAccountOwner: o.isAccountOwner ?? false,
   blocked: o.blocked ?? false,
   session: {
     id: id('s-1'),

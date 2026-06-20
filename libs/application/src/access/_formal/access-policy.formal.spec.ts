@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_ACTIONS,
+  isGrantOnlyAction,
   type AccessAction,
   type AccessPermission,
 } from '@acme/domain';
@@ -106,9 +107,36 @@ const anyScopeAllowsAnywhere = (x: ScopeCase): boolean =>
     x.action,
     x.resource,
   ).allowed === true;
-const rootGrantsNothing = (x: ScopeCase): boolean =>
+// ADR-0011: ownership bypass. Authority comes from the identity flag, not a
+// permission list — root is omnipotent, an account owner is omnipotent within
+// its own account, and the fail-closed gates still beat both.
+// Root bypasses every action EXCEPT the grant-only ones (customer data stays
+// behind an audited grant, even for root).
+const rootAllowsExceptGrantOnly = (x: ScopeCase): boolean =>
   decide(actorWith({ permissions: [], isRoot: true }), x.action, x.resource)
-    .allowed === false;
+    .allowed === !isGrantOnlyAction(x.action);
+const ownerAllowsIffOwnAccount = (x: ScopeCase): boolean =>
+  decide(
+    actorWith({
+      accountId: x.ownAccount,
+      permissions: [],
+      isAccountOwner: true,
+    }),
+    x.action,
+    x.resource,
+  ).allowed === (x.resource === x.ownAccount && !isGrantOnlyAction(x.action));
+const deadRootDenies = (x: DeadCase): boolean =>
+  decide(
+    actorWith({
+      permissions: [],
+      isRoot: true,
+      accountStatus: x.kill === 'account' ? 'disabled' : 'active',
+      sessionStatus: x.kill === 'session' ? 'revoked' : 'active',
+      expiresAt: x.kill === 'expired' ? NOW : FUTURE,
+    }),
+    x.action,
+    'acct-own',
+  ).allowed === false;
 
 describe('formal: evaluateAccessPolicy', () => {
   it('P1 — a blocked actor is denied every action', () => {
@@ -139,9 +167,25 @@ describe('formal: evaluateAccessPolicy', () => {
     ).not.toThrow();
   });
 
-  it('P6 — isRoot alone grants nothing (policy is permission-based)', () => {
+  it('P6 — root (live) is authorized for every action except grant-only ones', () => {
     expect(() =>
-      verify('isRoot ⇏ allow', genScope, rootGrantsNothing),
+      verify(
+        'isRoot ⇒ allow (non-grant-only)',
+        genScope,
+        rootAllowsExceptGrantOnly,
+      ),
+    ).not.toThrow();
+  });
+
+  it('P7 — an account owner is authorized IFF the resource is its own account', () => {
+    expect(() =>
+      verify('owner ⇔ own account', genScope, ownerAllowsIffOwnAccount),
+    ).not.toThrow();
+  });
+
+  it('P8 — fail-closed beats the bypass: a dead/disabled root is denied', () => {
+    expect(() =>
+      verify('dead root ⇒ deny', genDead, deadRootDenies),
     ).not.toThrow();
   });
 });

@@ -15,7 +15,7 @@ import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
 const wipe = async (sql: Sql): Promise<void> => {
   await sql`
     truncate public.audit_events, public.access_grants, public.sessions,
-      public.memberships, public.accounts, public.access_settings
+      public.memberships, public.roles, public.accounts, public.access_settings
       restart identity cascade
   `;
   await sql`delete from auth.users`;
@@ -78,6 +78,35 @@ const seedUserIds = (seed: InMemoryAccessSeed): ReadonlyArray<string> => [
   ]),
 ];
 
+const insertRoles = async (
+  sql: Sql,
+  seed: InMemoryAccessSeed,
+): Promise<void> => {
+  for (const role of seed.roles ?? []) {
+    await sql`
+      insert into public.roles (id, account_id, name, permissions)
+      values (${role.id}, ${role.accountId}, ${role.name},
+        ${sql.json(role.permissions as never)})
+    `;
+  }
+};
+
+const insertMemberships = async (
+  sql: Sql,
+  seed: InMemoryAccessSeed,
+): Promise<void> => {
+  for (const m of seed.memberships ?? []) {
+    await sql`
+      insert into public.memberships
+        (id, user_id, account_id, permissions, role_ids, is_account_owner)
+      values (${m.id}, ${m.userId}, ${m.accountId},
+        ${sql.json(m.permissions as never)},
+        ${(m.roleIds ?? []) as unknown as string[]}::uuid[],
+        ${m.isAccountOwner ?? false})
+    `;
+  }
+};
+
 const insertPeople = async (
   sql: Sql,
   seed: InMemoryAccessSeed,
@@ -89,12 +118,7 @@ const insertPeople = async (
       on conflict (id) do nothing
     `;
   }
-  for (const m of seed.memberships ?? []) {
-    await sql`
-      insert into public.memberships (id, user_id, account_id, permissions)
-      values (${m.id}, ${m.userId}, ${m.accountId}, ${sql.json(m.permissions as never)})
-    `;
-  }
+  await insertMemberships(sql, seed);
   for (const raw of seed.sessions ?? []) {
     const row = {
       status: raw.status ?? 'active',
@@ -127,6 +151,7 @@ export const applyPostgresAccessSeed = async (
   try {
     await wipe(sql);
     await insertAccounts(sql, seed);
+    await insertRoles(sql, seed);
     await insertPeople(sql, seed);
   } finally {
     await sql.end();

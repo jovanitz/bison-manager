@@ -4,6 +4,7 @@ import {
   type BlockUseCases,
   type DashboardViewModel,
   type DirectoryUseCases,
+  type InvitationsUseCases,
   loadDashboard,
   setSubjectBlocked,
 } from '@acme/application';
@@ -17,12 +18,15 @@ export type DashboardStoreState = {
   readonly signOut: () => Promise<void>;
   /** Returns the per-row notice text (success label or error message). */
   readonly setOrgBlocked: (id: string, blocked: boolean) => Promise<string>;
+  /** Rotate a pending invitation's link; returns the fresh token (or error). */
+  readonly regenerateLink: (invitationId: string) => Promise<string>;
 };
 
 export type DashboardStoreDeps = {
   readonly access: AccessClientUseCases;
   readonly directory: DirectoryUseCases;
   readonly block: BlockUseCases;
+  readonly invitations: InvitationsUseCases;
 };
 
 export const createDashboardStore = (deps: DashboardStoreDeps) =>
@@ -47,6 +51,10 @@ export const createDashboardStore = (deps: DashboardStoreDeps) =>
       });
       const done = blocked ? 'Blocked' : 'Unblocked';
       return result.ok ? done : result.error.message;
+    },
+    regenerateLink: async (invitationId) => {
+      const result = await deps.invitations.regenerate(invitationId);
+      return result.ok ? result.value.token : result.error.message;
     },
   }));
 

@@ -21,6 +21,7 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  RoleStore,
 } from '@acme/application';
 import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 
@@ -41,6 +42,7 @@ export type AccessStorePorts = {
   readonly sessionActivity: AccessSessionActivityRecorder;
   readonly invitations: AccessInvitationStore;
   readonly members: AccessMemberDirectory;
+  readonly roles: RoleStore;
 };
 
 export const ACCESS_CONTRACT_NOW = '2026-06-09T12:00:00.000Z';

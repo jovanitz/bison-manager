@@ -13,6 +13,7 @@ export type MembershipId = Brand<string, 'MembershipId'>;
 export type SessionId = Brand<string, 'SessionId'>;
 export type AccessGrantId = Brand<string, 'AccessGrantId'>;
 export type InvitationId = Brand<string, 'InvitationId'>;
+export type RoleId = Brand<string, 'RoleId'>;
 
 const makeNonEmptyId = (raw: string): Result<string, AccessDomainError> => {
   const value = raw.trim();
@@ -45,6 +46,9 @@ export const makeAccessGrantId = (
 ): Result<AccessGrantId, AccessDomainError> =>
   makeNonEmptyId(raw) as Result<AccessGrantId, AccessDomainError>;
 
+export const makeRoleId = (raw: string): Result<RoleId, AccessDomainError> =>
+  makeNonEmptyId(raw) as Result<RoleId, AccessDomainError>;
+
 /**
  * The closed set of authorizable actions. Authorization is deny-by-default:
  * an action that is not in this union cannot even be expressed, let alone
@@ -73,6 +77,18 @@ export const ACCESS_ACTIONS = [
 ] as const;
 
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];
+
+/**
+ * Actions that are NEVER held as a permission — authorized only by a temporary,
+ * audited grant (ADR-0010: reading a customer's data is always behind a
+ * time-boxed impersonation grant). The ownership bypass (ADR-0011) excludes
+ * these, so EVEN root/owner must hold a grant to perform them — the audit trail
+ * is never bypassable.
+ */
+export const GRANT_ONLY_ACTIONS = ['customer.read'] as const;
+
+export const isGrantOnlyAction = (action: AccessAction): boolean =>
+  (GRANT_ONLY_ACTIONS as ReadonlyArray<AccessAction>).includes(action);
 
 export const makeAccessAction = (
   raw: string,

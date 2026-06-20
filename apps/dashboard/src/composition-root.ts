@@ -22,6 +22,7 @@ import {
   createRpcDirectoryGateway,
   createRpcInvitationsGateway,
   createRpcMembersGateway,
+  createRpcRolesGateway,
   createSupabaseAuthProvider,
 } from '@acme/infrastructure';
 import { createBrowserPlatform, type Platform } from '@acme/platform';
@@ -85,6 +86,7 @@ export const createDashboardRuntime = (config: {
     gateway: createRpcMembersGateway({ api }),
   });
   const block = makeBlockUseCases({ gateway: createRpcBlockGateway({ api }) });
+  const roles = createRpcRolesGateway({ api });
 
   // --- Unused stub: the dashboard satisfies AppUseCases but renders no items.
   const items = makeItemUseCases({
@@ -96,7 +98,7 @@ export const createDashboardRuntime = (config: {
   });
 
   return {
-    useCases: { items, access, directory, invitations, members, block },
+    useCases: { items, access, directory, invitations, members, block, roles },
     platform,
     logger,
   };

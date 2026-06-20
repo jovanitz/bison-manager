@@ -11,6 +11,7 @@ import {
   createStaffInviteStore,
   type StaffInviteStore,
 } from './staff-invite-store';
+import { createRolesStore, type RolesStore } from './roles-store';
 
 /**
  * React bindings for the dashboard stores: each builds its store from the DI
@@ -27,13 +28,13 @@ export const useAdminGateStore = (): AdminGateStore | null => {
 };
 
 export const useDashboardStore = (): DashboardStore | null => {
-  const { access, directory, block } = useUseCases();
+  const { access, directory, block, invitations } = useUseCases();
   return useMemo(
     () =>
-      access && directory && block
-        ? createDashboardStore({ access, directory, block })
+      access && directory && block && invitations
+        ? createDashboardStore({ access, directory, block, invitations })
         : null,
-    [access, directory, block],
+    [access, directory, block, invitations],
   );
 };
 
@@ -56,6 +57,14 @@ export const useStaffInviteStore = (): StaffInviteStore | null => {
         ? createStaffInviteStore({ access, invitations })
         : null,
     [access, invitations],
+  );
+};
+
+export const useRolesStore = (): RolesStore | null => {
+  const { access, roles } = useUseCases();
+  return useMemo(
+    () => (access && roles ? createRolesStore({ access, roles }) : null),
+    [access, roles],
   );
 };
 

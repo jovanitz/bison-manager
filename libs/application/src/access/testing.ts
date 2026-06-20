@@ -14,6 +14,9 @@ export const TEST_ACCESS_NOW = '2026-06-09T12:00:00.000Z';
 export const TEST_ACCESS_SESSION_EXPIRY = '2026-06-09T18:00:00.000Z';
 export const TEST_ACCESS_SESSION_CREATED = '2026-06-09T11:00:00.000Z';
 
+const kindOfPreset = (preset: AccessPresetName): AccessActor['accountKind'] =>
+  preset === 'customer' || preset === 'customer-admin' ? 'customer' : 'staff';
+
 export const testAccessActor = (input: {
   readonly preset: AccessPresetName;
   readonly membershipId?: string;
@@ -22,6 +25,7 @@ export const testAccessActor = (input: {
   readonly sessionStatus?: AccessActor['session']['status'];
   readonly grants?: ReadonlyArray<AccessGrant>;
   readonly isRoot?: boolean;
+  readonly isAccountOwner?: boolean;
   readonly blocked?: boolean;
 }): AccessActor => ({
   membership: {
@@ -31,11 +35,9 @@ export const testAccessActor = (input: {
     accountId: (input.accountId ?? 'acct-1') as AccountId,
   },
   accountStatus: input.accountStatus ?? 'active',
-  accountKind:
-    input.preset === 'customer' || input.preset === 'customer-admin'
-      ? 'customer'
-      : 'staff',
+  accountKind: kindOfPreset(input.preset),
   isRoot: input.isRoot ?? false,
+  isAccountOwner: input.isAccountOwner ?? false,
   blocked: input.blocked ?? false,
   session: {
     id: 'session-1' as AccessActor['session']['id'],

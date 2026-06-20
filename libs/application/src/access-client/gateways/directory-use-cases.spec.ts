@@ -25,6 +25,7 @@ const fakeGateway = (
 ): DirectoryGateway => ({
   listStaff: async () => ok(STAFF),
   listCustomers: async () => ok(CUSTOMERS),
+  listOrphans: async () => ok([]),
   ...overrides,
 });
 

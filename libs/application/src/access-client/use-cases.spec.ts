@@ -83,6 +83,7 @@ const fakeGateway = (input?: {
       ? err(accessGatewayError('API unreachable.'))
       : ok({ revoked: 3 });
   },
+  needsBootstrap: async () => ok(false),
 });
 
 describe('makeAccessClientUseCases', () => {

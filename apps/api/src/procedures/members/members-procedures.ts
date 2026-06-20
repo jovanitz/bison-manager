@@ -12,8 +12,9 @@ const membersInvite = (
   defineApiProcedure({
     name: 'members.invite',
     summary:
-      'Invite an email into an existing account with explicit permissions; ' +
-      'the invited identity joins on its first login (7-day expiry).',
+      'Invite an email into an existing account with explicit permissions ' +
+      'and/or roles; the invited identity joins on its first login (7-day ' +
+      'expiry).',
     action: 'members.invite',
     input: z
       .object({
@@ -29,6 +30,7 @@ const membersInvite = (
               .strict(),
           )
           .max(50),
+        roleIds: z.array(z.string().min(1)).max(50).optional(),
       })
       .strict(),
     handler: ({ actor, input }) =>
@@ -37,6 +39,7 @@ const membersInvite = (
         accountId: input.accountId,
         email: input.email,
         permissions: input.permissions,
+        ...(input.roleIds ? { roleIds: input.roleIds } : {}),
       }),
   });
 
@@ -89,5 +92,27 @@ export const createMembersProcedures = (
       accessMembers.removeMember({ actor, membershipId: input.membershipId }),
   }),
   membersInvite(accessInvitations),
+  defineApiProcedure({
+    name: 'invitations.pending',
+    summary:
+      'List unexpired, unactivated invitations — the dashboard pending list. ' +
+      'Never returns tokens (only the hash is stored); regenerate for a link.',
+    action: 'staff.read',
+    input: z.object({}).strict(),
+    handler: ({ actor }) => accessInvitations.listPendingInvitations({ actor }),
+  }),
+  defineApiProcedure({
+    name: 'invitations.regenerate',
+    summary:
+      'Rotate a pending invitation’s one-time link (new token + expiry); ' +
+      'returns the fresh token once, like creation.',
+    action: 'members.invite',
+    input: z.object({ invitationId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessInvitations.regenerateInvitationLink({
+        actor,
+        invitationId: input.invitationId,
+      }),
+  }),
   ...membershipProcedures(accessMembers),
 ];

@@ -112,6 +112,7 @@ const acceptPendingInvitation = async (
       email: identity.email,
       displayName: identity.email,
       permissions: pending.permissions,
+      roleIds: pending.roleIds,
       occurredAt,
     },
     pending.invitationId,

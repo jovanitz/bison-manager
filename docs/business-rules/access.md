@@ -149,6 +149,7 @@ generated — they are behavior, not documentation:
 | `members.unblock` | `members.block` | Lift a member soft-block within your org. |
 | `staff.list` | `staff.read` | List every staff (platform-internal) account — the staff directory the admin dashboard renders. Staff-only; never customer-visible. |
 | `customers.list` | `customer.search` | List every customer account — the customer directory the admin dashboard renders. Same permission as customer.search, no term needed. |
+| `identities.orphaned` | `staff.read` | List org-less ("zombie") auth identities — sign-ups belonging to no account — for platform cleanup. Staff-only, gated by staff.read. |
 | `customer.search` | `customer.search` | Find customer accounts by name or email (support workflow). |
 | `customer.read` | `customer.read` | Read one customer account. Customers read their own; support needs an active impersonation grant on that exact account. |
 | `impersonation.start` | `impersonation.start` | Open a view-only, expiring, reasoned window into one customer account. The actor stays the support agent. |
@@ -156,9 +157,16 @@ generated — they are behavior, not documentation:
 | `settings.update` | `settings.update` | Reconfigure the session lifetime policy (per account kind, within hard bounds). Tightening shrinks every live session immediately. |
 | `members.list` | `members.read` | An account's memberships with their permissions — the organization members view (own account for org admins, any for platform staff). |
 | `members.remove` | `members.remove` | Remove a member from their account; their sessions die in the same transaction. Never your own membership. |
-| `members.invite` | `members.invite` | Invite an email into an existing account with explicit permissions; the invited identity joins on its first login (7-day expiry). |
+| `members.invite` | `members.invite` | Invite an email into an existing account with explicit permissions and/or roles; the invited identity joins on its first login (7-day expiry). |
+| `invitations.pending` | `staff.read` | List unexpired, unactivated invitations — the dashboard pending list. Never returns tokens (only the hash is stored); regenerate for a link. |
+| `invitations.regenerate` | `members.invite` | Rotate a pending invitation’s one-time link (new token + expiry); returns the fresh token once, like creation. |
 | `memberships.mine` | — (any authenticated actor) | The caller's own organizations — feeds the organization switcher. |
 | `session.switch-account` | — (any authenticated actor) | Re-bind the current session to ANOTHER of your own memberships; expiry is recomputed under the target account's policy. |
+| `roles.create` | `permissions.update` | Create a permission bundle: platform-wide (accountId null) or scoped to one customer org. Account-scoped roles may not hold any-scoped power. |
+| `roles.list` | `permissions.update` | List the roles available to an account: the platform-wide roles plus that account's own (accountId null lists platform roles only). |
+| `roles.update` | `permissions.update` | Rotate a role's name and permission set (live reference: every membership holding it sees the change on its next request). |
+| `roles.delete` | `permissions.update` | Delete a role. Refused while any membership still holds it (blocked-in-use), so authority never vanishes silently. |
+| `roles.assign` | `permissions.update` | Replace a membership's role assignment with the given set (ADR-0011, roles-only). Each role must exist and be reachable by the account. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.
@@ -173,6 +181,7 @@ re-authorizes itself with the concrete resource in hand.
 | `account.enabled` | A disabled account was re-enabled, by whom |
 | `account.promoted` | A customer account became staff, by whom |
 | `permissions.updated` | Permissions replaced (records before and after) |
+| `member.roles-assigned` | undefined |
 | `session.revoked` | A session was revoked, by whom |
 | `impersonation.started` | Support opened a view-only grant (with reason) |
 | `impersonation.ended` | The grant holder ended an impersonation |

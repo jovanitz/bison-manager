@@ -75,6 +75,10 @@ export type AccessClientUseCases = {
   readonly changePassword: (input: {
     readonly newPassword: string;
   }) => Promise<Result<AuthSession, ChangePasswordError>>;
+  /** First-run (pre-auth): is the instance un-bootstrapped (no root admin yet)? */
+  readonly needsBootstrap: () => Promise<
+    Result<boolean, TaggedError<'app/access-gateway-error'>>
+  >;
 };
 
 export const makeAccessClientUseCases = (
@@ -88,4 +92,5 @@ export const makeAccessClientUseCases = (
   onAuthChange: (listener) => deps.auth.onChange(listener),
   requestPasswordReset: (email) => deps.auth.requestPasswordReset(email),
   changePassword: makeChangePassword(deps),
+  needsBootstrap: () => deps.gateway.needsBootstrap(),
 });

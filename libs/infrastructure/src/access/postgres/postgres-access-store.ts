@@ -12,6 +12,7 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  RoleStore,
   StaffDirectory,
 } from '@acme/application';
 import { createPostgresActorReader } from './actor-reader';
@@ -29,6 +30,7 @@ import {
 import { createPostgresInvitationStore } from './identity/invitations';
 import { createPostgresMemberDirectory } from './identity/members';
 import { createPostgresIdentityOnboarding } from './identity/onboarding';
+import { createPostgresRoleStore } from './role/role-store';
 import {
   createPostgresSessionActivityRecorder,
   createPostgresSessionPolicyStore,
@@ -57,6 +59,7 @@ export type PostgresAccessStore = {
   readonly invitations: AccessInvitationStore;
   readonly members: AccessMemberDirectory;
   readonly blocks: AccessBlockStore;
+  readonly roles: RoleStore;
   readonly close: () => Promise<void>;
 };
 
@@ -82,6 +85,7 @@ export const createPostgresAccessStore = (config: {
     invitations: createPostgresInvitationStore(sql),
     members: createPostgresMemberDirectory(sql),
     blocks: createPostgresBlockStore(sql),
+    roles: createPostgresRoleStore(sql),
     close: () => sql.end(),
   };
 };

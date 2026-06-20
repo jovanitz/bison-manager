@@ -7,10 +7,7 @@ import { callRpc, testRuntime } from './testing/rpc-harness';
  * (no bearer token), and the token is single-use. A bad token is rejected
  * generically (no enumeration).
  */
-const activate = (
-  app: ReturnType<typeof testRuntime>['app'],
-  body: unknown,
-) =>
+const activate = (app: ReturnType<typeof testRuntime>['app'], body: unknown) =>
   app.request('/invitations/activate', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -44,9 +41,14 @@ describe('POST /invitations/activate', () => {
       'newstaff@acme.test',
     );
 
-    // single-use: the token is burned
+    // Replay is refused because the identity now exists (409), not because the
+    // token was burned: activation leaves the invitation PENDING so first login
+    // can attach the membership. Replay protection comes from the identity check.
     const replay = await activate(app, { token, password: 'sup3r-secret' });
-    expect(replay.status).toBe(400);
+    expect(replay.status).toBe(409);
+    expect(
+      ((await replay.json()) as { error: { tag: string } }).error.tag,
+    ).toBe('app/identity-already-exists');
   });
 
   it('400s a bad token and a too-short password', async () => {
@@ -57,9 +59,9 @@ describe('POST /invitations/activate', () => {
       password: 'sup3r-secret',
     });
     expect(badToken.status).toBe(400);
-    expect(((await badToken.json()) as { error: { tag: string } }).error.tag).toBe(
-      'app/invitation-token-invalid',
-    );
+    expect(
+      ((await badToken.json()) as { error: { tag: string } }).error.tag,
+    ).toBe('app/invitation-token-invalid');
 
     const shortPw = await activate(app, { token: 'x', password: 'short' });
     expect(shortPw.status).toBe(400);

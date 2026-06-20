@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
-import type { InvitationId, MembershipId } from '@acme/domain';
+import type { InvitationId, MembershipId, Role, RoleId } from '@acme/domain';
 import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
@@ -35,6 +35,7 @@ export const identityInvitationContract = (
           accountId: ids.acctCustomer,
           email: 'invitee@example.com',
           permissions,
+          roleIds: [],
           invitedBy: ids.membershipSupport,
           createdAt: NOW,
           expiresAt: INVITE_EXPIRES,
@@ -46,6 +47,7 @@ export const identityInvitationContract = (
           accountId: ids.acctCustomer,
           email: 'invitee@example.com',
           permissions,
+          roleIds: [],
           actorMembershipId: ids.membershipSupport,
           expiresAt: INVITE_EXPIRES,
           occurredAt: NOW,
@@ -61,6 +63,7 @@ export const identityInvitationContract = (
         accountId: ids.acctCustomer,
         accountKind: 'customer',
         permissions,
+        roleIds: [],
       });
       // an expired invitation is not pending
       expect(
@@ -120,6 +123,76 @@ export const identityInvitationContract = (
         'invitation.created',
         'invitation.accepted',
       ]);
+    });
+
+    it('carries the invitation roles onto the accepted membership', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const role: Role = {
+        id: crypto.randomUUID() as RoleId,
+        name: 'Invited role' as Role['name'],
+        accountId: null,
+        permissions: [
+          { action: 'audit.read', scope: 'any' },
+        ] as Role['permissions'],
+      };
+      await store.roles.create(role);
+
+      const invitationId = crypto.randomUUID() as InvitationId;
+      const base = {
+        invitationId,
+        accountId: ids.acctCustomer,
+        email: 'roled@example.com',
+        permissions: [],
+        roleIds: [role.id],
+        expiresAt: INVITE_EXPIRES,
+      };
+      await store.invitations.createInvitation(
+        {
+          ...base,
+          invitedBy: ids.membershipSupport,
+          createdAt: NOW,
+          tokenHash: 'th-roled',
+        },
+        {
+          ...base,
+          type: 'invitation.created',
+          actorMembershipId: ids.membershipSupport,
+          occurredAt: NOW,
+        },
+      );
+
+      const pending = await store.invitations.findPendingByEmail(
+        'roled@example.com',
+        NOW,
+      );
+      expect(pending?.roleIds).toEqual([role.id]);
+
+      const membershipId = crypto.randomUUID() as MembershipId;
+      await store.onboarding.acceptInvitation(
+        {
+          membershipId,
+          accountId: ids.acctCustomer,
+          userId: ids.userNew,
+          email: 'roled@example.com',
+          displayName: 'roled@example.com',
+          permissions: [],
+          roleIds: pending?.roleIds ?? [],
+          occurredAt: NOW,
+        },
+        invitationId,
+        {
+          type: 'invitation.accepted',
+          invitationId,
+          accountId: ids.acctCustomer,
+          membershipId,
+          userId: ids.userNew,
+          occurredAt: NOW,
+        },
+      );
+      // the role landed on the membership (counted) — its permissions resolve
+      // through the normal direct ∪ expand(roleIds) path.
+      expect(await store.roles.countAssignments(role.id)).toBe(1);
     });
   });
 };

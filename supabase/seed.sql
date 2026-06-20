@@ -1,11 +1,14 @@
 -- Local/dev seed. Applied by `supabase start` and `supabase db reset`.
 --
--- Only accounts are seeded here: memberships and sessions need rows in
--- auth.users, which are created through Supabase Auth (the 4b contract tests
--- provision their own users via the local admin API; real users sign up).
--- Fixed UUIDs so dev tooling and docs can reference them.
-
-insert into public.accounts (id, display_name, email, kind) values
-  ('00000000-0000-4000-8000-00000000a001', 'Acme Staff', null, 'staff'),
-  ('00000000-0000-4000-8000-00000000c001', 'Customer One', 'customer-one@example.com', 'customer'),
-  ('00000000-0000-4000-8000-00000000c002', 'Customer Two', 'customer-two@example.com', 'customer');
+-- Intentionally EMPTY: every account is born through a real flow, never seeded
+-- bare. Seeding accounts with no identity (no auth.users) and no membership
+-- contradicts the model and is misleading in the dashboard:
+--   * customer org  → a user signs up and runs `/id/create-organization`
+--                     (becomes that org's customer-admin), or is invited by email
+--   * staff account → bootstrap owner (BOOTSTRAP_OWNER_EMAIL on first sign-in)
+--                     or an email invitation
+--
+-- So to get data locally, use the apps: sign up / sign in (e.g. the bootstrap
+-- owner owner@local.dev) and create orgs / invite members. Tests provision their
+-- own data (e.g. the RLS specs create users via the local admin API); nothing
+-- depends on seeded rows.

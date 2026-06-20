@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import type {
   CustomerAccountSummary,
+  OrphanIdentitySummary,
   StaffAccountSummary,
 } from '@acme/application';
 import { useDashboardStore, useStore } from './store/hooks';
 import type { DashboardStore } from './store/dashboard-store';
 import { InviteMemberForm } from './invitations/invite-member-form';
+import { PendingInvitationsTable } from './invitations/pending-invitations-table';
 import { ManagePermissionsForm } from './permissions/manage-permissions-form';
+import { RolesSection } from './roles/roles-section';
 import { BlockButtons } from './block/block-buttons';
 
 /**
@@ -77,6 +80,31 @@ const CustomersTable = ({
   </table>
 );
 
+const ZombiesTable = ({
+  rows,
+}: {
+  readonly rows: ReadonlyArray<OrphanIdentitySummary>;
+}) => (
+  <table aria-label="zombies">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>User</th>
+        <th>Registered</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr key={row.userId}>
+          <td>{row.email ?? '—'}</td>
+          <td>{row.userId}</td>
+          <td>{row.createdAt}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
 const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
   const vm = useStore(store, (s) => s.vm);
   const error = useStore(store, (s) => s.error);
@@ -96,6 +124,7 @@ const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
 
       <InviteMemberForm />
       <ManagePermissionsForm />
+      <RolesSection />
 
       {!vm && !error ? <p>Loading…</p> : null}
       {error ? <p role="alert">{error}</p> : null}
@@ -114,6 +143,24 @@ const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
                 store.getState().setOrgBlocked(id, blocked)
               }
             />
+          </section>
+          <section aria-label="pending invitations section">
+            <h2>Pending invitations ({vm.pendingInvitations.length})</h2>
+            <p>
+              Sent but not yet activated. The original link is shown once at
+              creation — use “Regenerate link” to issue a fresh one.
+            </p>
+            <PendingInvitationsTable
+              rows={vm.pendingInvitations}
+              onRegenerate={(id) => store.getState().regenerateLink(id)}
+            />
+          </section>
+          <section aria-label="zombies section">
+            <h2>Zombies ({vm.orphans.length})</h2>
+            <p>
+              Identities with no organization — sign-ups that never onboarded.
+            </p>
+            <ZombiesTable rows={vm.orphans} />
           </section>
         </>
       ) : null}

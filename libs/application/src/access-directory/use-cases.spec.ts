@@ -4,7 +4,11 @@ import type { AccountId } from '@acme/domain';
 import type { CustomerDirectory } from '../impersonation/ports';
 import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
 import { makeAccessDirectoryUseCases } from './use-cases';
-import type { StaffAccountSummary, StaffDirectory } from './ports';
+import type {
+  OrphanIdentitySummary,
+  StaffAccountSummary,
+  StaffDirectory,
+} from './ports';
 
 const STAFF: ReadonlyArray<StaffAccountSummary> = [
   {
@@ -19,7 +23,10 @@ const STAFF: ReadonlyArray<StaffAccountSummary> = [
   },
 ];
 
-const makeWorld = (input?: { staff?: ReadonlyArray<StaffAccountSummary> }) => {
+const makeWorld = (input?: {
+  staff?: ReadonlyArray<StaffAccountSummary>;
+  orphans?: ReadonlyArray<OrphanIdentitySummary>;
+}) => {
   let staffCalls = 0;
   const customerQueries: string[] = [];
   const staffDirectory: StaffDirectory = {
@@ -27,6 +34,7 @@ const makeWorld = (input?: { staff?: ReadonlyArray<StaffAccountSummary> }) => {
       staffCalls += 1;
       return input?.staff ?? STAFF;
     },
+    listOrphanIdentities: async () => input?.orphans ?? [],
   };
   const customers: CustomerDirectory = {
     search: async (query) => {
@@ -71,6 +79,31 @@ describe('listStaff', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.tag).toBe('app/access-denied');
       expect(world.calls()).toBe(0);
+    }
+  });
+});
+
+describe('listOrphanIdentities', () => {
+  const ORPHANS: ReadonlyArray<OrphanIdentitySummary> = [
+    { userId: 'user-z', email: 'z@acme.test', createdAt: TEST_ACCESS_NOW },
+  ];
+
+  it('returns org-less identities to a staff.read holder', async () => {
+    const world = makeWorld({ orphans: ORPHANS });
+    const result = await world.useCases.listOrphanIdentities({
+      actor: testAccessActor({ preset: 'owner' }),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(ORPHANS);
+  });
+
+  it('denies actors without staff.read', async () => {
+    for (const preset of ['customer', 'customer-admin', 'support'] as const) {
+      const result = await makeWorld().useCases.listOrphanIdentities({
+        actor: testAccessActor({ preset }),
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.tag).toBe('app/access-denied');
     }
   });
 });

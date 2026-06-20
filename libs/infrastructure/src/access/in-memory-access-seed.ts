@@ -9,6 +9,7 @@ import type {
   AccountId,
   AccountStatus,
   InvitationId,
+  Role,
   SessionStatus,
 } from '@acme/domain';
 
@@ -34,6 +35,10 @@ export type SeedMembership = {
   readonly permissions: ReadonlyArray<AccessPermission>;
   /** The protected super-admin membership (the bootstrapped owner). */
   readonly isRoot?: boolean;
+  /** Assigned role ids (ADR-0011); unioned into permissions at resolution. */
+  readonly roleIds?: ReadonlyArray<string>;
+  /** Account-owner bypass (ADR-0011); defaults false. */
+  readonly isAccountOwner?: boolean;
 };
 
 export type SeedSession = {
@@ -66,6 +71,8 @@ export type InMemoryAccessSeed = {
   readonly sessions?: ReadonlyArray<SeedSession>;
   readonly customers?: ReadonlyArray<SeedCustomer>;
   readonly grants?: ReadonlyArray<AccessGrant>;
+  /** Dynamic roles (ADR-0011); memberships reference them by `roleIds`. */
+  readonly roles?: ReadonlyArray<Role>;
   /**
    * Identities that exist in the auth provider but hold no membership yet
    * (onboarding scenarios). Ignored by the in-memory store; the Postgres
@@ -83,6 +90,9 @@ export type StoredMembership = {
   readonly accountId: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
   readonly isRoot: boolean;
+  readonly roleIds: ReadonlyArray<string>;
+  /** Ownership bypass (ADR-0011): authorized within its own account. */
+  readonly isAccountOwner: boolean;
 };
 
 export type StoredSession = {
@@ -101,7 +111,9 @@ export type StoredInvitation = {
   readonly accountId: string;
   readonly email: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
-  readonly expiresAt: string;
+  readonly roleIds: ReadonlyArray<string>;
+  readonly createdAt: string;
+  expiresAt: string;
   readonly acceptedAt: string | null;
   /** SHA-256 of the one-time activation token; null once consumed. */
   tokenHash: string | null;
@@ -118,6 +130,8 @@ export type AccessStoreState = {
   readonly sessions: Map<string, StoredSession>;
   readonly customers: Map<string, CustomerAccountDetails>;
   readonly grants: Map<string, AccessGrant>;
+  /** Dynamic role bundles (ADR-0011), keyed by role id. */
+  readonly roles: Map<string, Role>;
   readonly auditRecords: AccessAuditRecord[];
 };
 
@@ -142,6 +156,8 @@ export const toAccessStoreState = (
         accountId: m.accountId,
         permissions: m.permissions,
         isRoot: m.isRoot ?? false,
+        roleIds: m.roleIds ?? [],
+        isAccountOwner: m.isAccountOwner ?? false,
       },
     ]),
   ),
@@ -173,5 +189,6 @@ export const toAccessStoreState = (
     ]),
   ),
   grants: new Map((seed.grants ?? []).map((g) => [g.id, g])),
+  roles: new Map((seed.roles ?? []).map((r) => [r.id, r])),
   auditRecords: [],
 });

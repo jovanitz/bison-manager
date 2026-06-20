@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
-import type { AccountId, MembershipId, SessionId } from '@acme/domain';
+import type {
+  AccountId,
+  MembershipId,
+  Role,
+  RoleId,
+  SessionId,
+} from '@acme/domain';
 import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
@@ -182,6 +188,38 @@ export const adminRepositoryContract = (
       expect((await store.admin.findMembership(adminId))?.permissions).toEqual(
         accessPresetPermissions('customer'),
       );
+    });
+
+    it('assigns roles to a membership: counted, resolved, and audited', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const role: Role = {
+        id: crypto.randomUUID() as RoleId,
+        name: 'Contract role' as Role['name'],
+        accountId: null,
+        permissions: [
+          { action: 'audit.read', scope: 'any' },
+        ] as Role['permissions'],
+      };
+      await store.roles.create(role);
+
+      await store.admin.assignRoles(ids.membershipSupport, [role.id], {
+        type: 'member.roles-assigned',
+        membershipId: ids.membershipSupport,
+        actorMembershipId: ids.membershipSupport,
+        roleIds: [role.id],
+        occurredAt: NOW,
+      });
+
+      expect(await store.roles.countAssignments(role.id)).toBe(1);
+      const actor = await store.actors.findActorBySession(ids.sessionSupport);
+      expect(actor?.permissions).toContainEqual({
+        action: 'audit.read',
+        scope: 'any',
+      });
+      expect(
+        (await store.auditTrail.list()).map((r) => r.event.type),
+      ).toContain('member.roles-assigned');
     });
   });
 };

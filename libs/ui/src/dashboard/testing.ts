@@ -7,6 +7,10 @@ import type {
   InvitationsUseCases,
   MemberSummaryDto,
   MembersUseCases,
+  OrphanIdentitySummary,
+  PendingInvitationSummary,
+  RolesGateway,
+  RoleSummaryDto,
   StaffAccountSummary,
 } from '@acme/application';
 
@@ -37,19 +41,40 @@ export const testCustomers: ReadonlyArray<CustomerAccountSummary> = [
   },
 ];
 
+export const testOrphans: ReadonlyArray<OrphanIdentitySummary> = [
+  {
+    userId: 'user-zombie',
+    email: 'zombie@acme.test',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
 export const mockDirectory = (
   overrides: Partial<DirectoryUseCases> = {},
 ): DirectoryUseCases => ({
   listStaff: async () => ok(testStaff),
   listCustomers: async () => ok(testCustomers),
+  listOrphans: async () => ok(testOrphans),
   ...overrides,
 });
+
+export const testPendingInvitations: ReadonlyArray<PendingInvitationSummary> = [
+  {
+    invitationId: 'inv-1' as PendingInvitationSummary['invitationId'],
+    accountId: id('acct-owner'),
+    email: 'invitee@acme.test',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    expiresAt: '2026-01-08T00:00:00.000Z',
+  },
+];
 
 export const mockInvitations = (
   overrides: Partial<InvitationsUseCases> = {},
 ): InvitationsUseCases => ({
   invite: async () => ok({ invitationId: 'inv-1', token: 'tok-1' }),
   activate: async () => ok({ email: 'new@acme.test' }),
+  listPending: async () => ok(testPendingInvitations),
+  regenerate: async () => ok({ token: 'fresh-tok-1' }),
   ...overrides,
 });
 
@@ -87,6 +112,25 @@ export const mockBlock = (
   unblockOrg: async () => ok(undefined),
   blockIdentity: async () => ok(undefined),
   unblockIdentity: async () => ok(undefined),
+  ...overrides,
+});
+
+export const testRoles: ReadonlyArray<RoleSummaryDto> = [
+  {
+    id: 'role-support',
+    name: 'Support',
+    accountId: null,
+    permissions: [{ action: 'staff.read', scope: 'any' }],
+  },
+];
+
+export const mockRoles = (
+  overrides: Partial<RolesGateway> = {},
+): RolesGateway => ({
+  listRoles: async () => ok(testRoles),
+  createRole: async () => ok({ roleId: 'role-new' }),
+  deleteRole: async () => ok(undefined),
+  assignRoles: async () => ok(undefined),
   ...overrides,
 });
 

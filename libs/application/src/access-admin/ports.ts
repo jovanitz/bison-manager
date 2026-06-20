@@ -2,6 +2,7 @@ import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
   AccessAccountPromoted,
+  AccessMemberRolesAssigned,
   AccessPermission,
   AccessPermissionsUpdated,
   AccessSessionPolicy,
@@ -10,6 +11,7 @@ import type {
   AccountKind,
   AccountStatus,
   MembershipId,
+  RoleId,
   SessionId,
   SessionStatus,
 } from '@acme/domain';
@@ -83,6 +85,16 @@ export type AccessAdminRepository = {
     event: AccessPermissionsUpdated,
     requireCoAdmin: boolean,
   ) => Promise<{ readonly orphaned: boolean }>;
+  /**
+   * Replace a membership's role assignment (ADR-0011) atomically with its audit
+   * event. The roles are validated by the use case (existence + account
+   * coherence); this just writes the new `role_ids` set.
+   */
+  readonly assignRoles: (
+    id: MembershipId,
+    roleIds: ReadonlyArray<RoleId>,
+    event: AccessMemberRolesAssigned,
+  ) => Promise<void>;
   /**
    * customer → staff, atomically with the audit event AND the clamp of the
    * account's live sessions to the (stricter) staff policy. A promoted

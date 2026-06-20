@@ -53,6 +53,12 @@ export * from './access-members/use-cases';
 export * from './access-directory/ports';
 export * from './access-directory/use-cases';
 
+// Access roles: dynamic role bundles assigned to memberships (ADR-0011)
+export * from './access-roles/ports';
+export * from './access-roles/errors';
+export * from './access-roles/use-cases';
+export * from './access-roles/expand';
+
 // Access block: soft block of an org or an identity (login yes, operate no)
 export * from './access-block/ports';
 export * from './access-block/use-cases';
@@ -83,4 +89,5 @@ export * from './flows/client/gate';
 export * from './flows/client/registry';
 export * from './flows/dashboard/queries';
 export * from './flows/dashboard/commands';
+export * from './flows/dashboard/roles';
 export * from './flows/dashboard/registry';

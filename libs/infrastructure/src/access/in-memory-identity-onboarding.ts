@@ -16,6 +16,7 @@ const storeMembership = (
   state: AccessStoreState,
   membership: NewIdentityMembership,
   isRoot: boolean,
+  isAccountOwner: boolean,
 ): void => {
   state.accounts.set(membership.accountId, {
     status: 'active',
@@ -26,6 +27,8 @@ const storeMembership = (
     accountId: membership.accountId,
     permissions: membership.permissions,
     isRoot,
+    roleIds: [],
+    isAccountOwner,
   });
 };
 
@@ -69,12 +72,15 @@ export const makeInMemoryIdentityOnboarding = (
     [...state.memberships.values()].some((membership) => membership.isRoot),
 
   createOwnerMembership: async (membership, event) => {
-    storeMembership(state, membership, true);
+    // The bootstrapped owner owns the account it is created in (ADR-0011);
+    // root authority is the stronger flag, but ownership holds too.
+    storeMembership(state, membership, true, true);
     appendInMemoryAuditRecord(state, event);
   },
 
   createCustomerMembership: async (membership) => {
-    storeMembership(state, membership, false);
+    // Self-signup: the creator owns the org they just made (own-scope bypass).
+    storeMembership(state, membership, false, true);
     state.customers.set(membership.accountId, {
       accountId: membership.accountId,
       displayName: membership.displayName,
@@ -92,12 +98,15 @@ export const makeInMemoryIdentityOnboarding = (
         acceptedAt: event.occurredAt,
       });
     }
-    // join the EXISTING account: membership only, no account row
+    // join the EXISTING account: membership only, no account row. Roles come
+    // from the invitation (ADR-0011); permissions are the direct grant.
     state.memberships.set(membership.membershipId, {
       userId: membership.userId,
       accountId: membership.accountId,
       permissions: membership.permissions,
       isRoot: false,
+      roleIds: membership.roleIds ?? [],
+      isAccountOwner: false,
     });
     appendInMemoryAuditRecord(state, event);
   },

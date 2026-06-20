@@ -155,6 +155,12 @@ export const makeInMemoryAdminRepository = (
     appendInMemoryAuditRecord(state, event);
     return { orphaned: false };
   },
+  assignRoles: async (id, roleIds, event) => {
+    const membership = state.memberships.get(id);
+    if (!membership) return;
+    state.memberships.set(id, { ...membership, roleIds: [...roleIds] });
+    appendInMemoryAuditRecord(state, event);
+  },
   findSession: async (id) => {
     const session = state.sessions.get(id);
     const membership = session && state.memberships.get(session.membershipId);

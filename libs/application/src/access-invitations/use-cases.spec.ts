@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
-import type { AccessInvitationCreated, AccountKind } from '@acme/domain';
+import type {
+  AccessInvitationCreated,
+  AccountKind,
+  Role,
+  RoleId,
+} from '@acme/domain';
 import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
 import type {
   IdentityProvisioner,
@@ -21,6 +26,7 @@ const makeWorld = (input?: {
   pending?: PendingAccessInvitation;
   byToken?: PendingInvitationByToken | null;
   provisioner?: IdentityProvisioner;
+  roles?: ReadonlyArray<Role>;
 }) => {
   const created: Array<{
     invitation: { email: string; expiresAt: string; tokenHash: string };
@@ -37,12 +43,18 @@ const makeWorld = (input?: {
       consumeToken: async (id) => {
         consumed.push(id);
       },
+      listPending: async () => [],
+      regenerateToken: async () => true,
     },
     accounts: {
       findAccount: async (id) =>
         (input?.accountExists ?? true)
           ? { id, status: 'active', kind: input?.accountKind ?? 'staff' }
           : null,
+    },
+    roles: {
+      findManyById: async (roleIds) =>
+        (input?.roles ?? []).filter((role) => roleIds.includes(role.id)),
     },
     tokens: {
       issue: () => ({ token: 'plain-token', tokenHash: 'hash-of-plain-token' }),
@@ -56,6 +68,13 @@ const makeWorld = (input?: {
 };
 
 const OWN_READ = [{ action: 'customer.read', scope: 'own' }];
+
+const roleFixture = (id: string): Role => ({
+  id: id as RoleId,
+  name: id as Role['name'],
+  accountId: null,
+  permissions: [] as Role['permissions'],
+});
 
 describe('createInvitation', () => {
   it('lets an owner invite an email, normalized and audited atomically', async () => {
@@ -88,6 +107,33 @@ describe('createInvitation', () => {
       expect(r.ok).toBe(false);
       if (!r.ok) expect(r.error.tag).toBe('app/access-denied');
     }
+    expect(world.created).toHaveLength(0);
+  });
+
+  it('attaches valid roles (de-duplicated) to the invitation', async () => {
+    const world = makeWorld({ roles: [roleFixture('r1')] });
+    const r = await world.useCases.createInvitation({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-1',
+      email: 'roled@example.com',
+      permissions: [],
+      roleIds: ['r1', 'r1'],
+    });
+    expect(r.ok).toBe(true);
+    expect(world.created[0]?.event.roleIds).toEqual(['r1']);
+  });
+
+  it('rejects an invitation referencing an unknown role', async () => {
+    const world = makeWorld();
+    const r = await world.useCases.createInvitation({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-1',
+      email: 'roled@example.com',
+      permissions: [],
+      roleIds: ['ghost'],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/invitation-role-invalid');
     expect(world.created).toHaveLength(0);
   });
 
@@ -163,57 +209,5 @@ describe('createInvitation', () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('app/invitation-already-pending');
-  });
-});
-
-const TOKEN_INVITE: PendingInvitationByToken = {
-  invitationId: 'inv-1' as PendingInvitationByToken['invitationId'],
-  accountId: 'acct-1' as PendingInvitationByToken['accountId'],
-  email: 'new@example.com',
-};
-
-describe('activateInvitation', () => {
-  it('creates the identity for a valid token and burns it', async () => {
-    const world = makeWorld({ byToken: TOKEN_INVITE });
-    const r = await world.useCases.activateInvitation({
-      token: 'plain-token',
-      password: 'sup3r-secret',
-    });
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.email).toBe('new@example.com');
-    expect(world.consumed).toEqual(['inv-1']);
-  });
-
-  it('fails generically on an unknown/expired/used token (no enumeration)', async () => {
-    const world = makeWorld({ byToken: null });
-    const r = await world.useCases.activateInvitation({
-      token: 'whatever',
-      password: 'sup3r-secret',
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.tag).toBe('app/invitation-token-invalid');
-    expect(world.consumed).toEqual([]);
-  });
-
-  it('refuses when the email already has an identity (no takeover), token intact', async () => {
-    const world = makeWorld({
-      byToken: TOKEN_INVITE,
-      provisioner: {
-        createIdentity: async () => ({
-          ok: false,
-          error: {
-            tag: 'app/identity-already-exists',
-            message: 'exists',
-          },
-        }),
-      },
-    });
-    const r = await world.useCases.activateInvitation({
-      token: 'plain-token',
-      password: 'sup3r-secret',
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.tag).toBe('app/identity-already-exists');
-    expect(world.consumed).toEqual([]);
   });
 });

@@ -57,4 +57,19 @@ export const createRpcAccessGateway = (deps: {
       { membershipId: current.value.membershipId },
     );
   },
+
+  // Public, pre-auth GET (not an `/rpc` procedure, no bearer needed): the server
+  // returns whether the instance still needs its first owner.
+  needsBootstrap: async () => {
+    const response = await deps.api.request<{
+      readonly needsBootstrap: boolean;
+    }>({
+      operation: 'bootstrap-status',
+      method: 'GET',
+      path: 'bootstrap-status',
+    });
+    return response.ok
+      ? ok(response.value.needsBootstrap)
+      : err(accessGatewayError(response.error.message));
+  },
 });

@@ -1,14 +1,24 @@
 import type { AccessPermission } from './permission';
 import type { AccessSessionPolicies } from './session/session-policy';
 import type {
-  AccessAction,
-  AccessGrantId,
   AccountId,
   InvitationId,
   MembershipId,
+  RoleId,
   SessionId,
   UserId,
 } from './value-objects';
+import type {
+  AccessGrantExpired,
+  AccessImpersonationEnded,
+  AccessImpersonationStarted,
+} from './grant/grant-events';
+
+export type {
+  AccessGrantExpired,
+  AccessImpersonationEnded,
+  AccessImpersonationStarted,
+} from './grant/grant-events';
 
 /**
  * Audit events — the security-relevant facts the system must never lose.
@@ -66,6 +76,16 @@ export type AccessPermissionsUpdated = {
   readonly occurredAt: string;
 };
 
+/** A membership's role assignment was replaced (ADR-0011). `roleIds` is the new
+ * full set; effective permissions are direct ∪ expand(roleIds) at resolution. */
+export type AccessMemberRolesAssigned = {
+  readonly type: 'member.roles-assigned';
+  readonly membershipId: MembershipId;
+  readonly actorMembershipId: MembershipId;
+  readonly roleIds: ReadonlyArray<RoleId>;
+  readonly occurredAt: string;
+};
+
 export type AccessSessionRevoked = {
   readonly type: 'session.revoked';
   readonly sessionId: SessionId;
@@ -73,40 +93,15 @@ export type AccessSessionRevoked = {
   readonly occurredAt: string;
 };
 
-export type AccessImpersonationStarted = {
-  readonly type: 'impersonation.started';
-  readonly grantId: AccessGrantId;
-  readonly actorMembershipId: MembershipId;
-  readonly targetAccountId: AccountId;
-  readonly reason: string;
-  readonly actions: ReadonlyArray<AccessAction>;
-  readonly expiresAt: string;
-  readonly occurredAt: string;
-};
-
-export type AccessImpersonationEnded = {
-  readonly type: 'impersonation.ended';
-  readonly grantId: AccessGrantId;
-  readonly actorMembershipId: MembershipId;
-  readonly targetAccountId: AccountId;
-  readonly occurredAt: string;
-};
-
-export type AccessGrantExpired = {
-  readonly type: 'grant.expired';
-  readonly grantId: AccessGrantId;
-  readonly membershipId: MembershipId;
-  readonly targetAccountId: AccountId;
-  readonly occurredAt: string;
-};
-
-/** An email was invited to join an EXISTING account with given permissions. */
+/** An email was invited to join an EXISTING account with given permissions
+ * and/or roles (ADR-0011); the membership inherits both on first login. */
 export type AccessInvitationCreated = {
   readonly type: 'invitation.created';
   readonly invitationId: InvitationId;
   readonly accountId: AccountId;
   readonly email: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  readonly roleIds: ReadonlyArray<RoleId>;
   readonly actorMembershipId: MembershipId;
   readonly expiresAt: string;
   readonly occurredAt: string;
@@ -195,6 +190,7 @@ export type AccessAuditEvent =
   | AccessAccountEnabled
   | AccessAccountPromoted
   | AccessPermissionsUpdated
+  | AccessMemberRolesAssigned
   | AccessSessionRevoked
   | AccessImpersonationStarted
   | AccessImpersonationEnded
@@ -218,6 +214,7 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'account.enabled',
   'account.promoted',
   'permissions.updated',
+  'member.roles-assigned',
   'session.revoked',
   'impersonation.started',
   'impersonation.ended',

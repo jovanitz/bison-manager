@@ -1,10 +1,15 @@
 import { type Result, type TaggedError, err, ok } from '@acme/shared';
 import type { CurrentAccessDto } from '../../access/dto';
-import type { StaffAccountSummary } from '../../access-directory/ports';
+import type {
+  OrphanIdentitySummary,
+  StaffAccountSummary,
+} from '../../access-directory/ports';
 import type { CustomerAccountSummary } from '../../impersonation/ports';
+import type { PendingInvitationSummary } from '../../access-invitations/ports';
 import type { MemberSummaryDto } from '../../access-client/ports';
 import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { DirectoryUseCases } from '../../access-client/gateways/directory-use-cases';
+import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
 import type { MembersUseCases } from '../../access-client/gateways/members-use-cases';
 import { holdsAction, isPlatformAdmin } from '../capabilities';
 
@@ -43,23 +48,32 @@ export const loadInviteCapability = async (deps: {
 export type DashboardViewModel = {
   readonly staff: ReadonlyArray<StaffAccountSummary>;
   readonly customers: ReadonlyArray<CustomerAccountSummary>;
+  readonly orphans: ReadonlyArray<OrphanIdentitySummary>;
+  readonly pendingInvitations: ReadonlyArray<PendingInvitationSummary>;
   readonly canBlock: boolean;
 };
 
 export const loadDashboard = async (deps: {
   readonly access: AccessClientUseCases;
   readonly directory: DirectoryUseCases;
+  readonly invitations: Pick<InvitationsUseCases, 'listPending'>;
 }): Promise<Result<DashboardViewModel, DashboardError>> => {
-  const [staff, customers, snapshot] = await Promise.all([
+  const [staff, customers, orphans, pending, snapshot] = await Promise.all([
     deps.directory.listStaff(),
     deps.directory.listCustomers(),
+    deps.directory.listOrphans(),
+    deps.invitations.listPending(),
     deps.access.currentAccess(),
   ]);
   if (!staff.ok) return err(staff.error);
   if (!customers.ok) return err(customers.error);
+  if (!orphans.ok) return err(orphans.error);
+  if (!pending.ok) return err(pending.error);
   return ok({
     staff: staff.value,
     customers: customers.value,
+    orphans: orphans.value,
+    pendingInvitations: pending.value,
     canBlock: snapshot.ok && holdsAction(snapshot.value, 'access.block'),
   });
 };

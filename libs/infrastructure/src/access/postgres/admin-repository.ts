@@ -182,6 +182,16 @@ export const createPostgresAdminRepository = (
       return { orphaned: false };
     }) as Promise<{ readonly orphaned: boolean }>,
 
+  assignRoles: (id, roleIds, event) =>
+    sql.begin(async (tx) => {
+      await tx`
+        update public.memberships
+        set role_ids = ${roleIds as unknown as string[]}::uuid[]
+        where id = ${id}
+      `;
+      await insertAuditEvent(tx, event);
+    }) as Promise<void>,
+
   revokeSession: (id, event) => revokeSession(sql, id, event),
 
   revokeAllSessions: (membershipId, template) =>

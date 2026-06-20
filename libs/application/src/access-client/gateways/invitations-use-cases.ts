@@ -1,4 +1,5 @@
 import type { Result } from '@acme/shared';
+import type { PendingInvitationSummary } from '../../access-invitations/ports';
 import type {
   ActivationGateway,
   ActivationGatewayError,
@@ -26,6 +27,12 @@ export type InvitationsUseCases = {
     readonly token: string;
     readonly password: string;
   }) => Promise<Result<{ readonly email: string }, ActivationGatewayError>>;
+  readonly listPending: () => Promise<
+    Result<ReadonlyArray<PendingInvitationSummary>, DirectoryGatewayError>
+  >;
+  readonly regenerate: (
+    invitationId: string,
+  ) => Promise<Result<{ readonly token: string }, DirectoryGatewayError>>;
 };
 
 export const makeInvitationsUseCases = (deps: {
@@ -34,4 +41,6 @@ export const makeInvitationsUseCases = (deps: {
 }): InvitationsUseCases => ({
   invite: (input) => deps.invitations.invite(input),
   activate: (input) => deps.activation.activate(input),
+  listPending: () => deps.invitations.listPending(),
+  regenerate: (invitationId) => deps.invitations.regenerate(invitationId),
 });

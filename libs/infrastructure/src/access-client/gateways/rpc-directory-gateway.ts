@@ -5,6 +5,7 @@ import type {
   CustomerAccountSummary,
   DirectoryGateway,
   DirectoryGatewayError,
+  OrphanIdentitySummary,
   StaffAccountSummary,
 } from '@acme/application';
 
@@ -48,6 +49,12 @@ export const createRpcDirectoryGateway = (deps: {
     callProcedure<ReadonlyArray<CustomerAccountSummary>>(
       deps.api,
       'customers.list',
+      {},
+    ),
+  listOrphans: () =>
+    callProcedure<ReadonlyArray<OrphanIdentitySummary>>(
+      deps.api,
+      'identities.orphaned',
       {},
     ),
 });

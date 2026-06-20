@@ -4,6 +4,7 @@ import type {
 } from '@acme/application';
 import type {
   AccessInvitationAccepted,
+  AccessOwnerBootstrapped,
   AccountId,
   AccountKind,
   InvitationId,
@@ -41,20 +42,24 @@ const listActiveSessions = async (
 const insertMembershipBundle = async (
   tx: SqlLike,
   membership: NewIdentityMembership,
-  kind: 'staff' | 'customer',
-  isRoot: boolean,
+  opts: {
+    readonly kind: 'staff' | 'customer';
+    readonly isRoot: boolean;
+    readonly isAccountOwner: boolean;
+  },
 ): Promise<void> => {
   await tx`
     insert into public.accounts (id, display_name, email, kind, created_at)
     values (${membership.accountId}, ${membership.displayName},
-      ${membership.email}, ${kind}, ${membership.occurredAt})
+      ${membership.email}, ${opts.kind}, ${membership.occurredAt})
   `;
   await tx`
     insert into public.memberships
-      (id, user_id, account_id, permissions, is_root, created_at)
+      (id, user_id, account_id, permissions, is_root, is_account_owner,
+       created_at)
     values (${membership.membershipId}, ${membership.userId},
       ${membership.accountId}, ${tx.json(membership.permissions as never)},
-      ${isRoot}, ${membership.occurredAt})
+      ${opts.isRoot}, ${opts.isAccountOwner}, ${membership.occurredAt})
   `;
 };
 
@@ -75,14 +80,43 @@ const acceptInvitation = async (
     `;
     await tx`
       insert into public.memberships
-        (id, user_id, account_id, permissions, is_root, created_at)
+        (id, user_id, account_id, permissions, role_ids, is_root, created_at)
       values (${membership.membershipId}, ${membership.userId},
         ${membership.accountId}, ${tx.json(membership.permissions as never)},
+        ${(membership.roleIds ?? []) as unknown as string[]}::uuid[],
         false, ${membership.occurredAt})
     `;
     await insertAuditEvent(tx, event);
   });
 };
+
+// Creating an account makes you its owner (ADR-0011): own-scope bypass for the
+// self-signup customer, plus the (stronger) root flag for the bootstrap owner.
+const createOwnerMembership = (
+  sql: Sql,
+  membership: NewIdentityMembership,
+  event: AccessOwnerBootstrapped,
+): Promise<void> =>
+  sql.begin(async (tx) => {
+    await insertMembershipBundle(tx, membership, {
+      kind: 'staff',
+      isRoot: true,
+      isAccountOwner: true,
+    });
+    await insertAuditEvent(tx, event);
+  }) as Promise<void>;
+
+const createCustomerMembership = (
+  sql: Sql,
+  membership: NewIdentityMembership,
+): Promise<void> =>
+  sql.begin(async (tx) => {
+    await insertMembershipBundle(tx, membership, {
+      kind: 'customer',
+      isRoot: false,
+      isAccountOwner: true,
+    });
+  }) as Promise<void>;
 
 export const createPostgresIdentityOnboarding = (
   sql: Sql,
@@ -121,18 +155,11 @@ export const createPostgresIdentityOnboarding = (
     return rows.length > 0;
   },
 
-  createOwnerMembership: async (membership, event) => {
-    await sql.begin(async (tx) => {
-      await insertMembershipBundle(tx, membership, 'staff', true);
-      await insertAuditEvent(tx, event);
-    });
-  },
+  createOwnerMembership: (membership, event) =>
+    createOwnerMembership(sql, membership, event),
 
-  createCustomerMembership: async (membership) => {
-    await sql.begin(async (tx) => {
-      await insertMembershipBundle(tx, membership, 'customer', false);
-    });
-  },
+  createCustomerMembership: (membership) =>
+    createCustomerMembership(sql, membership),
 
   acceptInvitation: (membership, invitationId, event) =>
     acceptInvitation(sql, { membership, invitationId, event }),

@@ -17,7 +17,27 @@ export type StaffAccountSummary = {
   readonly displayName: string | null;
 };
 
+/**
+ * An "orphan" / zombie identity: it exists in the auth provider but belongs to
+ * NO account (no membership) — a sign-up that never onboarded, or a legacy
+ * artifact. Surfaced read-only for platform cleanup; never a real actor (it
+ * holds zero permissions until it creates or joins an org).
+ */
+export type OrphanIdentitySummary = {
+  readonly userId: string;
+  readonly email: string | null;
+  readonly createdAt: string;
+};
+
 export type StaffDirectory = {
   /** Every staff account, in a stable order. */
   readonly listStaff: () => Promise<ReadonlyArray<StaffAccountSummary>>;
+  /**
+   * Every auth identity with no membership (org-less "zombies"). Only the
+   * provider-backed store can answer this; an in-memory store with no auth
+   * layer returns an empty list.
+   */
+  readonly listOrphanIdentities: () => Promise<
+    ReadonlyArray<OrphanIdentitySummary>
+  >;
 };

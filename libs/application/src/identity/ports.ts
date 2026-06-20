@@ -8,6 +8,7 @@ import type {
   AccountKind,
   InvitationId,
   MembershipId,
+  RoleId,
   SessionId,
   UserId,
 } from '@acme/domain';
@@ -52,6 +53,8 @@ export type NewIdentityMembership = {
   readonly email: string | null;
   readonly displayName: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** Roles to attach on creation (ADR-0011); only the invitation flow sets it. */
+  readonly roleIds?: ReadonlyArray<RoleId>;
   readonly occurredAt: string;
 };
 
