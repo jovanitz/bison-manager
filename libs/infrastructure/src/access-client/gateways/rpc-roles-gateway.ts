@@ -48,6 +48,12 @@ export const createRpcRolesGateway = (deps: {
     });
     return result.ok ? ok(undefined) : result;
   },
+  resetRole: async (roleId) => {
+    const result = await callProcedure<null>(deps.api, 'roles.reset', {
+      roleId,
+    });
+    return result.ok ? ok(undefined) : result;
+  },
   assignRoles: async (input) => {
     const result = await callProcedure<null>(deps.api, 'roles.assign', input);
     return result.ok ? ok(undefined) : result;

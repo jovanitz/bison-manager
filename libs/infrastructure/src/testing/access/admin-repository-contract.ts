@@ -197,6 +197,7 @@ export const adminRepositoryContract = (
         id: crypto.randomUUID() as RoleId,
         name: 'Contract role' as Role['name'],
         accountId: null,
+        templateKey: null,
         permissions: [
           { action: 'audit.read', scope: 'any' },
         ] as Role['permissions'],

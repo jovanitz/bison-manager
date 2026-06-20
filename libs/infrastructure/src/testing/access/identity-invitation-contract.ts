@@ -132,6 +132,7 @@ export const identityInvitationContract = (
         id: crypto.randomUUID() as RoleId,
         name: 'Invited role' as Role['name'],
         accountId: null,
+        templateKey: null,
         permissions: [
           { action: 'audit.read', scope: 'any' },
         ] as Role['permissions'],

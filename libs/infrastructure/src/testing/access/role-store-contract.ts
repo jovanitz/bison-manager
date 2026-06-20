@@ -18,6 +18,7 @@ const buildRole = (input: {
   readonly accountId: AccountId | null;
   readonly name: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  readonly templateKey?: string | null;
 }): Role => {
   const role = createRole({ id: crypto.randomUUID() as RoleId, ...input });
   if (!role.ok) throw new Error('setup: invalid role');
@@ -66,6 +67,29 @@ export const roleStoreContract = (
       expect((await store.roles.list(null)).map((r) => r.id)).toEqual([
         platform.id,
       ]);
+    });
+
+    it('round-trips the template provenance (ADR-0012)', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const fromTemplate = buildRole({
+        accountId: ids.acctCustomer,
+        name: 'Admin',
+        permissions: [perm('members.read', 'own')],
+        templateKey: 'admin',
+      });
+      const custom = buildRole({
+        accountId: ids.acctCustomer,
+        name: 'Bespoke',
+        permissions: [perm('members.read', 'own')],
+      });
+      await store.roles.create(fromTemplate);
+      await store.roles.create(custom);
+
+      expect((await store.roles.findById(fromTemplate.id))?.templateKey).toBe(
+        'admin',
+      );
+      expect((await store.roles.findById(custom.id))?.templateKey).toBeNull();
     });
 
     it('resolves a membership’s role ids via findManyById, ignoring misses', async () => {

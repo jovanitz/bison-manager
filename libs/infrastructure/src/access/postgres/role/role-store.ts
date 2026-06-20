@@ -15,14 +15,16 @@ const toRole = (row: Row): Role => ({
   name: row['name'] as Role['name'],
   accountId: (row['account_id'] as AccountId | null) ?? null,
   permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
+  // ADR-0012 provenance: the factory template this role derives from, or null.
+  templateKey: (row['template_key'] as string | null) ?? null,
 });
 
 export const createPostgresRoleStore = (sql: Sql): RoleStore => ({
   create: async (role: Role) => {
     await sql`
-      insert into public.roles (id, account_id, name, permissions)
+      insert into public.roles (id, account_id, name, permissions, template_key)
       values (${role.id}, ${role.accountId}, ${role.name},
-        ${sql.json(role.permissions as never)})
+        ${sql.json(role.permissions as never)}, ${role.templateKey})
     `;
   },
 
@@ -30,13 +32,13 @@ export const createPostgresRoleStore = (sql: Sql): RoleStore => ({
     const rows =
       accountId !== null && isUuid(accountId)
         ? await sql`
-            select id, account_id, name, permissions
+            select id, account_id, name, permissions, template_key
             from public.roles
             where account_id is null or account_id = ${accountId}
             order by name asc
           `
         : await sql`
-            select id, account_id, name, permissions
+            select id, account_id, name, permissions, template_key
             from public.roles
             where account_id is null
             order by name asc
@@ -47,7 +49,7 @@ export const createPostgresRoleStore = (sql: Sql): RoleStore => ({
   findById: async (roleId: RoleId) => {
     if (!isUuid(roleId)) return null;
     const rows = await sql`
-      select id, account_id, name, permissions
+      select id, account_id, name, permissions, template_key
       from public.roles where id = ${roleId} limit 1
     `;
     return rows[0] ? toRole(rows[0]) : null;
@@ -57,7 +59,7 @@ export const createPostgresRoleStore = (sql: Sql): RoleStore => ({
     const valid = roleIds.filter(isUuid);
     if (valid.length === 0) return [];
     const rows = await sql`
-      select id, account_id, name, permissions
+      select id, account_id, name, permissions, template_key
       from public.roles where id = any(${valid as unknown as string[]})
     `;
     return rows.map(toRole);
