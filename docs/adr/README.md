@@ -16,3 +16,4 @@ consequences. They are immutable once accepted; supersede rather than edit.
 | 0009 | [Nx monorepo with tag-based boundary enforcement](0009-nx-monorepo-boundaries.md)                    |
 | 0010 | [Authorization via permissions + temporary grants](0010-authorization-permissions-and-grants.md)     |
 | 0011 | [Dynamic roles as the assignment layer + ownership flags](0011-dynamic-roles-and-ownership-flags.md) |
+| 0012 | [Default role templates (factory baseline) + reset](0012-default-role-templates-and-reset.md)        |
