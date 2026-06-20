@@ -6,6 +6,7 @@ import type {
   AccountKind,
   AccountStatus,
   MembershipId,
+  RoleId,
   SessionId,
   UserId,
 } from '@acme/domain';
@@ -19,6 +20,8 @@ export type AccessMemberSnapshot = {
   readonly membershipId: MembershipId;
   readonly userId: UserId;
   readonly permissions: ReadonlyArray<AccessPermission>;
+  /** Assigned role ids (ADR-0011); unioned into permissions at resolution. */
+  readonly roleIds: ReadonlyArray<RoleId>;
   /** The protected super-admin membership — the UI hides editing it. */
   readonly isRoot: boolean;
   /** Soft-blocked within this org (own-scope `members.block`). */

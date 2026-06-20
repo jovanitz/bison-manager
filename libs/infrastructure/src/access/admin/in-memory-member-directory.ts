@@ -1,5 +1,5 @@
 import type { AccessMemberDirectory } from '@acme/application';
-import type { AccountId, MembershipId, UserId } from '@acme/domain';
+import type { AccountId, MembershipId, RoleId, UserId } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../in-memory-audit-trail';
 import { accountKindOf, hasOtherAdmin } from './in-memory-admin-repository';
 import type { AccessStoreState } from '../in-memory-access-seed';
@@ -15,6 +15,7 @@ export const makeInMemoryMemberDirectory = (
         membershipId: id as MembershipId,
         userId: m.userId as UserId,
         permissions: m.permissions,
+        roleIds: m.roleIds as ReadonlyArray<RoleId>,
         isRoot: m.isRoot,
         blocked: state.blockedMemberships.has(id),
       })),

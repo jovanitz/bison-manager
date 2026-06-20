@@ -3,7 +3,9 @@ import {
   type AccessClientUseCases,
   type BlockUseCases,
   type MembersUseCases,
+  type RolesGateway,
   type StaffMembersViewModel,
+  assignMemberRoles,
   grantStaffPermission,
   loadStaffMembers,
   setSubjectBlocked,
@@ -25,12 +27,18 @@ export type StaffMembersStoreState = {
     userId: string,
     blocked: boolean,
   ) => Promise<string>;
+  /** Replace a member's whole role assignment (ADR-0011), then reload. */
+  readonly assignRoles: (
+    membershipId: string,
+    roleIds: ReadonlyArray<string>,
+  ) => Promise<void>;
 };
 
 export type StaffMembersStoreDeps = {
   readonly access: AccessClientUseCases;
   readonly members: MembersUseCases;
   readonly block: BlockUseCases;
+  readonly roles: RolesGateway;
 };
 
 const accountIdOf = (vm: StaffMembersViewModel | null): string | null =>
@@ -72,6 +80,12 @@ export const createStaffMembersStore = (deps: StaffMembersStoreDeps) =>
         });
         const done = blocked ? 'Blocked' : 'Unblocked';
         return result.ok ? done : result.error.message;
+      },
+      assignRoles: async (membershipId, roleIds) => {
+        set({ notice: null });
+        const result = await assignMemberRoles(deps, { membershipId, roleIds });
+        if (!result.ok) return set({ notice: result.error.message });
+        await reload();
       },
     };
   });

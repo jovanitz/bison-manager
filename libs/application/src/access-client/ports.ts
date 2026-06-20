@@ -151,6 +151,8 @@ export type MemberSummaryDto = {
     readonly action: string;
     readonly scope: string;
   }>;
+  /** Assigned role ids (ADR-0011) — drives the role-assignment control. */
+  readonly roleIds: ReadonlyArray<string>;
   /** The protected super-admin — the editor must not offer to change it. */
   readonly isRoot: boolean;
   /** Soft-blocked within this org — the toggle reflects this state. */

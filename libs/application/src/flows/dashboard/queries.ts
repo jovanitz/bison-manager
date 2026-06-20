@@ -6,7 +6,11 @@ import type {
 } from '../../access-directory/ports';
 import type { CustomerAccountSummary } from '../../impersonation/ports';
 import type { PendingInvitationSummary } from '../../access-invitations/ports';
-import type { MemberSummaryDto } from '../../access-client/ports';
+import type {
+  MemberSummaryDto,
+  RolesGateway,
+  RoleSummaryDto,
+} from '../../access-client/ports';
 import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { DirectoryUseCases } from '../../access-client/gateways/directory-use-cases';
 import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
@@ -86,6 +90,8 @@ export type StaffMembersViewModel =
       readonly accountId: string;
       readonly access: CurrentAccessDto;
       readonly members: ReadonlyArray<MemberSummaryDto>;
+      /** Roles assignable to these members (platform + the account's own). */
+      readonly availableRoles: ReadonlyArray<RoleSummaryDto>;
       readonly canEdit: boolean;
       readonly canBlock: boolean;
     };
@@ -93,18 +99,24 @@ export type StaffMembersViewModel =
 export const loadStaffMembers = async (deps: {
   readonly access: AccessClientUseCases;
   readonly members: MembersUseCases;
+  readonly roles: RolesGateway;
 }): Promise<Result<StaffMembersViewModel, DashboardError>> => {
   const snapshot = await deps.access.currentAccess();
   if (!snapshot.ok) return err(snapshot.error);
   const access = snapshot.value;
   if (!holdsAction(access, 'members.read')) return ok({ hidden: true });
-  const listed = await deps.members.listMembers(access.accountId);
+  const [listed, roles] = await Promise.all([
+    deps.members.listMembers(access.accountId),
+    deps.roles.listRoles(access.accountId),
+  ]);
   if (!listed.ok) return err(listed.error);
+  if (!roles.ok) return err(roles.error);
   return ok({
     hidden: false,
     accountId: access.accountId,
     access,
     members: listed.value,
+    availableRoles: roles.value,
     canEdit: holdsAction(access, 'permissions.update'),
     canBlock: holdsAction(access, 'access.block'),
   });

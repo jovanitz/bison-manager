@@ -39,13 +39,13 @@ export const useDashboardStore = (): DashboardStore | null => {
 };
 
 export const useStaffMembersStore = (): StaffMembersStore | null => {
-  const { access, members, block } = useUseCases();
+  const { access, members, block, roles } = useUseCases();
   return useMemo(
     () =>
-      access && members && block
-        ? createStaffMembersStore({ access, members, block })
+      access && members && block && roles
+        ? createStaffMembersStore({ access, members, block, roles })
         : null,
-    [access, members, block],
+    [access, members, block, roles],
   );
 };
 

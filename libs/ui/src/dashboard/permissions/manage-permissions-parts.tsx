@@ -3,11 +3,50 @@ import {
   ACCESS_ACTION_CATALOG,
   ACCESS_SCOPE_CATALOG,
   type MemberSummaryDto,
+  type RoleSummaryDto,
 } from '@acme/application';
 import { BlockButtons } from '../block/block-buttons';
 
 const permKey = (p: { action: string; scope: string }) =>
   `${p.action}:${p.scope}`;
+
+/** Checklist of the account's roles; submits the chosen set as a replace. */
+const RolePicker = ({
+  availableRoles,
+  current,
+  onAssign,
+}: {
+  readonly availableRoles: ReadonlyArray<RoleSummaryDto>;
+  readonly current: ReadonlyArray<string>;
+  readonly onAssign: (roleIds: ReadonlyArray<string>) => void;
+}) => {
+  const [selected, setSelected] = useState<ReadonlyArray<string>>(current);
+  const toggle = (id: string) =>
+    setSelected((s) =>
+      s.includes(id) ? s.filter((x) => x !== id) : [...s, id],
+    );
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    onAssign(selected);
+  };
+  if (availableRoles.length === 0) return <p>No roles defined yet.</p>;
+  return (
+    <form aria-label="assign roles" onSubmit={submit}>
+      {availableRoles.map((role) => (
+        <label key={role.id}>
+          <input
+            type="checkbox"
+            aria-label={`role ${role.name}`}
+            checked={selected.includes(role.id)}
+            onChange={() => toggle(role.id)}
+          />
+          {role.name}
+        </label>
+      ))}
+      <button type="submit">Set roles</button>
+    </form>
+  );
+};
 
 const PermissionPicker = ({
   onAdd,
@@ -57,17 +96,21 @@ const PermissionPicker = ({
 
 export const MemberDetail = ({
   member,
+  availableRoles,
   notice,
   canEdit,
   canBlock,
   onAdd,
+  onAssignRoles,
   onBlock,
 }: {
   readonly member: MemberSummaryDto;
+  readonly availableRoles: ReadonlyArray<RoleSummaryDto>;
   readonly notice: string | undefined;
   readonly canEdit: boolean;
   readonly canBlock: boolean;
   readonly onAdd: (action: string, scope: string) => void;
+  readonly onAssignRoles: (roleIds: ReadonlyArray<string>) => void;
   readonly onBlock: (blocked: boolean) => Promise<string>;
 }) => (
   <div>
@@ -84,6 +127,17 @@ export const MemberDetail = ({
     ) : (
       <>
         {canEdit ? <PermissionPicker onAdd={onAdd} /> : null}
+        {canEdit ? (
+          <>
+            <p>Roles:</p>
+            <RolePicker
+              key={member.membershipId}
+              availableRoles={availableRoles}
+              current={member.roleIds}
+              onAssign={onAssignRoles}
+            />
+          </>
+        ) : null}
         {canBlock ? (
           <p>
             Identity access:{' '}

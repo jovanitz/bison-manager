@@ -35,6 +35,7 @@ const ManagePermissionsView = ({
       {selected ? (
         <MemberDetail
           member={selected}
+          availableRoles={vm.availableRoles}
           notice={notice ?? undefined}
           canEdit={vm.canEdit}
           canBlock={vm.canBlock}
@@ -42,6 +43,9 @@ const ManagePermissionsView = ({
             void store
               .getState()
               .grant({ membershipId: selected.membershipId, action, scope })
+          }
+          onAssignRoles={(roleIds) =>
+            void store.getState().assignRoles(selected.membershipId, roleIds)
           }
           onBlock={(blocked) =>
             store.getState().setIdentityBlocked(selected.userId, blocked)

@@ -5,6 +5,7 @@ import type {
   AccountKind,
   AccountStatus,
   MembershipId,
+  RoleId,
   UserId,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
@@ -22,7 +23,7 @@ export const createPostgresMemberDirectory = (
   listMembers: async (accountId) => {
     if (!isUuid(accountId)) return [];
     const rows = await sql`
-      select id, user_id, permissions, is_root, blocked
+      select id, user_id, permissions, role_ids, is_root, blocked
       from public.memberships
       where account_id = ${accountId}
       order by created_at asc
@@ -31,6 +32,7 @@ export const createPostgresMemberDirectory = (
       membershipId: row['id'] as MembershipId,
       userId: row['user_id'] as UserId,
       permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
+      roleIds: row['role_ids'] as ReadonlyArray<RoleId>,
       isRoot: row['is_root'] as boolean,
       blocked: row['blocked'] as boolean,
     }));
