@@ -17,3 +17,4 @@ consequences. They are immutable once accepted; supersede rather than edit.
 | 0010 | [Authorization via permissions + temporary grants](0010-authorization-permissions-and-grants.md)     |
 | 0011 | [Dynamic roles as the assignment layer + ownership flags](0011-dynamic-roles-and-ownership-flags.md) |
 | 0012 | [Default role templates (factory baseline) + reset](0012-default-role-templates-and-reset.md)        |
+| 0013 | [Staff-editable default-role templates](0013-staff-editable-role-templates.md)                       |
