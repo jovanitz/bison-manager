@@ -1,7 +1,11 @@
 import type { AccessMemberDirectory } from '@acme/application';
 import type { AccountId, MembershipId, RoleId, UserId } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../in-memory-audit-trail';
-import { accountKindOf, hasOtherAdmin } from './in-memory-admin-repository';
+import {
+  accountKindOf,
+  oneOffPermissions,
+  removeWouldOrphan,
+} from './in-memory-admin-repository';
 import type { AccessStoreState } from '../in-memory-access-seed';
 
 /** Members of one account; removal deletes membership + sessions (cascade). */
@@ -14,17 +18,18 @@ export const makeInMemoryMemberDirectory = (
       .map(([id, m]) => ({
         membershipId: id as MembershipId,
         userId: m.userId as UserId,
-        permissions: m.permissions,
-        roleIds: m.roleIds as ReadonlyArray<RoleId>,
+        // the editable one-off set (direct ∪ personal role); shared roles are
+        // listed separately via `roleIds`, which excludes the personal role.
+        permissions: oneOffPermissions(state, m),
+        roleIds: m.roleIds.filter(
+          (rid) => !state.roles.get(rid)?.isPersonal,
+        ) as unknown as ReadonlyArray<RoleId>,
         isRoot: m.isRoot,
         blocked: state.blockedMemberships.has(id),
       })),
 
   removeMember: async (membershipId, event, requireCoAdmin) => {
-    if (
-      requireCoAdmin &&
-      !hasOtherAdmin(state, event.accountId, membershipId)
-    ) {
+    if (requireCoAdmin && removeWouldOrphan(state, membershipId)) {
       return { orphaned: true };
     }
     for (const [sessionId, session] of state.sessions) {

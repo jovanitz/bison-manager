@@ -117,12 +117,22 @@ if (available) {
       });
     });
 
-    it('the audit trail is invisible to every client role', async () => {
+    it('staff-only catalogues (audit trail, role templates) are invisible to every client role', async () => {
       await seedRlsWorld();
       await sql`insert into public.audit_events (type, occurred_at, payload)
         values ('session.revoked', now(), '{}')`;
+      // role_templates is RLS-enabled with NO policy (ADR-0013/0014), exactly
+      // like audit_events: reachable only via the service connection, so every
+      // client role must see zero rows even when overrides exist.
+      await sql`insert into public.role_templates (key, scope, name, permissions)
+        values ('admin', 'org', 'Admin', '[]'::jsonb)`;
+      await asRole('anon', null, async (tx) => {
+        expect(await countRows(tx, 'audit_events'), 'audit_events').toBe(0);
+        expect(await countRows(tx, 'role_templates'), 'role_templates').toBe(0);
+      });
       await asRole('authenticated', rlsIds.userA, async (tx) => {
-        expect(await countRows(tx, 'audit_events')).toBe(0);
+        expect(await countRows(tx, 'audit_events'), 'audit_events').toBe(0);
+        expect(await countRows(tx, 'role_templates'), 'role_templates').toBe(0);
       });
     });
 

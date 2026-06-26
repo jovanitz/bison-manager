@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStaffMembersStore, useStore } from '../store/hooks';
 import type { StaffMembersStore } from '../store/staff-members-store';
 import { MemberDetail, MemberSelect } from './manage-permissions-parts';
+import { MemberSessions } from './member-sessions';
 
 /**
  * Permissions editor. Pure presentation: it reads the roster ViewModel from the
@@ -15,11 +16,17 @@ const ManagePermissionsView = ({
 }) => {
   const vm = useStore(store, (s) => s.vm);
   const notice = useStore(store, (s) => s.notice);
+  const sessions = useStore(store, (s) => s.sessions);
   const [selectedId, setSelectedId] = useState('');
 
   useEffect(() => {
     void store.getState().load();
   }, [store]);
+
+  // Stable per selected member, so MemberSessions loads once per selection.
+  const loadSessions = useCallback(() => {
+    if (selectedId) void store.getState().loadSessions(selectedId);
+  }, [store, selectedId]);
 
   if (!vm || vm.hidden) return null;
   const selected = vm.members.find((m) => m.membershipId === selectedId);
@@ -49,6 +56,21 @@ const ManagePermissionsView = ({
           }
           onBlock={(blocked) =>
             store.getState().setIdentityBlocked(selected.userId, blocked)
+          }
+        />
+      ) : null}
+      {selected && vm.canReadSessions ? (
+        <MemberSessions
+          membershipId={selected.membershipId}
+          sessions={sessions}
+          onLoad={loadSessions}
+          onRevoke={(sessionId) =>
+            void store
+              .getState()
+              .revokeSession(sessionId, selected.membershipId)
+          }
+          onRevokeAll={() =>
+            void store.getState().revokeAllSessions(selected.membershipId)
           }
         />
       ) : null}

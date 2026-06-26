@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { err } from '@acme/shared';
 import { accessGatewayError } from '@acme/application';
-import { mockAccessUseCases, mockItems } from '../access/testing';
+import {
+  mockAccessUseCases,
+  mockItems,
+  testCurrentAccess,
+} from '../access/testing';
 import { UseCasesProvider } from '../di/use-cases-context';
 import { DashboardScreen } from './dashboard-screen';
-import { mockBlock, mockDirectory, mockInvitations } from './testing';
+import {
+  mockAccountAdmin,
+  mockBlock,
+  mockDirectory,
+  mockInvitations,
+} from './testing';
 import {
   render,
   screen,
@@ -22,6 +31,7 @@ const renderScreen = (directory = mockDirectory()) =>
         directory,
         block: mockBlock(),
         invitations: mockInvitations(),
+        accounts: mockAccountAdmin(),
       }}
     >
       <DashboardScreen />
@@ -60,6 +70,40 @@ describe('DashboardScreen', () => {
       expect(screen.getByTestId('invite-link')).toHaveTextContent(
         'fresh-tok-1',
       ),
+    );
+  });
+
+  it('disables a customer account from the admin controls (owner only)', async () => {
+    const disable = vi.fn(async () => ({
+      ok: true as const,
+      value: undefined,
+    }));
+    render(
+      <UseCasesProvider
+        useCases={{
+          items: mockItems,
+          access: mockAccessUseCases({
+            currentAccess: async () => ({
+              ok: true,
+              value: {
+                ...testCurrentAccess,
+                permissions: [{ action: 'account.disable', scope: 'any' }],
+              },
+            }),
+          }),
+          directory: mockDirectory(),
+          block: mockBlock(),
+          invitations: mockInvitations(),
+          accounts: mockAccountAdmin({ disable }),
+        }}
+      >
+        <DashboardScreen />
+      </UseCasesProvider>,
+    );
+    const adminCell = await screen.findByLabelText(/account admin /i);
+    fireEvent.click(within(adminCell).getByRole('button', { name: 'Disable' }));
+    await waitFor(() =>
+      expect(disable).toHaveBeenCalledWith('acct-customer', undefined),
     );
   });
 

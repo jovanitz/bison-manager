@@ -17,10 +17,9 @@ import {
 } from './access-store-fixtures';
 import type { AccessStorePorts } from './access-store-fixtures';
 import { adminRepositoryContract } from './admin-repository-contract';
+import { adminAntiOrphanContract } from './admin-anti-orphan-contract';
 import { memberDirectoryContract } from './member-directory-contract';
-import { roleStoreContract } from './role-store-contract';
-
-export type { AccessStorePorts } from './access-store-fixtures';
+import { roleContracts } from './role/contracts';
 /** Contract every access store (in-memory, Postgres) must satisfy identically; `makeStore` must return exactly the given seed (DBs isolate per call). */
 export const accessStoreContract = (
   name: string,
@@ -244,6 +243,7 @@ export const accessStoreContract = (
   });
 
   adminRepositoryContract(name, makeStore);
+  adminAntiOrphanContract(name, makeStore);
   memberDirectoryContract(name, makeStore);
-  roleStoreContract(name, makeStore);
+  roleContracts(name, makeStore);
 };

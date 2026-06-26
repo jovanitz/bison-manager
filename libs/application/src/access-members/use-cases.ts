@@ -6,11 +6,7 @@ import {
 } from '@acme/domain';
 import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import {
-  guardOwnerTarget,
-  guardRootTarget,
-  holdsAdminCapability,
-} from '../access-admin/deps';
+import { guardOwnerTarget, guardRootTarget } from '../access-admin/deps';
 import {
   accountNotFound,
   cannotOrphanAccount,
@@ -110,8 +106,10 @@ export const makeRemoveMember =
     }
 
     // Anti-orphan: removing the account's last administrator would leave it
-    // ungovernable from within. Verified atomically by the adapter (locked
-    // count in the removal transaction), so concurrent removals can't race.
+    // ungovernable from within. We always ask; the adapter verifies atomically
+    // (locked, EFFECTIVE count over roles — ADR-0014, so a role-granted admin
+    // counts), refusing only a removal that drops the last admin, and the lock
+    // serializes concurrent removals so they cannot race.
     const result = await deps.members.removeMember(
       membership.id,
       {
@@ -121,7 +119,7 @@ export const makeRemoveMember =
         actorMembershipId: input.actor.membership.id,
         occurredAt: now,
       },
-      holdsAdminCapability(membership.permissions),
+      true,
     );
     if (result.orphaned) {
       return err(

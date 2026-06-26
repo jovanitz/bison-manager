@@ -1,13 +1,19 @@
-import { z } from 'zod';
 import { ok } from '@acme/shared';
-import type { AccessClientUseCases } from '../../access-client/use-cases';
-import type { DirectoryUseCases } from '../../access-client/gateways/directory-use-cases';
-import type { MembersUseCases } from '../../access-client/gateways/members-use-cases';
-import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
-import type { BlockUseCases } from '../../access-client/gateways/block-use-cases';
-import type { RolesGateway } from '../../access-client/ports';
+import {
+  assignRolesInput,
+  blockInput,
+  createRoleInput,
+  deleteRoleInput,
+  empty,
+  grantInput,
+  inviteInput,
+  resetTemplateInput,
+  updateRoleInput,
+  updateTemplateInput,
+} from './registry-inputs';
 import type { FlowCommand } from '../registry-types';
 import { findFlowCommand } from '../registry-types';
+import { ADMIN_FLOWS, type DashboardFlowDeps } from './flow-catalog';
 import { loadDashboard, loadStaffMembers, resolveAdminGate } from './queries';
 import {
   grantStaffPermission,
@@ -15,51 +21,19 @@ import {
   setSubjectBlocked,
 } from './commands';
 import {
+  applyTemplateToAll,
   assignMemberRoles,
   createPlatformRole,
   deletePlatformRole,
+  loadDefaultTemplates,
   loadPlatformRoles,
+  resetDefaultTemplate,
   resetPlatformRole,
+  updateDefaultTemplate,
+  updatePlatformRole,
 } from './roles';
 
-/** Everything a STAFF-side caller (the dashboard store or a staff MCP) wires once. */
-export type DashboardFlowDeps = {
-  readonly access: AccessClientUseCases;
-  readonly directory: DirectoryUseCases;
-  readonly members: MembersUseCases;
-  readonly invitations: InvitationsUseCases;
-  readonly block: BlockUseCases;
-  readonly roles: RolesGateway;
-};
-
-const empty = z.object({});
-const grantInput = z.object({
-  accountId: z.string(),
-  membershipId: z.string(),
-  action: z.string(),
-  scope: z.string(),
-});
-const inviteInput = z.object({
-  accountId: z.string(),
-  email: z.string().email(),
-});
-const blockInput = z.object({
-  subject: z.enum(['org', 'identity']),
-  id: z.string(),
-  blocked: z.boolean(),
-});
-const permissionsInput = z.array(
-  z.object({ action: z.string(), scope: z.string() }),
-);
-const createRoleInput = z.object({
-  name: z.string(),
-  permissions: permissionsInput,
-});
-const deleteRoleInput = z.object({ roleId: z.string() });
-const assignRolesInput = z.object({
-  membershipId: z.string(),
-  roleIds: z.array(z.string()),
-});
+export type { DashboardFlowDeps } from './flow-catalog';
 
 export const DASHBOARD_FLOWS: ReadonlyArray<FlowCommand<DashboardFlowDeps>> = [
   {
@@ -145,6 +119,48 @@ export const DASHBOARD_FLOWS: ReadonlyArray<FlowCommand<DashboardFlowDeps>> = [
     input: deleteRoleInput,
     run: (deps, input) => resetPlatformRole(deps, deleteRoleInput.parse(input)),
   },
+  {
+    name: 'roles.update',
+    kind: 'command',
+    description: "Edit a role's name + permissions in place (live to holders).",
+    input: updateRoleInput,
+    run: (deps, input) =>
+      updatePlatformRole(deps, updateRoleInput.parse(input)),
+  },
+  {
+    name: 'templates.load',
+    kind: 'query',
+    description:
+      'Load the editable default-role templates + whether the actor may edit.',
+    input: empty,
+    run: (deps) => loadDefaultTemplates(deps),
+  },
+  {
+    name: 'templates.update',
+    kind: 'command',
+    description: "Edit a default template's name + permissions (ADR-0013).",
+    input: updateTemplateInput,
+    run: (deps, input) =>
+      updateDefaultTemplate(deps, updateTemplateInput.parse(input)),
+  },
+  {
+    name: 'templates.reset',
+    kind: 'command',
+    description: 'Reset a default template to its code definition (ADR-0013).',
+    input: resetTemplateInput,
+    run: (deps, input) =>
+      resetDefaultTemplate(deps, resetTemplateInput.parse(input)),
+  },
+  {
+    name: 'templates.applyAll',
+    kind: 'command',
+    description:
+      'Force every instance of a template back to it, forks included (ADR-0014).',
+    input: resetTemplateInput,
+    run: (deps, input) =>
+      applyTemplateToAll(deps, resetTemplateInput.parse(input)),
+  },
+  ...ADMIN_FLOWS,
 ];
 
 export const findDashboardFlow = (name: string) =>

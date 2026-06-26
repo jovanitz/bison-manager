@@ -12,7 +12,11 @@ import {
   mockItems,
   testCurrentAccess,
 } from '../../access/testing';
-import { mockInvitations, mockMembers } from '../../dashboard/testing';
+import {
+  mockInvitations,
+  mockMembers,
+  mockRoles,
+} from '../../dashboard/testing';
 import { UseCasesProvider, type AppUseCases } from '../../di/use-cases-context';
 import { ManageOrgSection } from './manage-org-section';
 
@@ -32,6 +36,7 @@ const ORG_MEMBERS: ReadonlyArray<MemberSummaryDto> = [
     membershipId: 'm-1',
     userId: 'alice@org.test',
     permissions: [],
+    roleIds: [],
     isRoot: false,
     blocked: false,
   },
@@ -39,7 +44,9 @@ const ORG_MEMBERS: ReadonlyArray<MemberSummaryDto> = [
 
 const renderSection = (useCases: Partial<AppUseCases>) =>
   render(
-    <UseCasesProvider useCases={{ items: mockItems, ...useCases }}>
+    <UseCasesProvider
+      useCases={{ items: mockItems, roles: mockRoles(), ...useCases }}
+    >
       <ManageOrgSection />
     </UseCasesProvider>,
   );
@@ -125,5 +132,46 @@ describe('ManageOrgSection', () => {
       screen.getByRole('button', { name: /remove alice@org.test/i }),
     );
     expect(removeMember).toHaveBeenCalledWith({ membershipId: 'm-1' });
+  });
+
+  it('invites a member with selected roles (ADR-0011)', async () => {
+    const invite = vi.fn(async () => ok({ invitationId: 'i', token: 't' }));
+    renderSection({
+      access: adminAccess(),
+      members: mockMembers({ listMembers: async () => ok(ORG_MEMBERS) }),
+      invitations: mockInvitations({ invite }),
+    });
+    await screen.findByRole('form', { name: 'invite' });
+    await userEvent.type(screen.getByLabelText('Email'), 'newbie@org.test');
+    await userEvent.click(screen.getByLabelText('invite role Support'));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Send invitation' }),
+    );
+    await waitFor(() =>
+      expect(invite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'newbie@org.test',
+          roleIds: ['role-support'],
+        }),
+      ),
+    );
+  });
+
+  it('assigns roles to a member (roles-only, ADR-0011)', async () => {
+    const assignRoles = vi.fn(async () => ok(undefined));
+    renderSection({
+      access: adminAccess(),
+      members: mockMembers({ listMembers: async () => ok(ORG_MEMBERS) }),
+      invitations: mockInvitations(),
+      roles: mockRoles({ assignRoles }),
+    });
+    await userEvent.click(
+      await screen.findByLabelText('role Support for alice@org.test'),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save roles' }));
+    expect(assignRoles).toHaveBeenCalledWith({
+      membershipId: 'm-1',
+      roleIds: ['role-support'],
+    });
   });
 });

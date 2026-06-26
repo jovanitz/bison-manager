@@ -10,9 +10,11 @@ table below is derived from — or executed against — the real code.
 
 ## Principles
 
-- **Permissions + temporary grants; no roles.** "Owner", "support" and
-  "customer" are only administrative presets that expand to permission lists;
-  nothing ever asks "is this user an owner?".
+- **Roles expand to permissions; temporary grants for elevation.** A membership
+  carries **roles** (named bundles, ADR-0011) that expand to the flat
+  action+scope permission list the policy core evaluates; the presets below are
+  the seed templates (ADR-0012/0013). Audited, expiring **grants** add narrow
+  elevations (impersonation). Nothing ever asks "is this user an owner?".
 - **Deny by default, fail closed.** Anything not explicitly allowed is denied;
   a disabled account or revoked/expired session denies everything.
 - **The token never authorizes.** A JWT only proves identity; permissions,
@@ -154,6 +156,7 @@ generated — they are behavior, not documentation:
 | `customer.read` | `customer.read` | Read one customer account. Customers read their own; support needs an active impersonation grant on that exact account. |
 | `impersonation.start` | `impersonation.start` | Open a view-only, expiring, reasoned window into one customer account. The actor stays the support agent. |
 | `impersonation.end` | `impersonation.end` | End an impersonation grant early (only its holder may). |
+| `settings.read` | `settings.update` | Read the current session lifetime policy + its version (for the editor). |
 | `settings.update` | `settings.update` | Reconfigure the session lifetime policy (per account kind, within hard bounds). Tightening shrinks every live session immediately. |
 | `members.list` | `members.read` | An account's memberships with their permissions — the organization members view (own account for org admins, any for platform staff). |
 | `members.remove` | `members.remove` | Remove a member from their account; their sessions die in the same transaction. Never your own membership. |
@@ -168,6 +171,10 @@ generated — they are behavior, not documentation:
 | `roles.delete` | `permissions.update` | Delete a custom role (refused while in use). A default role is refused too — reset it instead (ADR-0012), so authority never vanishes silently. |
 | `roles.assign` | `permissions.update` | Replace a membership's role assignment with the given set (ADR-0011, roles-only). Each role must exist and be reachable by the account. |
 | `roles.reset` | `permissions.update` | Reset a default role to its factory template (name + permissions, same id, assignments kept). Custom roles have no template and are refused. |
+| `templates.list` | `permissions.update` | List the default-role templates: the code catalogue with staff edits applied over it (the recovery floor is always the code definition). |
+| `templates.update` | `permissions.update` | Edit a default template's name and permissions (ADR-0013). Coherence is checked against the template's own scope; the key must exist. |
+| `templates.reset` | `permissions.update` | Reset a default template to its code definition — the recovery floor (ADR-0013). Discards staff edits for that template key. |
+| `templates.apply-all` | `permissions.update` | Force every live instance of a template — synced or forked — back to the template (ADR-0014). Overrides org-local edits; returns the count. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.
@@ -182,7 +189,7 @@ re-authorizes itself with the concrete resource in hand.
 | `account.enabled` | A disabled account was re-enabled, by whom |
 | `account.promoted` | A customer account became staff, by whom |
 | `permissions.updated` | Permissions replaced (records before and after) |
-| `member.roles-assigned` | undefined |
+| `member.roles-assigned` | A membership's role assignment was replaced (records the new role set) |
 | `session.revoked` | A session was revoked, by whom |
 | `impersonation.started` | Support opened a view-only grant (with reason) |
 | `impersonation.ended` | The grant holder ended an impersonation |

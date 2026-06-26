@@ -5,6 +5,7 @@ import type {
   DirectoryGatewayError,
   RolesGateway,
   RoleSummaryDto,
+  RoleTemplateDto,
 } from '@acme/application';
 
 /**
@@ -54,8 +55,38 @@ export const createRpcRolesGateway = (deps: {
     });
     return result.ok ? ok(undefined) : result;
   },
+  updateRole: async (input) => {
+    const result = await callProcedure<null>(deps.api, 'roles.update', input);
+    return result.ok ? ok(undefined) : result;
+  },
   assignRoles: async (input) => {
     const result = await callProcedure<null>(deps.api, 'roles.assign', input);
     return result.ok ? ok(undefined) : result;
   },
+  listTemplates: () =>
+    callProcedure<ReadonlyArray<RoleTemplateDto>>(
+      deps.api,
+      'templates.list',
+      {},
+    ),
+  updateTemplate: async (input) => {
+    const result = await callProcedure<null>(
+      deps.api,
+      'templates.update',
+      input,
+    );
+    return result.ok ? ok(undefined) : result;
+  },
+  resetTemplate: async (key) => {
+    const result = await callProcedure<null>(deps.api, 'templates.reset', {
+      key,
+    });
+    return result.ok ? ok(undefined) : result;
+  },
+  applyTemplateToAll: (key) =>
+    callProcedure<{ readonly updated: number }>(
+      deps.api,
+      'templates.apply-all',
+      { key },
+    ),
 });

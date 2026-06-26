@@ -72,7 +72,10 @@ const RolesView = ({ store }: { readonly store: RolesStore }) => {
               <td>
                 {role.name}
                 {role.templateKey !== null ? (
-                  <span aria-label="default role"> (default)</span>
+                  <span aria-label="default role">
+                    {' '}
+                    (default · {role.templateSynced ? 'synced' : 'forked'})
+                  </span>
                 ) : null}
               </td>
               <td>{role.accountId === null ? 'platform' : role.accountId}</td>

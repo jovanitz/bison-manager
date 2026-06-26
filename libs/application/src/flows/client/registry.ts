@@ -4,6 +4,7 @@ import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
 import type { MembersUseCases } from '../../access-client/gateways/members-use-cases';
 import type { OrgsUseCases } from '../../access-client/gateways/client/orgs-use-cases';
+import type { RolesGateway } from '../../access-client/roles-ports';
 import type { FlowCommand } from '../registry-types';
 import { findFlowCommand } from '../registry-types';
 import {
@@ -13,6 +14,14 @@ import {
   removeMember,
   setMemberBlocked,
 } from './org-admin';
+import {
+  assignOrgMemberRoles,
+  createOrgRole,
+  deleteOrgRole,
+  loadOrgRoles,
+  resetOrgRole,
+  updateOrgRole,
+} from './roles';
 import { createOrg, loadHome, switchOrg } from './home';
 import { resolveClientGate } from './gate';
 
@@ -26,6 +35,7 @@ export type ClientFlowDeps = {
   readonly members: MembersUseCases;
   readonly invitations: InvitationsUseCases;
   readonly orgs: OrgsUseCases;
+  readonly roles: RolesGateway;
 };
 
 const empty = z.object({});
@@ -38,10 +48,25 @@ const grantInput = z.object({
 const inviteInput = z.object({
   accountId: z.string(),
   email: z.string().email(),
+  roleIds: z.array(z.string()).optional(),
 });
 const blockInput = z.object({ membershipId: z.string(), blocked: z.boolean() });
 const membershipInput = z.object({ membershipId: z.string() });
 const createOrgInput = z.object({ name: z.string().min(1) });
+const roleIdInput = z.object({ roleId: z.string() });
+const createRoleInput = z.object({
+  name: z.string().min(1),
+  permissions: z.array(z.object({ action: z.string(), scope: z.string() })),
+});
+const updateRoleInput = z.object({
+  roleId: z.string(),
+  name: z.string().min(1),
+  permissions: z.array(z.object({ action: z.string(), scope: z.string() })),
+});
+const assignRolesInput = z.object({
+  membershipId: z.string(),
+  roleIds: z.array(z.string()),
+});
 
 /** The enumerable catalog of client flows — one MCP tool per entry. */
 export const CLIENT_FLOWS: ReadonlyArray<FlowCommand<ClientFlowDeps>> = [
@@ -100,6 +125,49 @@ export const CLIENT_FLOWS: ReadonlyArray<FlowCommand<ClientFlowDeps>> = [
     description: 'Create a new organization (you become its admin).',
     input: createOrgInput,
     run: (deps, input) => createOrg(deps, createOrgInput.parse(input)),
+  },
+  {
+    name: 'org.roles.load',
+    kind: 'query',
+    description: "Load your org's roles (gated on permissions.update).",
+    input: empty,
+    run: (deps) => loadOrgRoles(deps),
+  },
+  {
+    name: 'org.roles.create',
+    kind: 'command',
+    description: 'Create a role in your own org (customer-delegable actions).',
+    input: createRoleInput,
+    run: (deps, input) => createOrgRole(deps, createRoleInput.parse(input)),
+  },
+  {
+    name: 'org.roles.delete',
+    kind: 'command',
+    description: 'Delete a custom org role (refused for defaults / in-use).',
+    input: roleIdInput,
+    run: (deps, input) => deleteOrgRole(deps, roleIdInput.parse(input)),
+  },
+  {
+    name: 'org.roles.reset',
+    kind: 'command',
+    description: 'Reset a default org role to its template (the recovery net).',
+    input: roleIdInput,
+    run: (deps, input) => resetOrgRole(deps, roleIdInput.parse(input)),
+  },
+  {
+    name: 'org.roles.update',
+    kind: 'command',
+    description: "Edit an org role's name + permissions in place (live).",
+    input: updateRoleInput,
+    run: (deps, input) => updateOrgRole(deps, updateRoleInput.parse(input)),
+  },
+  {
+    name: 'org.members.assignRoles',
+    kind: 'command',
+    description: "Replace a member's whole role assignment (roles-only).",
+    input: assignRolesInput,
+    run: (deps, input) =>
+      assignOrgMemberRoles(deps, assignRolesInput.parse(input)),
   },
   {
     name: 'gate.resolve',

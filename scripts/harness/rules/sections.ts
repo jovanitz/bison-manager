@@ -64,6 +64,8 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
   'account.enabled': 'A disabled account was re-enabled, by whom',
   'account.promoted': 'A customer account became staff, by whom',
   'permissions.updated': 'Permissions replaced (records before and after)',
+  'member.roles-assigned':
+    "A membership's role assignment was replaced (records the new role set)",
   'session.revoked': 'A session was revoked, by whom',
   'impersonation.started': 'Support opened a view-only grant (with reason)',
   'impersonation.ended': 'The grant holder ended an impersonation',

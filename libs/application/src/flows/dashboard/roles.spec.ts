@@ -2,13 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { ok } from '@acme/shared';
 import type { CurrentAccessDto } from '../../access/dto';
 import type { AccessClientUseCases } from '../../access-client/use-cases';
-import type { RolesGateway } from '../../access-client/ports';
+import type { RolesGateway } from '../../access-client/roles-ports';
 import {
+  applyTemplateToAll,
   assignMemberRoles,
   createPlatformRole,
   deletePlatformRole,
+  loadDefaultTemplates,
   loadPlatformRoles,
+  resetDefaultTemplate,
   resetPlatformRole,
+  updateDefaultTemplate,
+  updatePlatformRole,
 } from './roles';
 
 const snapshot = (
@@ -39,7 +44,12 @@ const rolesGateway = (over: Partial<RolesGateway> = {}): RolesGateway =>
     createRole: async () => ok({ roleId: 'r-new' }),
     deleteRole: async () => ok(undefined),
     resetRole: async () => ok(undefined),
+    updateRole: async () => ok(undefined),
     assignRoles: async () => ok(undefined),
+    listTemplates: async () => ok([]),
+    updateTemplate: async () => ok(undefined),
+    resetTemplate: async () => ok(undefined),
+    applyTemplateToAll: async () => ok({ updated: 0 }),
     ...over,
   }) as RolesGateway;
 
@@ -49,7 +59,16 @@ describe('dashboard role flows', () => {
       access: access(),
       roles: rolesGateway({
         listRoles: async () =>
-          ok([{ id: 'r1', name: 'Support', accountId: null, permissions: [] }]),
+          ok([
+            {
+              id: 'r1',
+              name: 'Support',
+              accountId: null,
+              permissions: [],
+              templateKey: 'support',
+              templateSynced: true,
+            },
+          ]),
       }),
     });
     expect(r.ok && r.value.canManage).toBe(true);
@@ -112,5 +131,81 @@ describe('dashboard role flows', () => {
       },
     );
     expect(resetRole).toHaveBeenCalledWith('r-7');
+  });
+
+  it('updatePlatformRole forwards roleId + name + permissions', async () => {
+    const updateRole = vi.fn(async () => ok(undefined));
+    const permissions = [{ action: 'audit.read', scope: 'any' }];
+    await updatePlatformRole(
+      { roles: rolesGateway({ updateRole }) },
+      { roleId: 'r-9', name: 'Auditor', permissions },
+    );
+    expect(updateRole).toHaveBeenCalledWith({
+      roleId: 'r-9',
+      name: 'Auditor',
+      permissions,
+    });
+  });
+
+  it('loadDefaultTemplates returns the templates + canManage', async () => {
+    const r = await loadDefaultTemplates({
+      access: access(),
+      roles: rolesGateway({
+        listTemplates: async () =>
+          ok([
+            {
+              key: 'support',
+              scope: 'platform',
+              name: 'Support',
+              permissions: [],
+            },
+          ]),
+      }),
+    });
+    expect(r.ok && r.value.canManage).toBe(true);
+    expect(r.ok && r.value.templates).toHaveLength(1);
+  });
+
+  it('loadDefaultTemplates reports canManage false without permissions.update', async () => {
+    const r = await loadDefaultTemplates({
+      access: access([{ action: 'staff.read', scope: 'any' }]),
+      roles: rolesGateway(),
+    });
+    expect(r.ok && r.value.canManage).toBe(false);
+  });
+
+  it('updateDefaultTemplate forwards key + name + permissions', async () => {
+    const updateTemplate = vi.fn(async () => ok(undefined));
+    await updateDefaultTemplate(
+      { roles: rolesGateway({ updateTemplate }) },
+      {
+        key: 'support',
+        name: 'Support (edited)',
+        permissions: [{ action: 'staff.read', scope: 'any' }],
+      },
+    );
+    expect(updateTemplate).toHaveBeenCalledWith({
+      key: 'support',
+      name: 'Support (edited)',
+      permissions: [{ action: 'staff.read', scope: 'any' }],
+    });
+  });
+
+  it('resetDefaultTemplate forwards the template key', async () => {
+    const resetTemplate = vi.fn(async () => ok(undefined));
+    await resetDefaultTemplate(
+      { roles: rolesGateway({ resetTemplate }) },
+      { key: 'admin' },
+    );
+    expect(resetTemplate).toHaveBeenCalledWith('admin');
+  });
+
+  it('applyTemplateToAll forwards the template key', async () => {
+    const applyTpl = vi.fn(async () => ok({ updated: 3 }));
+    await applyTemplateToAll(
+      { roles: rolesGateway({ applyTemplateToAll: applyTpl }) },
+      { key: 'member' },
+    );
+    expect(applyTpl).toHaveBeenCalledWith('member');
   });
 });

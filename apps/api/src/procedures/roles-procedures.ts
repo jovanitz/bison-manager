@@ -118,3 +118,64 @@ export const createRolesProcedures = (
   rolesAssign(accessRoles),
   rolesReset(accessRoles),
 ];
+
+/**
+ * Staff-editable default-role templates (ADR-0013/0014): the curated catalogue
+ * org instances are seeded from and reset to. Platform-staff only — the use
+ * cases authorize `permissions.update` on the platform scope. Editing here does
+ * not touch live roles; instances pick up an edit on their next reset.
+ */
+export const createTemplatesProcedures = (
+  accessRoles: AccessRolesUseCases,
+): ReadonlyArray<ApiProcedure> => [
+  defineApiProcedure({
+    name: 'templates.list',
+    summary:
+      'List the default-role templates: the code catalogue with staff edits ' +
+      'applied over it (the recovery floor is always the code definition).',
+    action: 'permissions.update',
+    input: z.object({}).strict(),
+    handler: ({ actor }) => accessRoles.listTemplates({ actor }),
+  }),
+  defineApiProcedure({
+    name: 'templates.update',
+    summary:
+      "Edit a default template's name and permissions (ADR-0013). Coherence " +
+      "is checked against the template's own scope; the key must exist.",
+    action: 'permissions.update',
+    input: z
+      .object({
+        key: z.string().min(1),
+        name: z.string().min(1).max(60),
+        permissions: permissionsSchema,
+      })
+      .strict(),
+    handler: ({ actor, input }) =>
+      accessRoles.updateTemplate({
+        actor,
+        key: input.key,
+        name: input.name,
+        permissions: input.permissions,
+      }),
+  }),
+  defineApiProcedure({
+    name: 'templates.reset',
+    summary:
+      'Reset a default template to its code definition — the recovery floor ' +
+      '(ADR-0013). Discards staff edits for that template key.',
+    action: 'permissions.update',
+    input: z.object({ key: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessRoles.resetTemplate({ actor, key: input.key }),
+  }),
+  defineApiProcedure({
+    name: 'templates.apply-all',
+    summary:
+      'Force every live instance of a template — synced or forked — back to ' +
+      'the template (ADR-0014). Overrides org-local edits; returns the count.',
+    action: 'permissions.update',
+    input: z.object({ key: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessRoles.applyTemplateToAll({ actor, key: input.key }),
+  }),
+];

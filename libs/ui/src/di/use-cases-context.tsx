@@ -1,6 +1,10 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type {
   AccessClientUseCases,
+  AccountAdminGateway,
+  AuditGateway,
+  SessionsGateway,
+  SettingsGateway,
   BlockUseCases,
   DirectoryUseCases,
   InvitationsUseCases,
@@ -34,6 +38,14 @@ export type AppUseCases = {
   readonly block?: BlockUseCases;
   /** Present in the staff dashboard: manage dynamic roles (ADR-0011). */
   readonly roles?: RolesGateway;
+  /** Present in the staff dashboard: account lifecycle (disable/enable/promote). */
+  readonly accounts?: AccountAdminGateway;
+  /** Present in the staff dashboard: read the security audit trail. */
+  readonly audit?: AuditGateway;
+  /** Present in the staff dashboard: list + revoke a member's sessions. */
+  readonly sessions?: SessionsGateway;
+  /** Present in the staff dashboard: read + edit the session policy. */
+  readonly settings?: SettingsGateway;
   /** Present in the client app: the caller's orgs + switching between them. */
   readonly orgs?: OrgsUseCases;
 };

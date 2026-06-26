@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import { createRole, findRoleTemplate } from '@acme/domain';
-import type { AccountId, Role, RoleId } from '@acme/domain';
+import type { AccountId, Role, RoleId, RoleTemplate } from '@acme/domain';
 import { TEST_ACCESS_NOW, testAccessActor } from '../../access/testing';
-import type { RoleStore } from '../ports';
+import type { RoleStore, RoleTemplateStore } from '../ports';
 import { makeInstallDefaults, makeResetRole } from './defaults';
 
 const defaultRole = (
@@ -23,10 +23,22 @@ const defaultRole = (
   return role.value;
 };
 
-const makeWorld = (input?: { roles?: ReadonlyArray<Role> }) => {
+const makeWorld = (input?: {
+  roles?: ReadonlyArray<Role>;
+  templates?: ReadonlyArray<RoleTemplate>;
+}) => {
   const store = new Map((input?.roles ?? []).map((r) => [r.id as string, r]));
   const updated: { id: string; name: string }[] = [];
   const created: Role[] = [];
+  // Staff overrides; empty = every template pristine (use case falls to code).
+  const overrides = new Map((input?.templates ?? []).map((t) => [t.key, t]));
+  const templates: RoleTemplateStore = {
+    list: async () => [...overrides.values()],
+    findByKey: async (key) => overrides.get(key) ?? null,
+    upsert: async (t) => {
+      overrides.set(t.key, t);
+    },
+  };
   const roles = {
     findById: async (id: RoleId) => store.get(id) ?? null,
     list: async (accountId: AccountId | null) =>
@@ -48,7 +60,7 @@ const makeWorld = (input?: { roles?: ReadonlyArray<Role> }) => {
     remove: async () => undefined,
     countAssignments: async () => 0,
   } as unknown as RoleStore;
-  return { roles, store, updated, created };
+  return { roles, templates, store, updated, created };
 };
 
 const clock = fixedClock(new Date(TEST_ACCESS_NOW));
@@ -58,7 +70,11 @@ describe('reset role (ADR-0012)', () => {
     const w = makeWorld({
       roles: [defaultRole('r-1', 'acct-1', 'admin', 'Renamed by hand')],
     });
-    const reset = makeResetRole({ roles: w.roles, clock });
+    const reset = makeResetRole({
+      roles: w.roles,
+      templates: w.templates,
+      clock,
+    });
     const result = await reset({
       actor: testAccessActor({ preset: 'owner' }),
       roleId: 'r-1',
@@ -69,6 +85,31 @@ describe('reset role (ADR-0012)', () => {
     ]);
   });
 
+  it('restores from the live staff template, not code (ADR-0013)', async () => {
+    const w = makeWorld({
+      roles: [defaultRole('r-1', 'acct-1', 'admin', 'Drifted')],
+      templates: [
+        {
+          key: 'admin',
+          scope: 'org',
+          name: 'Org Admin (staff-tuned)',
+          permissions: [],
+        },
+      ],
+    });
+    const reset = makeResetRole({
+      roles: w.roles,
+      templates: w.templates,
+      clock,
+    });
+    const result = await reset({
+      actor: testAccessActor({ preset: 'owner' }),
+      roleId: 'r-1',
+    });
+    expect(result.ok).toBe(true);
+    expect(w.updated).toEqual([{ id: 'r-1', name: 'Org Admin (staff-tuned)' }]);
+  });
+
   it('refuses to reset a custom role (no template)', async () => {
     const w = makeWorld({
       roles: [defaultRole('r-2', null, 'admin', 'X')].map((r) => ({
@@ -76,7 +117,11 @@ describe('reset role (ADR-0012)', () => {
         templateKey: null,
       })),
     });
-    const reset = makeResetRole({ roles: w.roles, clock });
+    const reset = makeResetRole({
+      roles: w.roles,
+      templates: w.templates,
+      clock,
+    });
     const result = await reset({
       actor: testAccessActor({ preset: 'owner' }),
       roleId: 'r-2',
@@ -89,7 +134,11 @@ describe('reset role (ADR-0012)', () => {
     const w = makeWorld({
       roles: [defaultRole('r-3', 'acct-1', 'member', 'Member')],
     });
-    const reset = makeResetRole({ roles: w.roles, clock });
+    const reset = makeResetRole({
+      roles: w.roles,
+      templates: w.templates,
+      clock,
+    });
     const result = await reset({
       actor: testAccessActor({ preset: 'customer' }),
       roleId: 'r-3',
@@ -104,6 +153,7 @@ describe('install defaults (ADR-0012)', () => {
     const w = makeWorld();
     const install = makeInstallDefaults({
       roles: w.roles,
+      templates: w.templates,
       ids: sequentialIdGenerator('role'),
     });
     const first = await install('acct-1' as AccountId);
@@ -120,6 +170,7 @@ describe('install defaults (ADR-0012)', () => {
     const w = makeWorld();
     const install = makeInstallDefaults({
       roles: w.roles,
+      templates: w.templates,
       ids: sequentialIdGenerator('role'),
     });
     const result = await install(null);

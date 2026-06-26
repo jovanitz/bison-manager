@@ -74,6 +74,8 @@ const deps = (over: Partial<DashboardFlowDeps> = {}): DashboardFlowDeps =>
       resetRole: async () => ok(undefined),
       assignRoles: async () => ok(undefined),
     },
+    // Admin gateways (accounts/audit/sessions/settings) are cast in per-test
+    // when exercised; the registry-level checks below only need registration.
     ...over,
   }) as unknown as DashboardFlowDeps;
 
@@ -181,13 +183,25 @@ describe('dashboard flows', () => {
     expect(bad.success).toBe(false);
   });
 
-  it('exposes the role flows in the registry (behavior in roles.spec)', () => {
+  it('registers every role + admin flow (behavior in component/flow specs)', () => {
     for (const name of [
       'roles.load',
       'roles.create',
       'roles.delete',
       'roles.assign',
       'roles.reset',
+      'roles.update',
+      'templates.load',
+      'templates.update',
+      'templates.reset',
+      'templates.applyAll',
+      'account.admin',
+      'audit.load',
+      'sessions.load',
+      'sessions.revoke',
+      'sessions.revokeAll',
+      'settings.load',
+      'settings.save',
     ]) {
       expect(must(name)).toBeDefined();
     }

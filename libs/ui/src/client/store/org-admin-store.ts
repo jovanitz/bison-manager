@@ -2,6 +2,7 @@ import { createStore } from 'zustand/vanilla';
 import {
   type OrgAdminDeps,
   type OrgAdminViewModel,
+  assignOrgMemberRoles,
   grantMemberPermission,
   inviteToOrg,
   loadOrgAdmin,
@@ -27,12 +28,19 @@ export type OrgAdminStoreState = {
     readonly membershipId: string;
     readonly action: string;
   }) => Promise<void>;
-  readonly invite: (email: string) => Promise<void>;
+  readonly invite: (
+    email: string,
+    roleIds?: ReadonlyArray<string>,
+  ) => Promise<void>;
   readonly setBlocked: (
     membershipId: string,
     blocked: boolean,
   ) => Promise<void>;
   readonly remove: (membershipId: string) => Promise<void>;
+  readonly assignRoles: (
+    membershipId: string,
+    roleIds: ReadonlyArray<string>,
+  ) => Promise<void>;
 };
 
 const accountIdOf = (vm: OrgAdminViewModel | null): string | null =>
@@ -78,11 +86,15 @@ export const createOrgAdminStore = (deps: OrgAdminDeps) =>
           }),
         );
       },
-      invite: async (email) => {
+      invite: async (email, roleIds) => {
         set({ notice: null });
         const accountId = accountIdOf(get().vm);
         if (!accountId) return;
-        const result = await inviteToOrg(deps, { accountId, email });
+        const result = await inviteToOrg(deps, {
+          accountId,
+          email,
+          ...(roleIds ? { roleIds } : {}),
+        });
         if (!result.ok) return set({ notice: result.error.message });
         set({ inviteToken: result.value.token });
         await reload();
@@ -94,6 +106,12 @@ export const createOrgAdminStore = (deps: OrgAdminDeps) =>
       remove: async (membershipId) => {
         set({ notice: null });
         await after(await removeMember(deps, { membershipId }));
+      },
+      assignRoles: async (membershipId, roleIds) => {
+        set({ notice: null });
+        await after(
+          await assignOrgMemberRoles(deps, { membershipId, roleIds }),
+        );
       },
     };
   });

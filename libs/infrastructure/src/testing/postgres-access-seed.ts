@@ -15,7 +15,8 @@ import type { InMemoryAccessSeed } from '../access/in-memory-access-seed';
 const wipe = async (sql: Sql): Promise<void> => {
   await sql`
     truncate public.audit_events, public.access_grants, public.sessions,
-      public.memberships, public.roles, public.accounts, public.access_settings
+      public.memberships, public.roles, public.role_templates,
+      public.accounts, public.access_settings
       restart identity cascade
   `;
   await sql`delete from auth.users`;
@@ -84,9 +85,19 @@ const insertRoles = async (
 ): Promise<void> => {
   for (const role of seed.roles ?? []) {
     await sql`
-      insert into public.roles (id, account_id, name, permissions)
+      insert into public.roles
+        (id, account_id, name, permissions, template_key, template_synced,
+         is_personal)
       values (${role.id}, ${role.accountId}, ${role.name},
-        ${sql.json(role.permissions as never)})
+        ${sql.json(role.permissions as never)}, ${role.templateKey},
+        ${role.templateSynced}, ${role.isPersonal})
+    `;
+  }
+  for (const t of seed.roleTemplates ?? []) {
+    await sql`
+      insert into public.role_templates (key, scope, name, permissions)
+      values (${t.key}, ${t.scope}, ${t.name},
+        ${sql.json(t.permissions as never)})
     `;
   }
 };
@@ -96,12 +107,26 @@ const insertMemberships = async (
   seed: InMemoryAccessSeed,
 ): Promise<void> => {
   for (const m of seed.memberships ?? []) {
+    // roles-only (ADR-0014 Phase 2.D): a membership's one-off permissions are
+    // seeded as a personal role, never the direct slot — mirroring the data
+    // migration so the contract runs against roles-only data.
+    const roleIds = [...(m.roleIds ?? [])];
+    if (m.permissions.length > 0) {
+      const personalId = crypto.randomUUID();
+      await sql`
+        insert into public.roles
+          (id, account_id, name, permissions, template_key, template_synced,
+           is_personal)
+        values (${personalId}, ${m.accountId}, 'Personal permissions',
+          ${sql.json(m.permissions as never)}, null, true, true)
+      `;
+      roleIds.push(personalId);
+    }
     await sql`
       insert into public.memberships
-        (id, user_id, account_id, permissions, role_ids, is_account_owner)
+        (id, user_id, account_id, role_ids, is_account_owner)
       values (${m.id}, ${m.userId}, ${m.accountId},
-        ${sql.json(m.permissions as never)},
-        ${(m.roleIds ?? []) as unknown as string[]}::uuid[],
+        ${roleIds as unknown as string[]}::uuid[],
         ${m.isAccountOwner ?? false})
     `;
   }

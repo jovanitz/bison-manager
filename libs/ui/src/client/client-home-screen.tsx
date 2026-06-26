@@ -3,6 +3,7 @@ import type { MyMembershipDto } from '@acme/application';
 import { useSessionStore, useStore } from './store/hooks';
 import type { SessionStore } from './store/session-store';
 import { ManageOrgSection } from './manage-org/manage-org-section';
+import { ManageRolesSection } from './manage-org/manage-roles-section';
 
 const OrgSwitcher = ({
   orgs,
@@ -70,6 +71,7 @@ const HomeView = ({ store }: { readonly store: SessionStore }) => {
             onSwitch={(id) => void store.getState().switchTo(id)}
           />
           <ManageOrgSection />
+          <ManageRolesSection />
         </>
       ) : null}
     </main>

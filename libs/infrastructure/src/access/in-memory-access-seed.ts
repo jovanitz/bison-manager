@@ -2,6 +2,7 @@ import type {
   AccessAuditRecord,
   CustomerAccountDetails,
 } from '@acme/application';
+import { createRole } from '@acme/domain';
 import type {
   AccessGrant,
   AccessPermission,
@@ -10,6 +11,8 @@ import type {
   AccountStatus,
   InvitationId,
   Role,
+  RoleId,
+  RoleTemplate,
   SessionStatus,
 } from '@acme/domain';
 
@@ -73,6 +76,8 @@ export type InMemoryAccessSeed = {
   readonly grants?: ReadonlyArray<AccessGrant>;
   /** Dynamic roles (ADR-0011); memberships reference them by `roleIds`. */
   readonly roles?: ReadonlyArray<Role>;
+  /** Staff overrides of the default-role templates (ADR-0013/0014). */
+  readonly roleTemplates?: ReadonlyArray<RoleTemplate>;
   /**
    * Identities that exist in the auth provider but hold no membership yet
    * (onboarding scenarios). Ignored by the in-memory store; the Postgres
@@ -88,8 +93,12 @@ export type InMemoryAccessSeed = {
 export type StoredMembership = {
   readonly userId: string;
   readonly accountId: string;
-  readonly permissions: ReadonlyArray<AccessPermission>;
   readonly isRoot: boolean;
+  /**
+   * Roles-only (ADR-0014): the membership's effective permissions are EXACTLY
+   * `expand(roleIds)` — one-off grants live in a personal role here, there is no
+   * direct permission slot.
+   */
   readonly roleIds: ReadonlyArray<string>;
   /** Ownership bypass (ADR-0011): authorized within its own account. */
   readonly isAccountOwner: boolean;
@@ -132,63 +141,99 @@ export type AccessStoreState = {
   readonly grants: Map<string, AccessGrant>;
   /** Dynamic role bundles (ADR-0011), keyed by role id. */
   readonly roles: Map<string, Role>;
+  /** Staff template overrides (ADR-0013/0014), keyed by template key. */
+  readonly roleTemplates: Map<string, RoleTemplate>;
   readonly auditRecords: AccessAuditRecord[];
+};
+
+/**
+ * Roles-only (ADR-0014): a seed membership's one-off `permissions` are stored as
+ * a per-membership **personal role** (never a direct slot). Returns the personal
+ * role to create for each membership that seeds non-empty permissions, keyed by
+ * membership id so its `roleIds` can reference it.
+ */
+const seedPersonalRoles = (seed: InMemoryAccessSeed): Map<string, Role> => {
+  const out = new Map<string, Role>();
+  for (const m of seed.memberships ?? []) {
+    if (m.permissions.length === 0) continue;
+    const created = createRole({
+      id: crypto.randomUUID() as RoleId,
+      name: 'Personal permissions',
+      accountId: m.accountId as AccountId,
+      permissions: m.permissions,
+      isPersonal: true,
+    });
+    if (created.ok) out.set(m.id, created.value);
+  }
+  return out;
 };
 
 export const toAccessStoreState = (
   seed: InMemoryAccessSeed,
-): AccessStoreState => ({
-  invitations: new Map(),
-  settings: null,
-  accounts: new Map(
-    (seed.accounts ?? []).map((a) => [
-      a.id,
-      { status: a.status ?? 'active', blocked: a.blocked ?? false },
+): AccessStoreState => {
+  const personal = seedPersonalRoles(seed);
+  return {
+    invitations: new Map(),
+    settings: null,
+    accounts: new Map(
+      (seed.accounts ?? []).map((a) => [
+        a.id,
+        { status: a.status ?? 'active', blocked: a.blocked ?? false },
+      ]),
+    ),
+    blockedIdentities: new Set(seed.blockedIdentities ?? []),
+    blockedMemberships: new Set(seed.blockedMemberships ?? []),
+    memberships: new Map(
+      (seed.memberships ?? []).map((m) => {
+        const own = personal.get(m.id);
+        const roleIds = own
+          ? [...(m.roleIds ?? []), own.id]
+          : [...(m.roleIds ?? [])];
+        return [
+          m.id,
+          {
+            userId: m.userId,
+            accountId: m.accountId,
+            isRoot: m.isRoot ?? false,
+            roleIds,
+            isAccountOwner: m.isAccountOwner ?? false,
+          },
+        ];
+      }),
+    ),
+    sessions: new Map(
+      (seed.sessions ?? []).map((s) => [
+        s.id,
+        {
+          membershipId: s.membershipId,
+          status: s.status ?? 'active',
+          expiresAt: s.expiresAt,
+          createdAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
+          lastSeenAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
+          userAgent: null,
+          createdIp: null,
+          lastIp: null,
+        },
+      ]),
+    ),
+    customers: new Map(
+      (seed.customers ?? []).map((c) => [
+        c.accountId,
+        {
+          accountId: c.accountId as AccountId,
+          displayName: c.displayName,
+          email: c.email ?? null,
+          status: c.status ?? 'active',
+          createdAt: c.createdAt ?? '2026-01-01T00:00:00.000Z',
+        },
+      ]),
+    ),
+    grants: new Map((seed.grants ?? []).map((g) => [g.id, g])),
+    roles: new Map([
+      ...(seed.roles ?? []).map((r) => [r.id, r] as const),
+      ...[...personal.values()].map((r) => [r.id, r] as const),
     ]),
-  ),
-  blockedIdentities: new Set(seed.blockedIdentities ?? []),
-  blockedMemberships: new Set(seed.blockedMemberships ?? []),
-  memberships: new Map(
-    (seed.memberships ?? []).map((m) => [
-      m.id,
-      {
-        userId: m.userId,
-        accountId: m.accountId,
-        permissions: m.permissions,
-        isRoot: m.isRoot ?? false,
-        roleIds: m.roleIds ?? [],
-        isAccountOwner: m.isAccountOwner ?? false,
-      },
-    ]),
-  ),
-  sessions: new Map(
-    (seed.sessions ?? []).map((s) => [
-      s.id,
-      {
-        membershipId: s.membershipId,
-        status: s.status ?? 'active',
-        expiresAt: s.expiresAt,
-        createdAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
-        lastSeenAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
-        userAgent: null,
-        createdIp: null,
-        lastIp: null,
-      },
-    ]),
-  ),
-  customers: new Map(
-    (seed.customers ?? []).map((c) => [
-      c.accountId,
-      {
-        accountId: c.accountId as AccountId,
-        displayName: c.displayName,
-        email: c.email ?? null,
-        status: c.status ?? 'active',
-        createdAt: c.createdAt ?? '2026-01-01T00:00:00.000Z',
-      },
-    ]),
-  ),
-  grants: new Map((seed.grants ?? []).map((g) => [g.id, g])),
-  roles: new Map((seed.roles ?? []).map((r) => [r.id, r])),
-  auditRecords: [],
-});
+    roleTemplates: new Map((seed.roleTemplates ?? []).map((t) => [t.key, t])),
+    auditRecords: [],
+  };
+};

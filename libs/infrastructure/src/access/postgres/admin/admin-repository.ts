@@ -7,7 +7,6 @@ import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
   AccessAccountPromoted,
-  AccessPermission,
   AccessSessionPolicy,
   AccountId,
   AccountKind,
@@ -21,8 +20,9 @@ import {
   revokeAllSessions,
   revokeSession,
 } from './admin-sessions';
-import { insertAuditEvent, isUuid } from './rows';
-import type { SqlLike } from './rows';
+import { assignWouldOrphanLocked, hasOtherAdminLocked } from './anti-orphan';
+import { oneOffFromRow, upsertPersonalRole } from './personal-role';
+import { insertAuditEvent, isUuid } from '../rows';
 
 /**
  * Administrative mutations. Every write runs mutation + audit event in one
@@ -58,10 +58,14 @@ const findMembership = async (
 ): Promise<AdminMembershipSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select m.id, m.account_id, m.permissions, m.is_root, m.is_account_owner,
-      a.kind
+    select m.id, m.account_id, m.is_root, m.is_account_owner, a.kind,
+      coalesce(pr.permissions, '[]'::jsonb) as personal
     from public.memberships m
     join public.accounts a on a.id = m.account_id
+    left join lateral (
+      select r.permissions from public.roles r
+      where r.is_personal and r.id = any(m.role_ids) limit 1
+    ) pr on true
     where m.id = ${id}
   `;
   const row = rows[0];
@@ -70,34 +74,10 @@ const findMembership = async (
     id: row['id'] as MembershipId,
     accountId: row['account_id'] as AccountId,
     accountKind: row['kind'] as AccountKind,
-    permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
+    permissions: oneOffFromRow(row),
     isRoot: row['is_root'] as boolean,
     isAccountOwner: row['is_account_owner'] as boolean,
   };
-};
-
-/**
- * Within a transaction: locks the account's administrator rows (memberships
- * holding `permissions.update`) and reports whether one OTHER than `exceptId`
- * exists. The `for update` lock serializes concurrent demotions/removals on
- * the same account, so the anti-orphan check cannot be raced.
- */
-export const hasOtherAdminLocked = async (
-  tx: SqlLike,
-  membershipId: string,
-): Promise<boolean> => {
-  const owner = await tx`
-    select account_id from public.memberships where id = ${membershipId}
-  `;
-  const accountId = owner[0]?.['account_id'] as string | undefined;
-  if (!accountId) return true; // no row to orphan
-  const admins = await tx`
-    select id from public.memberships
-    where account_id = ${accountId}
-      and permissions @? '$[*] ? (@.action == "permissions.update")'
-    for update
-  `;
-  return admins.some((row) => row['id'] !== membershipId);
 };
 
 const promoteAccountToStaff = async (
@@ -175,24 +155,46 @@ export const createPostgresAdminRepository = (
       if (requireCoAdmin && !(await hasOtherAdminLocked(tx, id))) {
         return { orphaned: true };
       }
-      await tx`
-        update public.memberships
-        set permissions = ${tx.json(permissions as never)}
-        where id = ${id}
+      const rows = await tx`
+        select account_id, role_ids from public.memberships
+        where id = ${id} for update
       `;
+      const accountId = rows[0]?.['account_id'] as string | undefined;
+      if (!accountId) return { orphaned: false };
+      await upsertPersonalRole(
+        tx,
+        {
+          id,
+          accountId,
+          roleIds: (rows[0]['role_ids'] as string[] | null) ?? [],
+        },
+        permissions,
+      );
       await insertAuditEvent(tx, event);
       return { orphaned: false };
     }) as Promise<{ readonly orphaned: boolean }>,
 
   assignRoles: (id, roleIds, event) =>
     sql.begin(async (tx) => {
+      // keep the membership's personal role (the one-off slot, never assignable)
+      const personal = await tx`
+        select r.id from public.roles r
+        join public.memberships m on r.id = any(m.role_ids)
+        where m.id = ${id} and r.is_personal limit 1
+      `;
+      const personalId = personal[0]?.['id'] as string | undefined;
+      const next = personalId ? [...roleIds, personalId] : [...roleIds];
+      if (await assignWouldOrphanLocked(tx, id, next)) {
+        return { orphaned: true };
+      }
       await tx`
         update public.memberships
-        set role_ids = ${roleIds as unknown as string[]}::uuid[]
+        set role_ids = ${next as unknown as string[]}::uuid[]
         where id = ${id}
       `;
       await insertAuditEvent(tx, event);
-    }) as Promise<void>,
+      return { orphaned: false };
+    }) as Promise<{ readonly orphaned: boolean }>,
 
   revokeSession: (id, event) => revokeSession(sql, id, event),
 

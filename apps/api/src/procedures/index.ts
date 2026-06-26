@@ -17,7 +17,10 @@ import { createBlockProcedures } from './block-procedures';
 import { createDirectoryProcedures } from './directory-procedures';
 import { createImpersonationProcedures } from './impersonation-procedures';
 import { createMembersProcedures } from './members/members-procedures';
-import { createRolesProcedures } from './roles-procedures';
+import {
+  createRolesProcedures,
+  createTemplatesProcedures,
+} from './roles-procedures';
 import { createSettingsProcedures } from './settings-procedures';
 
 export type ApiUseCases = {
@@ -52,4 +55,5 @@ export const createApiProcedures = (
     useCases.accessMembers,
   ),
   ...createRolesProcedures(useCases.accessRoles),
+  ...createTemplatesProcedures(useCases.accessRoles),
 ];

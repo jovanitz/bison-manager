@@ -6,11 +6,17 @@ import type {
 } from '../../access-directory/ports';
 import type { CustomerAccountSummary } from '../../impersonation/ports';
 import type { PendingInvitationSummary } from '../../access-invitations/ports';
+import type { MemberSummaryDto } from '../../access-client/ports';
 import type {
-  MemberSummaryDto,
+  AuditGateway,
+  AuditRecordDto,
+  SessionPoliciesDto,
+  SettingsGateway,
+} from '../../access-client/admin-ports';
+import type {
   RolesGateway,
   RoleSummaryDto,
-} from '../../access-client/ports';
+} from '../../access-client/roles-ports';
 import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { DirectoryUseCases } from '../../access-client/gateways/directory-use-cases';
 import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
@@ -55,6 +61,8 @@ export type DashboardViewModel = {
   readonly orphans: ReadonlyArray<OrphanIdentitySummary>;
   readonly pendingInvitations: ReadonlyArray<PendingInvitationSummary>;
   readonly canBlock: boolean;
+  /** Owner-level account lifecycle (disable/enable/promote) — ADR-0010. */
+  readonly canAdminAccounts: boolean;
 };
 
 export const loadDashboard = async (deps: {
@@ -79,6 +87,8 @@ export const loadDashboard = async (deps: {
     orphans: orphans.value,
     pendingInvitations: pending.value,
     canBlock: snapshot.ok && holdsAction(snapshot.value, 'access.block'),
+    canAdminAccounts:
+      snapshot.ok && holdsAction(snapshot.value, 'account.disable'),
   });
 };
 
@@ -94,6 +104,8 @@ export type StaffMembersViewModel =
       readonly availableRoles: ReadonlyArray<RoleSummaryDto>;
       readonly canEdit: boolean;
       readonly canBlock: boolean;
+      /** Whether the actor may view/revoke a member's sessions (sessions.read). */
+      readonly canReadSessions: boolean;
     };
 
 export const loadStaffMembers = async (deps: {
@@ -119,5 +131,52 @@ export const loadStaffMembers = async (deps: {
     availableRoles: roles.value,
     canEdit: holdsAction(access, 'permissions.update'),
     canBlock: holdsAction(access, 'access.block'),
+    canReadSessions: holdsAction(access, 'sessions.read'),
+  });
+};
+
+/** The audit-trail view: recent security events (gated on `audit.read`). */
+export type AuditViewModel =
+  | { readonly hidden: true }
+  | { readonly hidden: false; readonly entries: ReadonlyArray<AuditRecordDto> };
+
+/** Load the most recent audit events for the platform-wide trail. */
+export const loadAuditTrail = async (deps: {
+  readonly access: AccessClientUseCases;
+  readonly audit: AuditGateway;
+}): Promise<Result<AuditViewModel, DashboardError>> => {
+  const snapshot = await deps.access.currentAccess();
+  if (!snapshot.ok) return err(snapshot.error);
+  if (!holdsAction(snapshot.value, 'audit.read')) return ok({ hidden: true });
+  const listed = await deps.audit.list({ limit: 50 });
+  if (!listed.ok) return err(listed.error);
+  return ok({ hidden: false, entries: listed.value });
+};
+
+/** The session-policy editor view (owner only): current policy + its version. */
+export type SettingsViewModel =
+  | { readonly hidden: true }
+  | {
+      readonly hidden: false;
+      readonly policies: SessionPoliciesDto;
+      readonly version: number;
+    };
+
+/** Load the runtime session policy for the editor (gated on settings.update). */
+export const loadSessionPolicy = async (deps: {
+  readonly access: AccessClientUseCases;
+  readonly settings: SettingsGateway;
+}): Promise<Result<SettingsViewModel, DashboardError>> => {
+  const snapshot = await deps.access.currentAccess();
+  if (!snapshot.ok) return err(snapshot.error);
+  if (!holdsAction(snapshot.value, 'settings.update')) {
+    return ok({ hidden: true });
+  }
+  const read = await deps.settings.read();
+  if (!read.ok) return err(read.error);
+  return ok({
+    hidden: false,
+    policies: read.value.policies,
+    version: read.value.version,
   });
 };

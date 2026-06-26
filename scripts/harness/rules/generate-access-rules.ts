@@ -49,9 +49,11 @@ table below is derived from — or executed against — the real code.
 
 ## Principles
 
-- **Permissions + temporary grants; no roles.** "Owner", "support" and
-  "customer" are only administrative presets that expand to permission lists;
-  nothing ever asks "is this user an owner?".
+- **Roles expand to permissions; temporary grants for elevation.** A membership
+  carries **roles** (named bundles, ADR-0011) that expand to the flat
+  action+scope permission list the policy core evaluates; the presets below are
+  the seed templates (ADR-0012/0013). Audited, expiring **grants** add narrow
+  elevations (impersonation). Nothing ever asks "is this user an owner?".
 - **Deny by default, fail closed.** Anything not explicitly allowed is denied;
   a disabled account or revoked/expired session denies everything.
 - **The token never authorizes.** A JWT only proves identity; permissions,

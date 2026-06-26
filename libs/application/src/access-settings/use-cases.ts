@@ -72,12 +72,39 @@ export const makeUpdateSessionPolicy =
     return ok(validated.value);
   };
 
+/**
+ * Read the current session policy + its version (owner capability, same gate as
+ * editing it). The version lets the editor do an optimistic update later.
+ */
+export const makeReadSessionPolicy =
+  (deps: AccessSettingsDeps) =>
+  async (input: {
+    readonly actor: AccessActor;
+  }): Promise<
+    Result<
+      { readonly policies: AccessSessionPolicies; readonly version: number },
+      AccessSettingsUseCaseError
+    >
+  > => {
+    const authorized = authorizeAccessAction({
+      actor: input.actor,
+      action: 'settings.update',
+      resource: { accountId: null },
+      now: deps.clock.now().toISOString(),
+    });
+    if (!authorized.ok) return err(authorized.error);
+    const current = await deps.settings.loadSessionSettings();
+    return ok({ policies: current.policies, version: current.version });
+  };
+
 export type AccessSettingsUseCases = {
   readonly updateSessionPolicy: ReturnType<typeof makeUpdateSessionPolicy>;
+  readonly readSessionPolicy: ReturnType<typeof makeReadSessionPolicy>;
 };
 
 export const makeAccessSettingsUseCases = (
   deps: AccessSettingsDeps,
 ): AccessSettingsUseCases => ({
   updateSessionPolicy: makeUpdateSessionPolicy(deps),
+  readSessionPolicy: makeReadSessionPolicy(deps),
 });

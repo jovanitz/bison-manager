@@ -33,15 +33,25 @@ const makeWorld = (input: {
   const useCases = makeAccessMembersUseCases({
     members: {
       listMembers: async (accountId) => input.members?.[accountId] ?? [],
-      // mirrors the adapter's atomic anti-orphan check over seeded memberships
+      // mirrors the adapter's atomic anti-orphan rule: orphan only if the target
+      // was an admin and no OTHER admin remains (a non-admin removal never does)
       removeMember: async (membershipId, event, requireCoAdmin) => {
-        const hasCoAdmin = [...admin.memberships].some(
-          ([id, m]) =>
-            id !== membershipId &&
-            m.accountId === event.accountId &&
-            m.permissions.some((p) => p.action === 'permissions.update'),
+        const isGov = (p: { readonly action: string }) =>
+          p.action === 'permissions.update';
+        const inAccount = [...admin.memberships].filter(
+          ([, m]) => m.accountId === event.accountId,
         );
-        if (requireCoAdmin && !hasCoAdmin) return { orphaned: true };
+        const target = inAccount.find(([id]) => id === membershipId)?.[1];
+        const otherAdmin = inAccount.some(
+          ([id, m]) => id !== membershipId && m.permissions.some(isGov),
+        );
+        if (
+          requireCoAdmin &&
+          (target?.permissions.some(isGov) ?? false) &&
+          !otherAdmin
+        ) {
+          return { orphaned: true };
+        }
         removed.push(event);
         return { orphaned: false };
       },
@@ -106,6 +116,7 @@ describe('listMembers', () => {
 
 describe('removeMember', () => {
   it('lets an org admin remove a member of their own account, audited', async () => {
+    // the target is a plain member (not an admin), so its removal never orphans
     const world = makeWorld({ memberships: [targetMembership] });
     const r = await world.useCases.removeMember({
       actor: testAccessActor({ preset: 'customer-admin', accountId: 'acct-1' }),

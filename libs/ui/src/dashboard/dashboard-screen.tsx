@@ -10,7 +10,11 @@ import { InviteMemberForm } from './invitations/invite-member-form';
 import { PendingInvitationsTable } from './invitations/pending-invitations-table';
 import { ManagePermissionsForm } from './permissions/manage-permissions-form';
 import { RolesSection } from './roles/roles-section';
+import { TemplatesSection } from './roles/templates-section';
 import { BlockButtons } from './block/block-buttons';
+import { AccountAdminButtons } from './accounts/account-admin-buttons';
+import { AuditSection } from './audit/audit-section';
+import { SettingsSection } from './settings/settings-section';
 
 /**
  * The staff dashboard. Pure presentation: it reads the ViewModel (staff +
@@ -45,11 +49,18 @@ const StaffTable = ({
 const CustomersTable = ({
   rows,
   canBlock,
+  canAdminAccounts,
   onBlock,
+  onAdmin,
 }: {
   readonly rows: ReadonlyArray<CustomerAccountSummary>;
   readonly canBlock: boolean;
+  readonly canAdminAccounts: boolean;
   readonly onBlock: (id: string, blocked: boolean) => Promise<string>;
+  readonly onAdmin: (
+    id: string,
+    action: 'disable' | 'enable' | 'promote',
+  ) => Promise<string>;
 }) => (
   <table aria-label="customers">
     <thead>
@@ -58,6 +69,7 @@ const CustomersTable = ({
         <th>Email</th>
         <th>Account</th>
         {canBlock ? <th>Access</th> : null}
+        {canAdminAccounts ? <th>Admin</th> : null}
       </tr>
     </thead>
     <tbody>
@@ -71,6 +83,14 @@ const CustomersTable = ({
               <BlockButtons
                 label="block org"
                 onBlock={(blocked) => onBlock(row.accountId, blocked)}
+              />
+            </td>
+          ) : null}
+          {canAdminAccounts ? (
+            <td>
+              <AccountAdminButtons
+                label={`account admin ${row.accountId}`}
+                onAdmin={(action) => onAdmin(row.accountId, action)}
               />
             </td>
           ) : null}
@@ -125,6 +145,9 @@ const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
       <InviteMemberForm />
       <ManagePermissionsForm />
       <RolesSection />
+      <TemplatesSection />
+      <AuditSection />
+      <SettingsSection />
 
       {!vm && !error ? <p>Loading…</p> : null}
       {error ? <p role="alert">{error}</p> : null}
@@ -139,8 +162,12 @@ const DashboardView = ({ store }: { readonly store: DashboardStore }) => {
             <CustomersTable
               rows={vm.customers}
               canBlock={vm.canBlock}
+              canAdminAccounts={vm.canAdminAccounts}
               onBlock={(id, blocked) =>
                 store.getState().setOrgBlocked(id, blocked)
+              }
+              onAdmin={(id, action) =>
+                store.getState().adminAccount(action, id)
               }
             />
           </section>

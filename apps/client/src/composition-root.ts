@@ -20,6 +20,7 @@ import {
   createRpcInvitationsGateway,
   createRpcMembersGateway,
   createRpcOrgsGateway,
+  createRpcRolesGateway,
   createSupabaseAuthProvider,
 } from '@acme/infrastructure';
 import { createBrowserPlatform, type Platform } from '@acme/platform';
@@ -73,6 +74,7 @@ export const createClientRuntime = (config: {
   const members = makeMembersUseCases({
     gateway: createRpcMembersGateway({ api }),
   });
+  const roles = createRpcRolesGateway({ api });
 
   const items = makeItemUseCases({
     repository: createInMemoryItemRepository(),
@@ -83,7 +85,7 @@ export const createClientRuntime = (config: {
   });
 
   return {
-    useCases: { items, access, orgs, invitations, members },
+    useCases: { items, access, orgs, invitations, members, roles },
     platform,
     logger,
   };

@@ -14,6 +14,14 @@ export const createSettingsProcedures = (
   accessSettings: AccessSettingsUseCases,
 ): ReadonlyArray<ApiProcedure> => [
   defineApiProcedure({
+    name: 'settings.read',
+    summary:
+      'Read the current session lifetime policy + its version (for the editor).',
+    action: 'settings.update',
+    input: z.object({}).strict(),
+    handler: ({ actor }) => accessSettings.readSessionPolicy({ actor }),
+  }),
+  defineApiProcedure({
     name: 'settings.update',
     summary:
       'Reconfigure the session lifetime policy (per account kind, within ' +

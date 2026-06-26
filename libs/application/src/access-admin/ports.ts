@@ -88,15 +88,19 @@ export type AccessAdminRepository = {
     requireCoAdmin: boolean,
   ) => Promise<{ readonly orphaned: boolean }>;
   /**
-   * Replace a membership's role assignment (ADR-0011) atomically with its audit
-   * event. The roles are validated by the use case (existence + account
-   * coherence); this just writes the new `role_ids` set.
+   * Replace a membership's role assignment (ADR-0011/0014) atomically with its
+   * audit event. The roles are validated by the use case (existence + account
+   * coherence). Anti-orphan: in the roles-only model, assignment is how admin is
+   * granted/revoked, so the write is refused — `{ orphaned: true }`, nothing
+   * written — when it would strip the account's LAST administrator (the target
+   * was the sole `permissions.update` holder and the new roles drop it),
+   * verified under the same locked count as the other mutations.
    */
   readonly assignRoles: (
     id: MembershipId,
     roleIds: ReadonlyArray<RoleId>,
     event: AccessMemberRolesAssigned,
-  ) => Promise<void>;
+  ) => Promise<{ readonly orphaned: boolean }>;
   /**
    * customer → staff, atomically with the audit event AND the clamp of the
    * account's live sessions to the (stricter) staff policy. A promoted

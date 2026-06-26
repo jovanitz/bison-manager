@@ -1,10 +1,12 @@
 import { createStore } from 'zustand/vanilla';
 import {
   type AccessClientUseCases,
+  type AccountAdminGateway,
   type BlockUseCases,
   type DashboardViewModel,
   type DirectoryUseCases,
   type InvitationsUseCases,
+  adminAccount,
   loadDashboard,
   setSubjectBlocked,
 } from '@acme/application';
@@ -20,6 +22,11 @@ export type DashboardStoreState = {
   readonly setOrgBlocked: (id: string, blocked: boolean) => Promise<string>;
   /** Rotate a pending invitation's link; returns the fresh token (or error). */
   readonly regenerateLink: (invitationId: string) => Promise<string>;
+  /** Disable/enable/promote an account; returns the per-row notice + reloads. */
+  readonly adminAccount: (
+    action: 'disable' | 'enable' | 'promote',
+    accountId: string,
+  ) => Promise<string>;
 };
 
 export type DashboardStoreDeps = {
@@ -27,10 +34,17 @@ export type DashboardStoreDeps = {
   readonly directory: DirectoryUseCases;
   readonly block: BlockUseCases;
   readonly invitations: InvitationsUseCases;
+  readonly accounts: AccountAdminGateway;
+};
+
+const adminLabel = {
+  disable: 'Disabled',
+  enable: 'Enabled',
+  promote: 'Promoted',
 };
 
 export const createDashboardStore = (deps: DashboardStoreDeps) =>
-  createStore<DashboardStoreState>((set) => ({
+  createStore<DashboardStoreState>((set, get) => ({
     vm: null,
     error: null,
     notice: null,
@@ -55,6 +69,12 @@ export const createDashboardStore = (deps: DashboardStoreDeps) =>
     regenerateLink: async (invitationId) => {
       const result = await deps.invitations.regenerate(invitationId);
       return result.ok ? result.value.token : result.error.message;
+    },
+    adminAccount: async (action, accountId) => {
+      const result = await adminAccount(deps, { action, accountId });
+      if (!result.ok) return result.error.message;
+      await get().load(); // promote moves the account between tables
+      return adminLabel[action];
     },
   }));
 

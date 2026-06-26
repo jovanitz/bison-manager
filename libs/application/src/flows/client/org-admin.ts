@@ -1,6 +1,10 @@
 import { type Result, type TaggedError, err, ok } from '@acme/shared';
 import type { CurrentAccessDto } from '../../access/dto';
 import type { MemberSummaryDto } from '../../access-client/ports';
+import type {
+  RolesGateway,
+  RoleSummaryDto,
+} from '../../access-client/roles-ports';
 import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
 import type { MembersUseCases } from '../../access-client/gateways/members-use-cases';
@@ -18,6 +22,7 @@ export type OrgAdminDeps = {
   readonly access: AccessClientUseCases;
   readonly members: MembersUseCases;
   readonly invitations: InvitationsUseCases;
+  readonly roles: RolesGateway;
 };
 
 /** The default own-scope grant a freshly invited member lands with. */
@@ -34,6 +39,8 @@ export type OrgAdminViewModel =
       readonly accountId: string;
       readonly access: CurrentAccessDto;
       readonly members: ReadonlyArray<MemberSummaryDto>;
+      /** The org's roles, for the per-member assignment control (ADR-0011). */
+      readonly availableRoles: ReadonlyArray<RoleSummaryDto>;
       readonly canInvite: boolean;
       readonly canEdit: boolean;
       readonly canRemove: boolean;
@@ -57,13 +64,20 @@ export const loadOrgAdmin = async (
   if (!holdsAction(access, 'members.read')) return ok({ hidden: true });
   const listed = await deps.members.listMembers(access.accountId);
   if (!listed.ok) return err(listed.error);
+  // Roles power the assignment control — only an editor needs (and can see) them.
+  const canEdit = holdsAction(access, 'permissions.update');
+  const roles = canEdit
+    ? await deps.roles.listRoles(access.accountId)
+    : ok<ReadonlyArray<RoleSummaryDto>>([]);
+  if (!roles.ok) return err(roles.error);
   return ok({
     hidden: false,
     accountId: access.accountId,
     access,
     members: listed.value,
+    availableRoles: roles.value,
     canInvite: holdsAction(access, 'members.invite'),
-    canEdit: holdsAction(access, 'permissions.update'),
+    canEdit,
     canRemove: holdsAction(access, 'members.remove'),
     canBlock: holdsAction(access, 'members.block'),
   });
@@ -103,15 +117,26 @@ export const grantMemberPermission = async (
   });
 };
 
-/** Command: invite an email into the org with the default member grant. */
+/**
+ * Command: invite an email into the org with the default member grant, plus any
+ * chosen roles (ADR-0011) — applied to the membership on the invitee's first
+ * login. The default grant is a baseline; the roles carry the real authority.
+ */
 export const inviteToOrg = async (
   deps: OrgAdminDeps,
-  input: { readonly accountId: string; readonly email: string },
+  input: {
+    readonly accountId: string;
+    readonly email: string;
+    readonly roleIds?: ReadonlyArray<string> | undefined;
+  },
 ): Promise<Result<{ readonly token: string }, OrgAdminError>> => {
   const result = await deps.invitations.invite({
     accountId: input.accountId,
     email: input.email,
     permissions: DEFAULT_MEMBER_GRANT,
+    ...(input.roleIds && input.roleIds.length > 0
+      ? { roleIds: input.roleIds }
+      : {}),
   });
   if (!result.ok) return err(result.error);
   return ok({ token: result.value.token });

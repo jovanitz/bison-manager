@@ -19,7 +19,6 @@ type ActorRow = {
   readonly membership_id: string;
   readonly user_id: string;
   readonly account_id: string;
-  readonly permissions: AccessActor['permissions'];
   readonly account_status: string;
   readonly account_kind: string;
   readonly is_root: boolean;
@@ -45,7 +44,6 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         m.id as membership_id,
         m.user_id,
         m.account_id,
-        m.permissions,
         m.is_root,
         m.is_account_owner,
         m.role_ids,
@@ -68,7 +66,8 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
       order by created_at asc
     `;
 
-    // ADR-0011: effective permissions = direct ∪ everything the roles expand to.
+    // ADR-0014 roles-only: effective permissions = everything the roles expand
+    // to (one-off grants live in a personal role; there is no direct list).
     const roleRows =
       row.role_ids.length > 0
         ? await sql<{ permissions: AccessActor['permissions'] }[]>`
@@ -94,10 +93,7 @@ export const createPostgresActorReader = (sql: Sql): AccessActorReader => ({
         expiresAt: isoOf(row.session_expires_at),
         createdAt: isoOf(row.session_created_at),
       },
-      permissions: unionPermissions(
-        row.permissions,
-        ...roleRows.map((r) => r.permissions),
-      ),
+      permissions: unionPermissions(...roleRows.map((r) => r.permissions)),
       grants: grantRows.map((grant) => grantFromRow(grant as never)),
     };
   },

@@ -3,7 +3,10 @@ import { makeMembershipId } from '@acme/domain';
 import type { AccessActor, AccountId, RoleId } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
 import { guardOwnerTarget, guardRootTarget } from '../access-admin/deps';
-import { membershipNotFound } from '../access-admin/errors';
+import {
+  cannotOrphanAccount,
+  membershipNotFound,
+} from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import type { RoleStore } from './ports';
 import { roleNotFound, type RoleUseCaseError } from './errors';
@@ -87,12 +90,17 @@ export const makeAssignMemberRoles =
     );
     if (!assignable.ok) return assignable;
 
-    await deps.admin.assignRoles(membership.id, roleIds, {
+    const result = await deps.admin.assignRoles(membership.id, roleIds, {
       type: 'member.roles-assigned',
       membershipId: membership.id,
       actorMembershipId: input.actor.membership.id,
       roleIds,
       occurredAt: now,
     });
+    if (result.orphaned) {
+      return err(
+        cannotOrphanAccount('An account must keep at least one administrator.'),
+      );
+    }
     return ok(undefined);
   };

@@ -70,6 +70,8 @@ export * from './access-settings/use-cases';
 
 // Access client: what a SPA/native app consumes (auth flows + gating snapshot)
 export * from './access-client/ports';
+export * from './access-client/roles-ports';
+export * from './access-client/admin-ports';
 export * from './access-client/errors';
 export * from './access-client/use-cases';
 export * from './access-client/gateways/directory-use-cases';
@@ -84,6 +86,7 @@ export * from './access-client/gateways/client/orgs-use-cases';
 export * from './flows/capabilities';
 export * from './flows/registry-types';
 export * from './flows/client/org-admin';
+export * from './flows/client/roles';
 export * from './flows/client/home';
 export * from './flows/client/gate';
 export * from './flows/client/registry';

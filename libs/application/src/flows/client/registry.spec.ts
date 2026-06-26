@@ -59,6 +59,10 @@ const fakeDeps = (over: {
       invite: async () => ok({ invitationId: 'i', token: 'tok' }),
     },
     orgs: { listMyMemberships: async () => ok([]) },
+    roles: {
+      listRoles: async () => ok([]),
+      assignRoles: async () => ok(undefined),
+    },
   }) as unknown as ClientFlowDeps;
 
 describe('mock-MCP: drive client flows through the registry', () => {
@@ -101,6 +105,20 @@ describe('mock-MCP: drive client flows through the registry', () => {
       expect(typeof c.name).toBe('string');
       expect(['query', 'command']).toContain(c.kind);
       expect(c.input).toBeDefined();
+    }
+  });
+
+  it('registers the org role + member flows (behavior in roles.spec)', () => {
+    for (const name of [
+      'org.roles.load',
+      'org.roles.create',
+      'org.roles.delete',
+      'org.roles.reset',
+      'org.roles.update',
+      'org.members.assignRoles',
+      'org.members.invite',
+    ]) {
+      expect(must(name)).toBeDefined();
     }
   });
 });

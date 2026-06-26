@@ -9,7 +9,7 @@ import type {
   SessionStatus,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
-import { insertAuditEvent, isUuid } from './rows';
+import { insertAuditEvent, isUuid } from '../rows';
 
 /**
  * Session half of the admin repository (split file for size limits). Same

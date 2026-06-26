@@ -12,6 +12,7 @@ import type {
   CustomerDirectory,
   IdentityOnboardingRepository,
   RoleStore,
+  RoleTemplateStore,
   StaffDirectory,
 } from '@acme/application';
 import { resolveActorPermissions } from '@acme/application';
@@ -30,6 +31,7 @@ import { makeInMemoryAdminRepository } from './admin/in-memory-admin-repository'
 import { makeInMemoryMemberDirectory } from './admin/in-memory-member-directory';
 import { makeInMemoryBlockStore } from './in-memory-block-store';
 import { createInMemoryRoleStore } from './role/in-memory-role-store';
+import { createInMemoryRoleTemplateStore } from './role/in-memory-role-template-store';
 import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
 import { makeInMemoryInvitationStore } from './in-memory-invitations';
 import {
@@ -65,6 +67,7 @@ export type InMemoryAccessStore = {
   readonly members: AccessMemberDirectory;
   readonly blocks: AccessBlockStore;
   readonly roles: RoleStore;
+  readonly roleTemplates: RoleTemplateStore;
 };
 
 const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
@@ -99,7 +102,7 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
         expiresAt: session.expiresAt,
         createdAt: session.createdAt,
       },
-      permissions: resolveActorPermissions(membership.permissions, roles),
+      permissions: resolveActorPermissions(roles),
       grants: [...state.grants.values()].filter(
         (grant) => grant.membershipId === session.membershipId,
       ),
@@ -179,5 +182,6 @@ export const createInMemoryAccessStore = (
     members: makeInMemoryMemberDirectory(state),
     blocks: makeInMemoryBlockStore(state),
     roles: createInMemoryRoleStore(state),
+    roleTemplates: createInMemoryRoleTemplateStore(state),
   };
 };

@@ -3,6 +3,13 @@ import type { AccessClientUseCases } from '../../access-client/use-cases';
 import type { MembersUseCases } from '../../access-client/gateways/members-use-cases';
 import type { InvitationsUseCases } from '../../access-client/gateways/invitations-use-cases';
 import type { BlockUseCases } from '../../access-client/gateways/block-use-cases';
+import type {
+  AccountAdminGateway,
+  AdminSessionDto,
+  SessionPoliciesDto,
+  SessionsGateway,
+  SettingsGateway,
+} from '../../access-client/admin-ports';
 import type { DashboardError } from './queries';
 
 /** The fixed grant a freshly invited STAFF member lands with (dashboard view). */
@@ -98,3 +105,51 @@ export const setSubjectBlocked = (
     ? deps.block.blockIdentity(input.id)
     : deps.block.unblockIdentity(input.id);
 };
+
+/**
+ * Command: an account lifecycle action (ADR-0010). `disable` hard-suspends (all
+ * sessions denied next request), `enable` undoes it, `promote` moves a customer
+ * to staff (one-way, out of the impersonable directory). The server re-checks
+ * the owner-level permission for each.
+ */
+export const adminAccount = (
+  deps: { readonly accounts: AccountAdminGateway },
+  input: {
+    readonly action: 'disable' | 'enable' | 'promote';
+    readonly accountId: string;
+    readonly reason?: string | undefined;
+  },
+): Promise<Result<void, DashboardError>> => {
+  if (input.action === 'disable')
+    return deps.accounts.disable(input.accountId, input.reason);
+  if (input.action === 'enable') return deps.accounts.enable(input.accountId);
+  return deps.accounts.promote(input.accountId);
+};
+
+/** Query: a membership's active sessions (ADR-0010, the "active sessions" view). */
+export const loadMemberSessions = (
+  deps: { readonly sessions: SessionsGateway },
+  input: { readonly membershipId: string },
+): Promise<Result<ReadonlyArray<AdminSessionDto>, DashboardError>> =>
+  deps.sessions.list(input.membershipId);
+
+/** Command: revoke one session — it stops authorizing immediately. */
+export const revokeMemberSession = (
+  deps: { readonly sessions: SessionsGateway },
+  input: { readonly sessionId: string },
+): Promise<Result<void, DashboardError>> =>
+  deps.sessions.revoke(input.sessionId);
+
+/** Command: log a membership out everywhere (revoke all its sessions). */
+export const revokeAllMemberSessions = (
+  deps: { readonly sessions: SessionsGateway },
+  input: { readonly membershipId: string },
+): Promise<Result<void, DashboardError>> =>
+  deps.sessions.revokeAll(input.membershipId);
+
+/** Command: reconfigure the runtime session policy (owner `settings.update`). */
+export const updateSessionPolicy = (
+  deps: { readonly settings: SettingsGateway },
+  input: { readonly policies: SessionPoliciesDto },
+): Promise<Result<void, DashboardError>> =>
+  deps.settings.update(input.policies);

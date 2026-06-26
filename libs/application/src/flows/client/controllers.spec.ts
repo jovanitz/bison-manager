@@ -56,6 +56,10 @@ const deps = (over: Partial<ClientFlowDeps> = {}): ClientFlowDeps =>
     },
     invitations: { invite: async () => ok({ invitationId: 'i', token: 't' }) },
     orgs: { listMyMemberships: async () => ok(MINE) },
+    roles: {
+      listRoles: async () => ok([]),
+      assignRoles: async () => ok(undefined),
+    },
     ...over,
   }) as unknown as ClientFlowDeps;
 

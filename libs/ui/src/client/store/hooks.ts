@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useStore } from 'zustand';
 import { useUseCases } from '../../di/use-cases-context';
 import { createOrgAdminStore, type OrgAdminStore } from './org-admin-store';
+import { createOrgRolesStore, type OrgRolesStore } from './org-roles-store';
 import { createSessionStore, type SessionStore } from './session-store';
 
 /**
@@ -12,13 +13,21 @@ import { createSessionStore, type SessionStore } from './session-store';
  * the feature needs are wired.
  */
 export const useOrgAdminStore = (): OrgAdminStore | null => {
-  const { access, members, invitations } = useUseCases();
+  const { access, members, invitations, roles } = useUseCases();
   return useMemo(
     () =>
-      access && members && invitations
-        ? createOrgAdminStore({ access, members, invitations })
+      access && members && invitations && roles
+        ? createOrgAdminStore({ access, members, invitations, roles })
         : null,
-    [access, members, invitations],
+    [access, members, invitations, roles],
+  );
+};
+
+export const useOrgRolesStore = (): OrgRolesStore | null => {
+  const { access, roles } = useUseCases();
+  return useMemo(
+    () => (access && roles ? createOrgRolesStore({ access, roles }) : null),
+    [access, roles],
   );
 };
 

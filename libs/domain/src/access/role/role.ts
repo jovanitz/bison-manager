@@ -45,6 +45,20 @@ export type Role = {
    * resettable; custom roles are free-form.
    */
   readonly templateKey: string | null;
+  /**
+   * Propagation state (ADR-0014, eager model). Only meaningful with a
+   * `templateKey`: `true` while the instance tracks its staff template (a
+   * staff edit propagates to it); flips to `false` when the org edits it
+   * locally (a fork). A reset re-syncs it. Custom roles carry `true` inertly.
+   */
+  readonly templateSynced: boolean;
+  /**
+   * Roles-only model (ADR-0014, Phase 2): a **personal role** is owned by
+   * exactly one membership and holds its one-off permissions (the replacement
+   * for the removed per-membership direct list). It is account-scoped, never a
+   * template, hidden from the org roles list, and removed with its membership.
+   */
+  readonly isPersonal: boolean;
 };
 
 /** Assemble a valid Role from already-branded parts plus a raw name. */
@@ -55,6 +69,10 @@ export const createRole = (input: {
   readonly permissions: ReadonlyArray<AccessPermission>;
   /** Defaults to `null` (a custom role); set when instantiating a template. */
   readonly templateKey?: string | null;
+  /** Tracks-its-template flag (ADR-0014); defaults to `true` (synced). */
+  readonly templateSynced?: boolean;
+  /** Personal role (ADR-0014, Phase 2); defaults to `false`. */
+  readonly isPersonal?: boolean;
 }): Result<Role, AccessDomainError> => {
   const name = makeRoleName(input.name);
   if (!name.ok) return err(name.error);
@@ -64,5 +82,7 @@ export const createRole = (input: {
     accountId: input.accountId,
     permissions: input.permissions,
     templateKey: input.templateKey ?? null,
+    templateSynced: input.templateSynced ?? true,
+    isPersonal: input.isPersonal ?? false,
   });
 };

@@ -29,6 +29,10 @@ export * from './access-client/gateways/rpc-invitations-gateway';
 export * from './access-client/gateways/rpc-activation-gateway';
 export * from './access-client/gateways/rpc-members-gateway';
 export * from './access-client/gateways/rpc-block-gateway';
+export * from './access-client/gateways/admin/rpc-account-admin-gateway';
+export * from './access-client/gateways/admin/rpc-audit-gateway';
+export * from './access-client/gateways/admin/rpc-sessions-gateway';
+export * from './access-client/gateways/admin/rpc-settings-gateway';
 export * from './access-client/gateways/rpc-roles-gateway';
 export * from './access-client/gateways/client/rpc-orgs-gateway';
 

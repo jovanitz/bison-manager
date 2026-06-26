@@ -45,6 +45,7 @@ const makeWorld = (input: {
     findMembership: async () => input.membership,
     assignRoles: async (id: string, roleIds: ReadonlyArray<string>) => {
       assigned.push({ membershipId: id, roleIds });
+      return { orphaned: false };
     },
   } as unknown as AccessAdminRepository;
   const assignMemberRoles = makeAssignMemberRoles({

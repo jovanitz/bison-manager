@@ -12,6 +12,7 @@ import type {
   SessionId,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
+import { upsertPersonalRole } from '../admin/personal-role';
 import { insertAuditEvent, isUuid } from '../rows';
 import type { SqlLike } from '../rows';
 
@@ -55,12 +56,23 @@ const insertMembershipBundle = async (
   `;
   await tx`
     insert into public.memberships
-      (id, user_id, account_id, permissions, is_root, is_account_owner,
-       created_at)
+      (id, user_id, account_id, is_root, is_account_owner, created_at)
     values (${membership.membershipId}, ${membership.userId},
-      ${membership.accountId}, ${tx.json(membership.permissions as never)},
-      ${opts.isRoot}, ${opts.isAccountOwner}, ${membership.occurredAt})
+      ${membership.accountId}, ${opts.isRoot}, ${opts.isAccountOwner},
+      ${membership.occurredAt})
   `;
+  // roles-only (ADR-0014 2.B′): the initial grant becomes a personal role.
+  if (membership.permissions.length > 0) {
+    await upsertPersonalRole(
+      tx,
+      {
+        id: membership.membershipId,
+        accountId: membership.accountId,
+        roleIds: [],
+      },
+      membership.permissions,
+    );
+  }
 };
 
 const acceptInvitation = async (
@@ -80,12 +92,25 @@ const acceptInvitation = async (
     `;
     await tx`
       insert into public.memberships
-        (id, user_id, account_id, permissions, role_ids, is_root, created_at)
+        (id, user_id, account_id, role_ids, is_root, created_at)
       values (${membership.membershipId}, ${membership.userId},
-        ${membership.accountId}, ${tx.json(membership.permissions as never)},
+        ${membership.accountId},
         ${(membership.roleIds ?? []) as unknown as string[]}::uuid[],
         false, ${membership.occurredAt})
     `;
+    // roles-only (ADR-0014 2.B′): the invitation's direct grant becomes a
+    // personal role, appended alongside any inherited shared roles.
+    if (membership.permissions.length > 0) {
+      await upsertPersonalRole(
+        tx,
+        {
+          id: membership.membershipId,
+          accountId: membership.accountId,
+          roleIds: membership.roleIds ?? [],
+        },
+        membership.permissions,
+      );
+    }
     await insertAuditEvent(tx, event);
   });
 };

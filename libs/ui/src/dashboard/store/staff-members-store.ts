@@ -1,13 +1,18 @@
 import { createStore } from 'zustand/vanilla';
 import {
   type AccessClientUseCases,
+  type AdminSessionDto,
   type BlockUseCases,
   type MembersUseCases,
   type RolesGateway,
+  type SessionsGateway,
   type StaffMembersViewModel,
   assignMemberRoles,
   grantStaffPermission,
+  loadMemberSessions,
   loadStaffMembers,
+  revokeAllMemberSessions,
+  revokeMemberSession,
   setSubjectBlocked,
 } from '@acme/application';
 
@@ -32,6 +37,14 @@ export type StaffMembersStoreState = {
     membershipId: string,
     roleIds: ReadonlyArray<string>,
   ) => Promise<void>;
+  /** A member's active sessions (loaded on demand for the selected member). */
+  readonly sessions: ReadonlyArray<AdminSessionDto>;
+  readonly loadSessions: (membershipId: string) => Promise<void>;
+  readonly revokeSession: (
+    sessionId: string,
+    membershipId: string,
+  ) => Promise<void>;
+  readonly revokeAllSessions: (membershipId: string) => Promise<void>;
 };
 
 export type StaffMembersStoreDeps = {
@@ -39,6 +52,7 @@ export type StaffMembersStoreDeps = {
   readonly members: MembersUseCases;
   readonly block: BlockUseCases;
   readonly roles: RolesGateway;
+  readonly sessions: SessionsGateway;
 };
 
 const accountIdOf = (vm: StaffMembersViewModel | null): string | null =>
@@ -86,6 +100,27 @@ export const createStaffMembersStore = (deps: StaffMembersStoreDeps) =>
         const result = await assignMemberRoles(deps, { membershipId, roleIds });
         if (!result.ok) return set({ notice: result.error.message });
         await reload();
+      },
+      sessions: [],
+      loadSessions: async (membershipId) => {
+        const result = await loadMemberSessions(deps, { membershipId });
+        set(
+          result.ok
+            ? { sessions: result.value }
+            : { sessions: [], notice: result.error.message },
+        );
+      },
+      revokeSession: async (sessionId, membershipId) => {
+        set({ notice: null });
+        const result = await revokeMemberSession(deps, { sessionId });
+        if (!result.ok) return set({ notice: result.error.message });
+        await get().loadSessions(membershipId);
+      },
+      revokeAllSessions: async (membershipId) => {
+        set({ notice: null });
+        const result = await revokeAllMemberSessions(deps, { membershipId });
+        if (!result.ok) return set({ notice: result.error.message });
+        await get().loadSessions(membershipId);
       },
     };
   });

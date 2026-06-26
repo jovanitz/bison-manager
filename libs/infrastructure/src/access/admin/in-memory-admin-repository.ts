@@ -14,6 +14,18 @@ import type {
 } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../in-memory-audit-trail';
 import type { AccessStoreState } from '../in-memory-access-seed';
+import {
+  assignMembershipRoles,
+  hasOtherAdmin,
+  oneOffPermissions,
+  upsertPersonalRole,
+} from './in-memory-membership-perms';
+
+export {
+  hasOtherAdmin,
+  oneOffPermissions,
+  removeWouldOrphan,
+} from './in-memory-membership-perms';
 
 /** Shared by the admin repo and the member directory (which lives apart). */
 export const accountKindOf = (state: AccessStoreState, accountId: string) =>
@@ -25,20 +37,6 @@ const accountHostsRoot = (
 ): boolean =>
   [...state.memberships.values()].some(
     (m) => m.accountId === accountId && m.isRoot,
-  );
-
-/** Is there an administrator (permissions.update holder) of the account other
- * than `exceptId`? Anchors the anti-orphan invariant. */
-export const hasOtherAdmin = (
-  state: AccessStoreState,
-  accountId: string,
-  exceptId: string,
-): boolean =>
-  [...state.memberships].some(
-    ([id, m]) =>
-      id !== exceptId &&
-      m.accountId === accountId &&
-      m.permissions.some((p) => p.action === 'permissions.update'),
   );
 
 const promoteAccountToStaff = (
@@ -139,7 +137,7 @@ export const makeInMemoryAdminRepository = (
       id,
       accountId: membership.accountId as AccountId,
       accountKind: accountKindOf(state, membership.accountId),
-      permissions: membership.permissions,
+      permissions: oneOffPermissions(state, membership),
       isRoot: membership.isRoot,
       isAccountOwner: membership.isAccountOwner,
     };
@@ -152,16 +150,12 @@ export const makeInMemoryAdminRepository = (
     if (requireCoAdmin && !hasOtherAdmin(state, membership.accountId, id)) {
       return { orphaned: true };
     }
-    state.memberships.set(id, { ...membership, permissions });
+    upsertPersonalRole(state, id, membership, permissions);
     appendInMemoryAuditRecord(state, event);
     return { orphaned: false };
   },
-  assignRoles: async (id, roleIds, event) => {
-    const membership = state.memberships.get(id);
-    if (!membership) return;
-    state.memberships.set(id, { ...membership, roleIds: [...roleIds] });
-    appendInMemoryAuditRecord(state, event);
-  },
+  assignRoles: async (id, roleIds, event) =>
+    assignMembershipRoles(state, id, roleIds, event),
   findSession: async (id) => {
     const session = state.sessions.get(id);
     const membership = session && state.memberships.get(session.membershipId);

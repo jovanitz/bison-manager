@@ -1,6 +1,5 @@
 import type { AccessMemberDirectory } from '@acme/application';
 import type {
-  AccessPermission,
   AccountId,
   AccountKind,
   AccountStatus,
@@ -9,8 +8,39 @@ import type {
   UserId,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
-import { hasOtherAdminLocked } from '../admin-repository';
+import { removeWouldOrphanLocked } from '../admin/anti-orphan';
+import { oneOffFromRow } from '../admin/personal-role';
 import { insertAuditEvent, isUuid } from '../rows';
+
+/**
+ * Members of one account: each member's editable one-off permissions (direct ∪
+ * personal role) plus its shared-role ids (the personal role excluded).
+ */
+const listAccountMembers = async (sql: Sql, accountId: string) => {
+  if (!isUuid(accountId)) return [];
+  const rows = await sql`
+    select m.id, m.user_id, m.role_ids, m.is_root,
+      m.blocked, coalesce(pr.permissions, '[]'::jsonb) as personal,
+      pr.id as personal_id
+    from public.memberships m
+    left join lateral (
+      select r.id, r.permissions from public.roles r
+      where r.is_personal and r.id = any(m.role_ids) limit 1
+    ) pr on true
+    where m.account_id = ${accountId}
+    order by m.created_at asc
+  `;
+  return rows.map((row) => ({
+    membershipId: row['id'] as MembershipId,
+    userId: row['user_id'] as UserId,
+    permissions: oneOffFromRow(row),
+    roleIds: ((row['role_ids'] as string[] | null) ?? []).filter(
+      (rid) => rid !== row['personal_id'],
+    ) as unknown as ReadonlyArray<RoleId>,
+    isRoot: row['is_root'] as boolean,
+    blocked: row['blocked'] as boolean,
+  }));
+};
 
 /**
  * Member management of one account. Removal is one transaction: GoTrue
@@ -20,27 +50,11 @@ import { insertAuditEvent, isUuid } from '../rows';
 export const createPostgresMemberDirectory = (
   sql: Sql,
 ): AccessMemberDirectory => ({
-  listMembers: async (accountId) => {
-    if (!isUuid(accountId)) return [];
-    const rows = await sql`
-      select id, user_id, permissions, role_ids, is_root, blocked
-      from public.memberships
-      where account_id = ${accountId}
-      order by created_at asc
-    `;
-    return rows.map((row) => ({
-      membershipId: row['id'] as MembershipId,
-      userId: row['user_id'] as UserId,
-      permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
-      roleIds: row['role_ids'] as ReadonlyArray<RoleId>,
-      isRoot: row['is_root'] as boolean,
-      blocked: row['blocked'] as boolean,
-    }));
-  },
+  listMembers: (accountId) => listAccountMembers(sql, accountId),
 
   removeMember: (membershipId, event, requireCoAdmin) =>
     sql.begin(async (tx) => {
-      if (requireCoAdmin && !(await hasOtherAdminLocked(tx, membershipId))) {
+      if (requireCoAdmin && (await removeWouldOrphanLocked(tx, membershipId))) {
         return { orphaned: true };
       }
       const sessions = await tx`

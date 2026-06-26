@@ -112,8 +112,22 @@ describe('the rpc pipeline', () => {
       'sessions.list',
       'sessions.revoke',
       'sessions.revoke-all',
+      'settings.read',
       'settings.update',
       'staff.list',
+      'templates.apply-all',
+      'templates.list',
+      'templates.reset',
+      'templates.update',
     ]);
+  });
+
+  it('seeds the platform default roles on boot, idempotently (ADR-0012/0014)', async () => {
+    const runtime = testRuntime();
+    const first = await runtime.seedPlatformDefaults();
+    expect(first.created).toBeGreaterThan(0); // the 'support' platform template
+    const second = await runtime.seedPlatformDefaults();
+    expect(second.created).toBe(0); // already present — safe to re-run
+    await runtime.close();
   });
 });

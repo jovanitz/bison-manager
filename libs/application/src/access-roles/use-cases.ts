@@ -12,12 +12,18 @@ import type { AccessAdminRepository } from '../access-admin/ports';
 import { makeAssignMemberRoles } from './assign';
 import { makeInstallDefaults, makeResetRole } from './lifecycle/defaults';
 import {
+  makeApplyTemplateToAll,
+  makeListTemplates,
+  makeResetTemplate,
+  makeUpdateTemplate,
+} from './lifecycle/templates';
+import {
   ROLE_ACTION,
   guardRolePermissions,
   parseAccountId,
   type RawPermission,
 } from './guards';
-import type { RoleStore } from './ports';
+import type { RoleStore, RoleTemplateStore } from './ports';
 import {
   roleInUse,
   roleIsDefault,
@@ -27,6 +33,7 @@ import {
 
 export type AccessRolesDeps = {
   readonly roles: RoleStore;
+  readonly templates: RoleTemplateStore;
   readonly admin: AccessAdminRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -100,9 +107,26 @@ export const makeUpdateRole =
       now,
     );
     if (!permissions.ok) return err(permissions.error);
+    // Anti-orphan on role EDIT: stripping the governing capability
+    // (permissions.update) from a role members still hold would demote them all
+    // at once. Refuse — unassign it from members first (each per-member removal
+    // is itself anti-orphan-guarded), then edit.
+    const stripsGoverning =
+      role.permissions.some((p) => p.action === ROLE_ACTION) &&
+      !permissions.value.some((p) => p.action === ROLE_ACTION);
+    if (stripsGoverning && (await deps.roles.countAssignments(role.id)) > 0) {
+      return err(
+        roleInUse(
+          'Unassign this role from members before removing its governing capability.',
+        ),
+      );
+    }
     const updated = await deps.roles.update(role.id, {
       name: name.value,
       permissions: permissions.value,
+      // A local edit forks a template-derived role (ADR-0014): it stops
+      // tracking its staff template until reset. Custom roles are unaffected.
+      ...(role.templateKey !== null ? { templateSynced: false } : {}),
     });
     return updated ? ok(undefined) : err(roleNotFound('No such role.'));
   };
@@ -146,6 +170,10 @@ export type AccessRolesUseCases = {
   readonly assignMemberRoles: ReturnType<typeof makeAssignMemberRoles>;
   readonly resetRole: ReturnType<typeof makeResetRole>;
   readonly installDefaults: ReturnType<typeof makeInstallDefaults>;
+  readonly listTemplates: ReturnType<typeof makeListTemplates>;
+  readonly updateTemplate: ReturnType<typeof makeUpdateTemplate>;
+  readonly resetTemplate: ReturnType<typeof makeResetTemplate>;
+  readonly applyTemplateToAll: ReturnType<typeof makeApplyTemplateToAll>;
 };
 
 export const makeAccessRolesUseCases = (
@@ -158,4 +186,8 @@ export const makeAccessRolesUseCases = (
   assignMemberRoles: makeAssignMemberRoles(deps),
   resetRole: makeResetRole(deps),
   installDefaults: makeInstallDefaults(deps),
+  listTemplates: makeListTemplates(deps),
+  updateTemplate: makeUpdateTemplate(deps),
+  resetTemplate: makeResetTemplate(deps),
+  applyTemplateToAll: makeApplyTemplateToAll(deps),
 });

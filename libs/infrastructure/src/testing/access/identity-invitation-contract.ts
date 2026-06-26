@@ -133,6 +133,8 @@ export const identityInvitationContract = (
         name: 'Invited role' as Role['name'],
         accountId: null,
         templateKey: null,
+        templateSynced: true,
+        isPersonal: false,
         permissions: [
           { action: 'audit.read', scope: 'any' },
         ] as Role['permissions'],

@@ -33,12 +33,11 @@ export const expandRoles = (
   unionPermissions(...roles.map((role) => role.permissions));
 
 /**
- * A membership's effective permissions (ADR-0011, transitional): its direct
- * permissions unioned with everything its roles expand to. Direct permissions
- * stay the source of truth until the preset→role migration; roles add on top.
+ * A membership's effective permissions (ADR-0014, roles-only): exactly what its
+ * roles expand to. One-off grants live in a per-membership *personal role* (see
+ * Phase 2), so roles are the single source of truth — there is no separate
+ * direct-permission list, and the deny-by-default core never learns roles exist.
  */
 export const resolveActorPermissions = (
-  direct: ReadonlyArray<AccessPermission>,
   roles: ReadonlyArray<Role>,
-): ReadonlyArray<AccessPermission> =>
-  unionPermissions(direct, ...roles.map((role) => role.permissions));
+): ReadonlyArray<AccessPermission> => expandRoles(roles);

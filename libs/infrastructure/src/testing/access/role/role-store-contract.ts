@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createRole, makeAccessPermission } from '@acme/domain';
 import type { AccessPermission, AccountId, Role, RoleId } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory-access-seed';
 import {
   accessContractSeed,
   makeAccessContractIds,
-} from './access-store-fixtures';
-import type { AccessStorePorts } from './access-store-fixtures';
+} from '../access-store-fixtures';
+import type { AccessStorePorts } from '../access-store-fixtures';
 
 const perm = (action: string, scope: 'own' | 'any'): AccessPermission => {
   const made = makeAccessPermission({ action, scope });
@@ -19,6 +19,8 @@ const buildRole = (input: {
   readonly name: string;
   readonly permissions: ReadonlyArray<AccessPermission>;
   readonly templateKey?: string | null;
+  readonly templateSynced?: boolean;
+  readonly isPersonal?: boolean;
 }): Role => {
   const role = createRole({ id: crypto.randomUUID() as RoleId, ...input });
   if (!role.ok) throw new Error('setup: invalid role');
@@ -90,6 +92,53 @@ export const roleStoreContract = (
         'admin',
       );
       expect((await store.roles.findById(custom.id))?.templateKey).toBeNull();
+      // a fresh instance starts synced to its template (ADR-0014)
+      const inst = await store.roles.findById(fromTemplate.id);
+      expect(inst?.templateSynced).toBe(true);
+      expect(inst?.isPersonal).toBe(false);
+    });
+
+    it('syncTemplate propagates to synced instances, optionally forks too (ADR-0014)', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const synced = buildRole({
+        accountId: ids.acctCustomer,
+        name: 'Admin',
+        permissions: [perm('members.read', 'own')],
+        templateKey: 'admin',
+      });
+      const forked = buildRole({
+        accountId: null,
+        name: 'Admin fork',
+        permissions: [perm('members.read', 'own')],
+        templateKey: 'admin',
+        templateSynced: false,
+      });
+      await store.roles.create(synced);
+      await store.roles.create(forked);
+
+      // a normal staff edit touches only instances still synced
+      const touched = await store.roles.syncTemplate(
+        'admin',
+        { name: 'Admin v2', permissions: [perm('audit.read', 'any')] },
+        { includeForked: false },
+      );
+      expect(touched).toBe(1);
+      expect((await store.roles.findById(synced.id))?.name).toBe('Admin v2');
+      const stillForked = await store.roles.findById(forked.id);
+      expect(stillForked?.name).toBe('Admin fork'); // untouched
+      expect(stillForked?.templateSynced).toBe(false);
+
+      // apply-to-all forces the fork back and re-syncs it
+      const all = await store.roles.syncTemplate(
+        'admin',
+        { name: 'Admin v3', permissions: [perm('audit.read', 'any')] },
+        { includeForked: true },
+      );
+      expect(all).toBe(2);
+      const resynced = await store.roles.findById(forked.id);
+      expect(resynced?.name).toBe('Admin v3');
+      expect(resynced?.templateSynced).toBe(true);
     });
 
     it('resolves a membership’s role ids via findManyById, ignoring misses', async () => {

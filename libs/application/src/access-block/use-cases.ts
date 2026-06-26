@@ -1,9 +1,14 @@
 import { type Clock, type Result, err, ok } from '@acme/shared';
 import { makeAccountId, makeMembershipId, makeUserId } from '@acme/domain';
-import type { AccessActor } from '@acme/domain';
+import type {
+  AccessActor,
+  AccessBlocked,
+  AccessBlockSubjectKind,
+  AccessUnblocked,
+} from '@acme/domain';
 import { accessDenied } from '../access/errors';
 import { authorizeAccessAction } from '../access/authorize';
-import { guardRootTarget } from '../access-admin/deps';
+import { guardMembershipTarget, guardRootTarget } from '../access-admin/deps';
 import { accountNotFound, membershipNotFound } from '../access-admin/errors';
 import type { AccessAdminUseCaseError } from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
@@ -19,6 +24,26 @@ export type AccessBlockDeps = {
 };
 
 type BlockResult = Promise<Result<void, AccessAdminUseCaseError>>;
+
+/** Build the block / unblock audit event for any subject kind (shared shape). */
+const blockEvent = (input: {
+  readonly subjectKind: AccessBlockSubjectKind;
+  readonly subjectId: string;
+  readonly actor: AccessActor;
+  readonly blocked: boolean;
+  readonly reason: string | undefined;
+  readonly occurredAt: string;
+}): AccessBlocked | AccessUnblocked => {
+  const base = {
+    subjectKind: input.subjectKind,
+    subjectId: input.subjectId,
+    actorMembershipId: input.actor.membership.id,
+    occurredAt: input.occurredAt,
+  };
+  return input.blocked
+    ? { ...base, type: 'access.blocked', reason: input.reason?.trim() || null }
+    : { ...base, type: 'access.unblocked' };
+};
 
 /**
  * Block / unblock a whole ORG (account): all its members keep authenticating
@@ -59,22 +84,14 @@ const setOrg =
     await deps.blocks.setOrgBlocked(
       accountId.value,
       blocked,
-      blocked
-        ? {
-            type: 'access.blocked',
-            subjectKind: 'org',
-            subjectId: accountId.value,
-            actorMembershipId: input.actor.membership.id,
-            reason: input.reason?.trim() || null,
-            occurredAt: now,
-          }
-        : {
-            type: 'access.unblocked',
-            subjectKind: 'org',
-            subjectId: accountId.value,
-            actorMembershipId: input.actor.membership.id,
-            occurredAt: now,
-          },
+      blockEvent({
+        subjectKind: 'org',
+        subjectId: accountId.value,
+        actor: input.actor,
+        blocked,
+        reason: input.reason,
+        occurredAt: now,
+      }),
     );
     return ok(undefined);
   };
@@ -114,31 +131,22 @@ const setIdentity =
     await deps.blocks.setIdentityBlocked(
       input.userId,
       blocked,
-      blocked
-        ? {
-            type: 'access.blocked',
-            subjectKind: 'identity',
-            subjectId: input.userId,
-            actorMembershipId: input.actor.membership.id,
-            reason: input.reason?.trim() || null,
-            occurredAt: now,
-          }
-        : {
-            type: 'access.unblocked',
-            subjectKind: 'identity',
-            subjectId: input.userId,
-            actorMembershipId: input.actor.membership.id,
-            occurredAt: now,
-          },
+      blockEvent({
+        subjectKind: 'identity',
+        subjectId: input.userId,
+        actor: input.actor,
+        blocked,
+        reason: input.reason,
+        occurredAt: now,
+      }),
     );
     return ok(undefined);
   };
 
 /**
- * Block / unblock a single MEMBERSHIP — one user inside one org. This is the
- * org admin's own-scope tool (`members.block`): the target must live in the
- * actor's account, never the super-admin, and never your own membership (a
- * self-block would be an irreversible self-lockout). Idempotent.
+ * Block / unblock a single MEMBERSHIP — the org admin's own-scope tool
+ * (`members.block`): never the super-admin/owner, never your own membership
+ * (self-lockout). Idempotent.
  */
 const setMembership =
   (deps: AccessBlockDeps, blocked: boolean) =>
@@ -156,12 +164,16 @@ const setMembership =
       return err(membershipNotFound(`No membership ${input.membershipId}.`));
     }
 
-    const rootGuard = guardRootTarget({
-      targetIsRoot: membership.isRoot,
+    const guard = guardMembershipTarget({
+      target: {
+        isRoot: membership.isRoot,
+        isAccountOwner: membership.isAccountOwner,
+        accountId: membership.accountId,
+        membershipId: membership.id,
+      },
       actor: input.actor,
     });
-    if (!rootGuard.ok) return err(rootGuard.error);
-
+    if (!guard.ok) return err(guard.error);
     const authorized = authorizeAccessAction({
       actor: input.actor,
       action: 'members.block',
@@ -180,53 +192,34 @@ const setMembership =
     await deps.blocks.setMembershipBlocked(
       membership.id,
       blocked,
-      blocked
-        ? {
-            type: 'access.blocked',
-            subjectKind: 'membership',
-            subjectId: membership.id,
-            actorMembershipId: input.actor.membership.id,
-            reason: input.reason?.trim() || null,
-            occurredAt: now,
-          }
-        : {
-            type: 'access.unblocked',
-            subjectKind: 'membership',
-            subjectId: membership.id,
-            actorMembershipId: input.actor.membership.id,
-            occurredAt: now,
-          },
+      blockEvent({
+        subjectKind: 'membership',
+        subjectId: membership.id,
+        actor: input.actor,
+        blocked,
+        reason: input.reason,
+        occurredAt: now,
+      }),
     );
     return ok(undefined);
   };
 
-export const makeBlockOrg = (deps: AccessBlockDeps) => setOrg(deps, true);
-export const makeUnblockOrg = (deps: AccessBlockDeps) => setOrg(deps, false);
-export const makeBlockIdentity = (deps: AccessBlockDeps) =>
-  setIdentity(deps, true);
-export const makeUnblockIdentity = (deps: AccessBlockDeps) =>
-  setIdentity(deps, false);
-export const makeBlockMember = (deps: AccessBlockDeps) =>
-  setMembership(deps, true);
-export const makeUnblockMember = (deps: AccessBlockDeps) =>
-  setMembership(deps, false);
-
 export type AccessBlockUseCases = {
-  readonly blockOrg: ReturnType<typeof makeBlockOrg>;
-  readonly unblockOrg: ReturnType<typeof makeUnblockOrg>;
-  readonly blockIdentity: ReturnType<typeof makeBlockIdentity>;
-  readonly unblockIdentity: ReturnType<typeof makeUnblockIdentity>;
-  readonly blockMember: ReturnType<typeof makeBlockMember>;
-  readonly unblockMember: ReturnType<typeof makeUnblockMember>;
+  readonly blockOrg: ReturnType<typeof setOrg>;
+  readonly unblockOrg: ReturnType<typeof setOrg>;
+  readonly blockIdentity: ReturnType<typeof setIdentity>;
+  readonly unblockIdentity: ReturnType<typeof setIdentity>;
+  readonly blockMember: ReturnType<typeof setMembership>;
+  readonly unblockMember: ReturnType<typeof setMembership>;
 };
 
 export const makeAccessBlockUseCases = (
   deps: AccessBlockDeps,
 ): AccessBlockUseCases => ({
-  blockOrg: makeBlockOrg(deps),
-  unblockOrg: makeUnblockOrg(deps),
-  blockIdentity: makeBlockIdentity(deps),
-  unblockIdentity: makeUnblockIdentity(deps),
-  blockMember: makeBlockMember(deps),
-  unblockMember: makeUnblockMember(deps),
+  blockOrg: setOrg(deps, true),
+  unblockOrg: setOrg(deps, false),
+  blockIdentity: setIdentity(deps, true),
+  unblockIdentity: setIdentity(deps, false),
+  blockMember: setMembership(deps, true),
+  unblockMember: setMembership(deps, false),
 });

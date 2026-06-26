@@ -13,10 +13,11 @@ import type {
   CustomerDirectory,
   IdentityOnboardingRepository,
   RoleStore,
+  RoleTemplateStore,
   StaffDirectory,
 } from '@acme/application';
 import { createPostgresActorReader } from './actor-reader';
-import { createPostgresAdminRepository } from './admin-repository';
+import { createPostgresAdminRepository } from './admin/admin-repository';
 import { createPostgresBlockStore } from './block/block-store';
 import {
   createPostgresAuditTrail,
@@ -31,6 +32,7 @@ import { createPostgresInvitationStore } from './identity/invitations';
 import { createPostgresMemberDirectory } from './identity/members';
 import { createPostgresIdentityOnboarding } from './identity/onboarding';
 import { createPostgresRoleStore } from './role/role-store';
+import { createPostgresRoleTemplateStore } from './role/role-template-store';
 import {
   createPostgresSessionActivityRecorder,
   createPostgresSessionPolicyStore,
@@ -60,6 +62,7 @@ export type PostgresAccessStore = {
   readonly members: AccessMemberDirectory;
   readonly blocks: AccessBlockStore;
   readonly roles: RoleStore;
+  readonly roleTemplates: RoleTemplateStore;
   readonly close: () => Promise<void>;
 };
 
@@ -86,6 +89,7 @@ export const createPostgresAccessStore = (config: {
     members: createPostgresMemberDirectory(sql),
     blocks: createPostgresBlockStore(sql),
     roles: createPostgresRoleStore(sql),
+    roleTemplates: createPostgresRoleTemplateStore(sql),
     close: () => sql.end(),
   };
 };

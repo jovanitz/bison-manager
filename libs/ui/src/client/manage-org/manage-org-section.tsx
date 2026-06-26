@@ -26,7 +26,10 @@ const ManageOrgView = ({ store }: { readonly store: OrgAdminStore }) => {
       {vm.canInvite ? (
         <InviteMember
           token={inviteToken}
-          onInvite={(email) => void store.getState().invite(email)}
+          roles={vm.availableRoles}
+          onInvite={(email, roleIds) =>
+            void store.getState().invite(email, roleIds)
+          }
         />
       ) : null}
       <MemberList
@@ -36,12 +39,15 @@ const ManageOrgView = ({ store }: { readonly store: OrgAdminStore }) => {
           canRemove: vm.canRemove,
           canBlock: vm.canBlock,
         }}
+        roles={vm.availableRoles}
         handlers={{
           onAdd: (id, action) =>
             void store.getState().grant({ membershipId: id, action }),
           onRemove: (id) => void store.getState().remove(id),
           onBlock: (id, blocked) =>
             void store.getState().setBlocked(id, blocked),
+          onAssignRoles: (id, roleIds) =>
+            void store.getState().assignRoles(id, roleIds),
         }}
         notice={notice ?? undefined}
       />

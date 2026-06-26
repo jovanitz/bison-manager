@@ -3,8 +3,14 @@ import type {
   NewIdentityMembership,
   NewIdentitySession,
 } from '@acme/application';
-import type { AccountId, MembershipId, SessionId } from '@acme/domain';
+import type {
+  AccessPermission,
+  AccountId,
+  MembershipId,
+  SessionId,
+} from '@acme/domain';
 import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
+import { upsertPersonalRole } from './admin/in-memory-membership-perms';
 import type { AccessStoreState } from './in-memory-access-seed';
 
 /**
@@ -12,6 +18,22 @@ import type { AccessStoreState } from './in-memory-access-seed';
  * sessions are immediately visible to the actor reader, and customer accounts
  * surface in the directory (staff accounts never do).
  */
+
+/**
+ * Roles-only (ADR-0014): a freshly-provisioned membership's initial grant
+ * becomes a personal role (there is no direct slot), so resolution finds it.
+ */
+const movePermsToPersonalRole = (
+  state: AccessStoreState,
+  membershipId: string,
+  permissions: ReadonlyArray<AccessPermission>,
+): void => {
+  const m = state.memberships.get(membershipId);
+  if (m && permissions.length > 0) {
+    upsertPersonalRole(state, membershipId, m, permissions);
+  }
+};
+
 const storeMembership = (
   state: AccessStoreState,
   membership: NewIdentityMembership,
@@ -25,11 +47,15 @@ const storeMembership = (
   state.memberships.set(membership.membershipId, {
     userId: membership.userId,
     accountId: membership.accountId,
-    permissions: membership.permissions,
     isRoot,
     roleIds: [],
     isAccountOwner,
   });
+  movePermsToPersonalRole(
+    state,
+    membership.membershipId,
+    membership.permissions,
+  );
 };
 
 const storeSession = (
@@ -99,15 +125,16 @@ export const makeInMemoryIdentityOnboarding = (
       });
     }
     // join the EXISTING account: membership only, no account row. Roles come
-    // from the invitation (ADR-0011); permissions are the direct grant.
-    state.memberships.set(membership.membershipId, {
+    // from the invitation (ADR-0011); its one-off grant becomes a personal role.
+    const { membershipId, permissions } = membership;
+    state.memberships.set(membershipId, {
       userId: membership.userId,
       accountId: membership.accountId,
-      permissions: membership.permissions,
       isRoot: false,
       roleIds: membership.roleIds ?? [],
       isAccountOwner: false,
     });
+    movePermsToPersonalRole(state, membershipId, permissions);
     appendInMemoryAuditRecord(state, event);
   },
 

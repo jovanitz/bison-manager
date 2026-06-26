@@ -81,6 +81,24 @@ export const guardOwnerTarget = (input: {
   return ok(undefined);
 };
 
+/** Root + owner protection for a membership target, in one call. */
+export const guardMembershipTarget = (input: {
+  readonly target: {
+    readonly isRoot: boolean;
+    readonly isAccountOwner: boolean;
+    readonly accountId: AccountId;
+    readonly membershipId: MembershipId;
+  };
+  readonly actor: AccessActor;
+}): Result<void, AccessAdminUseCaseError> => {
+  const root = guardRootTarget({
+    targetIsRoot: input.target.isRoot,
+    actor: input.actor,
+  });
+  if (!root.ok) return root;
+  return guardOwnerTarget({ target: input.target, actor: input.actor });
+};
+
 /**
  * Coherence guards for handing permissions into an account — shared by
  * `permissions.update` and `members.invite` so the rule cannot drift apart:

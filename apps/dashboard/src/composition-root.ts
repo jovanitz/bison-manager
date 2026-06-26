@@ -17,6 +17,10 @@ import {
   createHttpApiClient,
   createInMemoryItemRepository,
   createRpcAccessGateway,
+  createRpcAccountAdminGateway,
+  createRpcAuditGateway,
+  createRpcSessionsGateway,
+  createRpcSettingsGateway,
   createRpcActivationGateway,
   createRpcBlockGateway,
   createRpcDirectoryGateway,
@@ -87,6 +91,10 @@ export const createDashboardRuntime = (config: {
   });
   const block = makeBlockUseCases({ gateway: createRpcBlockGateway({ api }) });
   const roles = createRpcRolesGateway({ api });
+  const accounts = createRpcAccountAdminGateway({ api });
+  const audit = createRpcAuditGateway({ api });
+  const sessions = createRpcSessionsGateway({ api });
+  const settings = createRpcSettingsGateway({ api });
 
   // --- Unused stub: the dashboard satisfies AppUseCases but renders no items.
   const items = makeItemUseCases({
@@ -98,7 +106,19 @@ export const createDashboardRuntime = (config: {
   });
 
   return {
-    useCases: { items, access, directory, invitations, members, block, roles },
+    useCases: {
+      items,
+      access,
+      directory,
+      invitations,
+      members,
+      block,
+      roles,
+      accounts,
+      audit,
+      sessions,
+      settings,
+    },
     platform,
     logger,
   };

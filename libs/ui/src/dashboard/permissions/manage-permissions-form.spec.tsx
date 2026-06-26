@@ -4,22 +4,37 @@ import type { MembersUseCases, RolesGateway } from '@acme/application';
 import { mockAccessUseCases, mockItems } from '../../access/testing';
 import { UseCasesProvider } from '../../di/use-cases-context';
 import { ManagePermissionsForm } from './manage-permissions-form';
-import { adminAccess, mockBlock, mockMembers, mockRoles } from '../testing';
+import {
+  adminAccess,
+  mockBlock,
+  mockMembers,
+  mockRoles,
+  mockSessions,
+} from '../testing';
+import type { CurrentAccessDto } from '@acme/application';
 
 const renderForm = (
   members: MembersUseCases = mockMembers(),
   roles: RolesGateway = mockRoles(),
+  extra: {
+    access?: CurrentAccessDto;
+    sessions?: ReturnType<typeof mockSessions>;
+  } = {},
 ) =>
   render(
     <UseCasesProvider
       useCases={{
         items: mockItems,
         access: mockAccessUseCases({
-          currentAccess: async () => ({ ok: true, value: adminAccess }),
+          currentAccess: async () => ({
+            ok: true,
+            value: extra.access ?? adminAccess,
+          }),
         }),
         members,
         block: mockBlock(),
         roles,
+        sessions: extra.sessions ?? mockSessions(),
       }}
     >
       <ManagePermissionsForm />
@@ -63,6 +78,27 @@ describe('ManagePermissionsForm', () => {
         ],
       }),
     );
+  });
+
+  it('lists and revokes a member’s sessions when the actor may read them', async () => {
+    const revoke = vi.fn(async () => ({ ok: true, value: undefined }));
+    const auditor: CurrentAccessDto = {
+      ...adminAccess,
+      permissions: [
+        ...adminAccess.permissions,
+        { action: 'sessions.read', scope: 'any' },
+      ],
+    };
+    renderForm(mockMembers(), mockRoles(), {
+      access: auditor,
+      sessions: mockSessions({ revoke }),
+    });
+    await selectMember('m-staff');
+    expect(
+      await screen.findByRole('list', { name: 'sessions' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0]!);
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('sess-1'));
   });
 
   it('never offers to edit the protected super-admin', async () => {

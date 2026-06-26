@@ -12,6 +12,9 @@ import {
   type StaffInviteStore,
 } from './staff-invite-store';
 import { createRolesStore, type RolesStore } from './roles-store';
+import { createTemplatesStore, type TemplatesStore } from './templates-store';
+import { createAuditStore, type AuditStore } from './admin/audit-store';
+import { createSettingsStore, type SettingsStore } from './admin/settings-store';
 
 /**
  * React bindings for the dashboard stores: each builds its store from the DI
@@ -28,24 +31,30 @@ export const useAdminGateStore = (): AdminGateStore | null => {
 };
 
 export const useDashboardStore = (): DashboardStore | null => {
-  const { access, directory, block, invitations } = useUseCases();
+  const { access, directory, block, invitations, accounts } = useUseCases();
   return useMemo(
     () =>
-      access && directory && block && invitations
-        ? createDashboardStore({ access, directory, block, invitations })
+      access && directory && block && invitations && accounts
+        ? createDashboardStore({
+            access,
+            directory,
+            block,
+            invitations,
+            accounts,
+          })
         : null,
-    [access, directory, block, invitations],
+    [access, directory, block, invitations, accounts],
   );
 };
 
 export const useStaffMembersStore = (): StaffMembersStore | null => {
-  const { access, members, block, roles } = useUseCases();
+  const { access, members, block, roles, sessions } = useUseCases();
   return useMemo(
     () =>
-      access && members && block && roles
-        ? createStaffMembersStore({ access, members, block, roles })
+      access && members && block && roles && sessions
+        ? createStaffMembersStore({ access, members, block, roles, sessions })
         : null,
-    [access, members, block, roles],
+    [access, members, block, roles, sessions],
   );
 };
 
@@ -64,6 +73,31 @@ export const useRolesStore = (): RolesStore | null => {
   const { access, roles } = useUseCases();
   return useMemo(
     () => (access && roles ? createRolesStore({ access, roles }) : null),
+    [access, roles],
+  );
+};
+
+export const useAuditStore = (): AuditStore | null => {
+  const { access, audit } = useUseCases();
+  return useMemo(
+    () => (access && audit ? createAuditStore({ access, audit }) : null),
+    [access, audit],
+  );
+};
+
+export const useSettingsStore = (): SettingsStore | null => {
+  const { access, settings } = useUseCases();
+  return useMemo(
+    () =>
+      access && settings ? createSettingsStore({ access, settings }) : null,
+    [access, settings],
+  );
+};
+
+export const useTemplatesStore = (): TemplatesStore | null => {
+  const { access, roles } = useUseCases();
+  return useMemo(
+    () => (access && roles ? createTemplatesStore({ access, roles }) : null),
     [access, roles],
   );
 };

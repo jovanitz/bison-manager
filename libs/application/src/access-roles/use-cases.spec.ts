@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
-import type { Role, RoleId } from '@acme/domain';
+import type { Role, RoleId, RoleTemplate } from '@acme/domain';
 import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import { expandRoles } from './expand';
-import type { RoleStore } from './ports';
+import type { RoleStore, RoleTemplateStore } from './ports';
 import { makeAccessRolesUseCases } from './use-cases';
 
 const makeWorld = (input?: {
@@ -18,6 +18,15 @@ const makeWorld = (input?: {
   // CRUD use cases never touch the admin port; assignment is covered in
   // ./assign.spec.ts with a real fake.
   const admin = {} as unknown as AccessAdminRepository;
+  // Template store holds only staff overrides; code is merged in the use case.
+  const templateStore = new Map<string, RoleTemplate>();
+  const templates: RoleTemplateStore = {
+    list: async () => [...templateStore.values()],
+    findByKey: async (key) => templateStore.get(key) ?? null,
+    upsert: async (template) => {
+      templateStore.set(template.key, template);
+    },
+  };
   const roles: RoleStore = {
     create: async (role) => {
       store.set(role.id, role);
@@ -43,14 +52,30 @@ const makeWorld = (input?: {
       store.delete(id);
     },
     countAssignments: async () => input?.assignments ?? 0,
+    syncTemplate: async (templateKey, patch, options) => {
+      let updated = 0;
+      for (const r of store.values()) {
+        if (r.templateKey !== templateKey) continue;
+        if (!options.includeForked && !r.templateSynced) continue;
+        store.set(r.id, {
+          ...r,
+          name: patch.name as Role['name'],
+          permissions: patch.permissions,
+          templateSynced: true,
+        });
+        updated += 1;
+      }
+      return updated;
+    },
   };
   const useCases = makeAccessRolesUseCases({
     roles,
+    templates,
     admin,
     clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     ids: sequentialIdGenerator('role'),
   });
-  return { useCases, store, removed };
+  return { useCases, store, removed, templateStore };
 };
 
 describe('access roles', () => {
@@ -112,7 +137,9 @@ describe('access roles', () => {
   });
 
   it('refuses to delete a default (template-derived) role', async () => {
-    const role = roleFixture('role-default', null, undefined, 'support');
+    const role = roleFixture('role-default', null, undefined, {
+      templateKey: 'support',
+    });
     const world = makeWorld({ roles: [role], assignments: 0 });
     const result = await world.useCases.deleteRole({
       actor: testAccessActor({ preset: 'owner' }),
@@ -121,6 +148,41 @@ describe('access roles', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.tag).toBe('app/role-is-default');
     expect(world.removed).toEqual([]);
+  });
+
+  it('refuses to strip the governing capability from an assigned role', async () => {
+    const role = roleFixture('role-admin', null, [
+      { action: 'permissions.update', scope: 'any' },
+    ]);
+    const world = makeWorld({ roles: [role], assignments: 2 });
+    const result = await world.useCases.updateRole({
+      actor: testAccessActor({ preset: 'owner' }),
+      roleId: 'role-admin',
+      name: 'role-admin',
+      permissions: [{ action: 'audit.read', scope: 'any' }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.tag).toBe('app/role-in-use');
+    expect(world.store.get('role-admin')?.permissions).toEqual([
+      { action: 'permissions.update', scope: 'any' },
+    ]);
+  });
+
+  it('allows the same role edit once it is unassigned', async () => {
+    const role = roleFixture('role-admin', null, [
+      { action: 'permissions.update', scope: 'any' },
+    ]);
+    const world = makeWorld({ roles: [role], assignments: 0 });
+    const result = await world.useCases.updateRole({
+      actor: testAccessActor({ preset: 'owner' }),
+      roleId: 'role-admin',
+      name: 'role-admin',
+      permissions: [{ action: 'audit.read', scope: 'any' }],
+    });
+    expect(result.ok).toBe(true);
+    expect(world.store.get('role-admin')?.permissions).toEqual([
+      { action: 'audit.read', scope: 'any' },
+    ]);
   });
 
   it('lists platform roles plus the account’s own roles', async () => {
@@ -158,11 +220,17 @@ const roleFixture = (
   permissions: ReadonlyArray<{ action: string; scope: string }> = [
     { action: 'staff.read', scope: 'any' },
   ],
-  templateKey: string | null = null,
+  opts: {
+    templateKey?: string | null;
+    templateSynced?: boolean;
+    isPersonal?: boolean;
+  } = {},
 ): Role => ({
   id: id as RoleId,
   name: id as Role['name'],
   accountId: accountId as Role['accountId'],
   permissions: permissions as Role['permissions'],
-  templateKey,
+  templateKey: opts.templateKey ?? null,
+  templateSynced: opts.templateSynced ?? true,
+  isPersonal: opts.isPersonal ?? false,
 });

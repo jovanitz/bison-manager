@@ -16,7 +16,11 @@ export const createInMemoryRoleStore = (
   },
   list: async (accountId: AccountId | null) =>
     [...state.roles.values()].filter(
-      (role) => role.accountId === null || role.accountId === accountId,
+      (role) =>
+        // personal roles are an internal per-membership slot, never a listable
+        // org role (ADR-0014 Phase 2): excluded from management + assignment.
+        !role.isPersonal &&
+        (role.accountId === null || role.accountId === accountId),
     ),
   findById: async (roleId: RoleId) => state.roles.get(roleId) ?? null,
   findManyById: async (roleIds: ReadonlyArray<RoleId>) =>
@@ -31,6 +35,7 @@ export const createInMemoryRoleStore = (
       ...role,
       name: patch.name as Role['name'],
       permissions: patch.permissions,
+      templateSynced: patch.templateSynced ?? role.templateSynced,
     });
     return true;
   },
@@ -40,4 +45,19 @@ export const createInMemoryRoleStore = (
   countAssignments: async (roleId: RoleId) =>
     [...state.memberships.values()].filter((m) => m.roleIds.includes(roleId))
       .length,
+  syncTemplate: async (templateKey, patch, options) => {
+    let updated = 0;
+    for (const role of state.roles.values()) {
+      if (role.templateKey !== templateKey) continue;
+      if (!options.includeForked && !role.templateSynced) continue;
+      state.roles.set(role.id, {
+        ...role,
+        name: patch.name as Role['name'],
+        permissions: patch.permissions,
+        templateSynced: true,
+      });
+      updated += 1;
+    }
+    return updated;
+  },
 });

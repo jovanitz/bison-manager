@@ -11,6 +11,7 @@ import type {
   PendingInvitationSummary,
   RolesGateway,
   RoleSummaryDto,
+  RoleTemplateDto,
   StaffAccountSummary,
 } from '@acme/application';
 
@@ -117,6 +118,16 @@ export const mockBlock = (
   ...overrides,
 });
 
+export {
+  mockAccountAdmin,
+  mockAudit,
+  mockSessions,
+  mockSettings,
+  testAuditEntries,
+  testSessions,
+  testPolicies,
+} from './testing-admin';
+
 export const testRoles: ReadonlyArray<RoleSummaryDto> = [
   {
     id: 'role-support',
@@ -124,6 +135,7 @@ export const testRoles: ReadonlyArray<RoleSummaryDto> = [
     accountId: null,
     permissions: [{ action: 'staff.read', scope: 'any' }],
     templateKey: 'support', // a default (resettable, non-deletable)
+    templateSynced: true,
   },
   {
     id: 'role-custom',
@@ -131,6 +143,22 @@ export const testRoles: ReadonlyArray<RoleSummaryDto> = [
     accountId: null,
     permissions: [{ action: 'audit.read', scope: 'any' }],
     templateKey: null, // a custom role (deletable, not resettable)
+    templateSynced: true,
+  },
+];
+
+export const testTemplates: ReadonlyArray<RoleTemplateDto> = [
+  {
+    key: 'support',
+    scope: 'platform',
+    name: 'Support',
+    permissions: [{ action: 'staff.read', scope: 'any' }],
+  },
+  {
+    key: 'admin',
+    scope: 'org',
+    name: 'Org Admin',
+    permissions: [{ action: 'members.read', scope: 'own' }],
   },
 ];
 
@@ -141,7 +169,12 @@ export const mockRoles = (
   createRole: async () => ok({ roleId: 'role-new' }),
   deleteRole: async () => ok(undefined),
   resetRole: async () => ok(undefined),
+  updateRole: async () => ok(undefined),
   assignRoles: async () => ok(undefined),
+  listTemplates: async () => ok(testTemplates),
+  updateTemplate: async () => ok(undefined),
+  resetTemplate: async () => ok(undefined),
+  applyTemplateToAll: async () => ok({ updated: 0 }),
   ...overrides,
 });
 

@@ -67,51 +67,6 @@ export type DirectoryGateway = {
   >;
 };
 
-/** A role as the dashboard lists it (ADR-0011); permissions are plain pairs. */
-export type RoleSummaryDto = {
-  readonly id: string;
-  readonly name: string;
-  readonly accountId: string | null;
-  readonly permissions: ReadonlyArray<{
-    readonly action: string;
-    readonly scope: string;
-  }>;
-  /** Factory template key (ADR-0012); non-null = a default (resettable). */
-  readonly templateKey: string | null;
-};
-
-/**
- * Client-side view of dynamic-role management (ADR-0011). Every call hits an
- * API procedure (`roles.*`) with the bearer token attached; the server
- * reauthorizes each (`permissions.update`). The client only forwards.
- */
-export type RolesGateway = {
-  /** Platform roles (accountId null) plus the given account's own. */
-  readonly listRoles: (
-    accountId: string | null,
-  ) => Promise<Result<ReadonlyArray<RoleSummaryDto>, DirectoryGatewayError>>;
-  readonly createRole: (input: {
-    readonly name: string;
-    readonly accountId: string | null;
-    readonly permissions: ReadonlyArray<{
-      readonly action: string;
-      readonly scope: string;
-    }>;
-  }) => Promise<Result<{ readonly roleId: string }, DirectoryGatewayError>>;
-  readonly deleteRole: (
-    roleId: string,
-  ) => Promise<Result<void, DirectoryGatewayError>>;
-  /** Reset a default role to its factory template (ADR-0012). */
-  readonly resetRole: (
-    roleId: string,
-  ) => Promise<Result<void, DirectoryGatewayError>>;
-  /** Replace a membership's whole role assignment (ADR-0011, roles-only). */
-  readonly assignRoles: (input: {
-    readonly membershipId: string;
-    readonly roleIds: ReadonlyArray<string>;
-  }) => Promise<Result<void, DirectoryGatewayError>>;
-};
-
 /** Admin issues an invitation (authenticated `members.invite`). */
 export type InviteInput = {
   readonly accountId: string;
@@ -120,6 +75,8 @@ export type InviteInput = {
     readonly action: string;
     readonly scope: string;
   }>;
+  /** Roles the invitee lands with (ADR-0011); applied on first login. */
+  readonly roleIds?: ReadonlyArray<string>;
 };
 
 export type InvitationsGateway = {

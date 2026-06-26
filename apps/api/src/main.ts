@@ -116,8 +116,14 @@ const runtime = createApiRuntime({
     : {}),
 });
 
+// Instantiate the platform default roles before serving (idempotent).
+const seeded = await runtime.seedPlatformDefaults();
+
 serve({ fetch: runtime.app.fetch, port: env.data.PORT }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
+  if (seeded.created > 0) {
+    console.log(`seeded ${seeded.created} platform default role(s)`);
+  }
   console.log(
     `store: ${usePostgres ? 'postgres (supabase)' : 'in-memory seed'} · identity: ${identityMode}`,
   );

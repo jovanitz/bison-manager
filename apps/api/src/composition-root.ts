@@ -42,6 +42,12 @@ export type ApiRuntime = {
   readonly app: ReturnType<typeof createApi>;
   /** The declared surface — what the future MCP tool registry will publish. */
   readonly procedures: ReadonlyArray<ApiProcedure>;
+  /**
+   * Idempotently instantiate the platform-scope default roles (ADR-0012/0014).
+   * Org defaults are seeded on org creation; the platform has no creation event,
+   * so the boot seeds them here. Safe to call on every start (skips existing).
+   */
+  readonly seedPlatformDefaults: () => Promise<{ readonly created: number }>;
   readonly close: () => Promise<void>;
 };
 
@@ -120,6 +126,7 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
   });
   const accessRoles = makeAccessRolesUseCases({
     roles: store.roles,
+    templates: store.roleTemplates,
     admin: store.admin,
     clock,
     ids,
@@ -211,6 +218,10 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
   return {
     app,
     procedures,
+    seedPlatformDefaults: async () => {
+      const result = await accessRoles.installDefaults(null);
+      return result.ok ? result.value : { created: 0 };
+    },
     close: async () => {
       await store.close?.();
     },
