@@ -1,6 +1,7 @@
 export * from './errors';
 export * from './value-objects';
 export * from './permission';
+export * from './config/config';
 export * from './role/role';
 export * from './role/templates';
 export * from './events';

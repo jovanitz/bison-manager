@@ -27,7 +27,9 @@ A valid token gets you a resolved actor; it does **not** get you any permission.
 - `isRoot` — the protected super-admin membership.
 - `blocked` — soft-blocked (see below).
 - `session { id, status, expiresAt, createdAt }`.
-- `permissions` (the stored list) + `grants` (active impersonation grants).
+- `permissions` (resolved fresh from the membership's roles —
+  `union(expand(roleIds))`, never stored per-membership) + `grants` (active
+  impersonation grants).
 
 Because it reads live rows, a disable / revoke / permission-change / block is
 visible on the **very next request** (revocation immediacy). Adapters:
@@ -69,7 +71,9 @@ order and fail-closed:
 
 - The action set is **closed**: `ACCESS_ACTIONS`
   ([value-objects](../../libs/domain/src/access/value-objects.ts)). An action not
-  in the union cannot be expressed, let alone allowed.
+  in the union cannot be expressed, let alone allowed. The catalog is **per-app
+  and injectable** (`AccessConfig` / `makeAccessVocabulary`, ADR-0015); this app's
+  is `ACCESS_ACTIONS`, a different app supplies its own.
 - **Scopes:** `own` = only the actor's own account (`resource.accountId` must
   equal the actor's). `any` = staff-grade, every account.
 - **Two coherence guards** (`guardGrantedPermissions`,
@@ -80,12 +84,32 @@ order and fail-closed:
   impersonate, settings, `access.block`) is staff-only — not even an owner can
   hand it into an org.
 
-### Presets are NOT roles
+### Roles are the assignment layer; presets are templates
 
-`owner | support | customer | customer-admin`
-([presets](../../libs/domain/src/access/presets.ts)) are just starting bundles an
-admin applies and then edits. The policy **never** asks "is this an owner?" — it
-only ever checks the stored permission list + grants.
+Permissions are **never stored per-membership**. A membership holds **role ids**,
+and the actor's `permissions` are resolved as `union(expand(roleIds))`
+(ADR-0011..0014, roles-only). Editing or removing a role re-resolves every holder
+on their next request — no sticky permission survives a role edit.
+
+- A **role** is a named permission bundle, platform-wide (`accountId: null`) or
+  scoped to one account.
+- **Default roles** come from version-controlled **templates** — the old presets
+  `owner | support | customer | customer-admin`
+  ([presets](../../libs/domain/src/access/presets.ts)) now live as templates
+  (ADR-0012). An org's template instance is **synced** (tracks the staff
+  template) or **forked** (locally edited → stops tracking); `reset` re-syncs and
+  staff "apply to all" pushes a template change to **synced** instances only
+  (ADR-0013).
+- A **one-off grant** (an admin handing a member specific actions) is a
+  **personal role**: account-scoped, `isPersonal: true`, owned by exactly one
+  membership, hidden from the org roles list. There is no second kind of grant —
+  everything is a role.
+- The policy **never** asks "is this an owner?" — it only checks the resolved
+  permissions + active grants (plus the root/owner identity-flag bypass).
+
+An **anti-orphan** invariant holds across every mutation (assign roles, remove
+member, edit permissions): an account always keeps ≥1 holder of
+`permissions.update`.
 
 ## Multi-organization
 
@@ -185,7 +209,8 @@ action is unrepresentable by design ([events](../../libs/domain/src/access/event
 
 ## Per-user-type capabilities (today)
 
-Source of truth = stored permissions; this is what each **preset** grants:
+Source of truth = **roles** (effective permissions = `union(expand(roleIds))`);
+presets are role templates. This is what each preset/template grants:
 
 - **owner / root (staff):** accounts disable/enable/promote, permissions, sessions
   read/revoke, staff directory, customer search, `access.block`, audit, settings,

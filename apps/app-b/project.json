@@ -1,0 +1,21 @@
+{
+  "name": "app-b",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/app-b/src",
+  "projectType": "application",
+  "tags": ["layer:app"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint {projectRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/app-b/tsconfig.app.json --noEmit && tsc -p apps/app-b/tsconfig.spec.json --noEmit"
+      }
+    }
+  }
+}

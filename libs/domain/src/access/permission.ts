@@ -1,7 +1,7 @@
 import { type Result, err, ok } from '@acme/shared';
 import { invalidAccessScope } from './errors';
 import type { AccessDomainError } from './errors';
-import { makeAccessAction } from './value-objects';
+import { ACCESS_ACTIONS, makeAccessActionIn } from './value-objects';
 import type { AccessAction, AccountId } from './value-objects';
 
 /**
@@ -22,10 +22,17 @@ export const ACCESS_SCOPES = ['own', 'any'] as const;
 
 export type AccessScope = (typeof ACCESS_SCOPES)[number];
 
-export type AccessPermission = {
-  readonly action: AccessAction;
+/**
+ * A permission, generic over the app's action vocabulary (ADR-0015). Defaults
+ * to this app's `AccessAction`; `AccessPermission` is the bison-manager alias
+ * (same shape), so existing usages are unaffected.
+ */
+export type AccessPermissionOf<Action extends string = AccessAction> = {
+  readonly action: Action;
   readonly scope: AccessScope;
 };
+
+export type AccessPermission = AccessPermissionOf<AccessAction>;
 
 /**
  * The resource side of an authorization check. `accountId` is the owning
@@ -37,17 +44,29 @@ export type AccessResource = {
 };
 
 /** Boundary validation: external input becomes a permission only through here. */
-export const makeAccessPermission = (raw: {
-  readonly action: string;
-  readonly scope: string;
-}): Result<AccessPermission, AccessDomainError> => {
-  const action = makeAccessAction(raw.action);
+/**
+ * Boundary validation against a given action catalog (ADR-0015: vocabulary
+ * injection). Generic over the catalog so a different app parses and narrows to
+ * ITS own permission type, reusing this one parser.
+ */
+export const makeAccessPermissionIn = <Action extends string>(
+  raw: { readonly action: string; readonly scope: string },
+  catalog: ReadonlyArray<Action>,
+): Result<AccessPermissionOf<Action>, AccessDomainError> => {
+  const action = makeAccessActionIn(raw.action, catalog);
   if (!action.ok) return err(action.error);
   if (!(ACCESS_SCOPES as readonly string[]).includes(raw.scope)) {
     return err(invalidAccessScope(`Unknown access scope "${raw.scope}".`));
   }
   return ok({ action: action.value, scope: raw.scope as AccessScope });
 };
+
+/** This app's boundary validator — validates against `ACCESS_ACTIONS`. */
+export const makeAccessPermission = (raw: {
+  readonly action: string;
+  readonly scope: string;
+}): Result<AccessPermission, AccessDomainError> =>
+  makeAccessPermissionIn(raw, ACCESS_ACTIONS);
 
 /**
  * The single seam where a scope decides whether it covers a resource. Adding a

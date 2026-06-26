@@ -19,6 +19,12 @@ export const authorizeAccessAction = (input: {
   readonly action: AccessAction;
   readonly resource: AccessResource;
   readonly now: string;
+  /**
+   * The app's grant-only actions (ADR-0015 vocabulary injection). Forwarded to
+   * the policy core; omitted by bison-manager (defaults there), supplied by a
+   * different app's composition root.
+   */
+  readonly grantOnlyActions?: ReadonlyArray<AccessAction>;
 }): Result<AccessDecision, AccessUseCaseError> => {
   const decision = evaluateAccessPolicy(input);
   if (!decision.allowed) {

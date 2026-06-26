@@ -111,4 +111,28 @@ describe('evaluateAccessPolicy — ownership bypass (ADR-0011)', () => {
     expect(other).toEqual({ allowed: false, reason: 'not-permitted' });
     expect(system).toEqual({ allowed: false, reason: 'not-permitted' });
   });
+
+  it('respects an injected grant-only catalog (a different app’s vocabulary)', () => {
+    const root = actor({ isRoot: true });
+    // Default vocabulary: staff.read is not grant-only → root bypass allows it.
+    expect(
+      evaluateAccessPolicy({
+        actor: root,
+        action: 'staff.read',
+        resource: res(null),
+        now: NOW,
+      }),
+    ).toEqual({ allowed: true, source: 'root' });
+    // Injected: treat staff.read as grant-only → even root needs a grant, so
+    // with none the bypass is withheld and the action is denied.
+    expect(
+      evaluateAccessPolicy({
+        actor: root,
+        action: 'staff.read',
+        resource: res(null),
+        now: NOW,
+        grantOnlyActions: ['staff.read'],
+      }),
+    ).toEqual({ allowed: false, reason: 'not-permitted' });
+  });
 });

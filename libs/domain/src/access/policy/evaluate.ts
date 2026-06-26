@@ -2,7 +2,7 @@ import type { AccessActor } from '../actor';
 import { accessGrantAllows } from '../grant/grant';
 import { accessPermissionAllows } from '../permission';
 import type { AccessResource } from '../permission';
-import { isGrantOnlyAction } from '../value-objects';
+import { GRANT_ONLY_ACTIONS } from '../value-objects';
 import type { AccessAction, AccessGrantId } from '../value-objects';
 
 /**
@@ -49,10 +49,11 @@ const ownershipDecision = (
   actor: AccessActor,
   resource: AccessResource,
   action: AccessAction,
+  grantOnlyActions: ReadonlyArray<AccessAction>,
 ): AccessDecision | null => {
   // Grant-only actions (customer data, ADR-0010) are never bypassable — even
   // root/owner need an audited grant, so authority never escapes the audit trail.
-  if (isGrantOnlyAction(action)) return null;
+  if (grantOnlyActions.includes(action)) return null;
   if (actor.isRoot) return { allowed: true, source: 'root' };
   if (
     actor.isAccountOwner &&
@@ -69,8 +70,16 @@ export const evaluateAccessPolicy = (input: {
   readonly action: AccessAction;
   readonly resource: AccessResource;
   readonly now: string;
+  /**
+   * The app's grant-only actions (ADR-0015 vocabulary injection). Defaults to
+   * this app's `GRANT_ONLY_ACTIONS`; a different app injects its own so the same
+   * policy core serves any vocabulary.
+   */
+  readonly grantOnlyActions?: ReadonlyArray<AccessAction>;
 }): AccessDecision => {
   const { actor, action, resource, now } = input;
+  const grantOnlyActions: ReadonlyArray<AccessAction> =
+    input.grantOnlyActions ?? GRANT_ONLY_ACTIONS;
 
   if (actor.accountStatus !== 'active') return accessDenied('account-disabled');
   if (actor.session.status !== 'active') return accessDenied('session-revoked');
@@ -80,7 +89,7 @@ export const evaluateAccessPolicy = (input: {
   // Soft block: authenticated and resolved, but no operation is permitted.
   if (actor.blocked) return accessDenied('blocked');
 
-  const bypass = ownershipDecision(actor, resource, action);
+  const bypass = ownershipDecision(actor, resource, action, grantOnlyActions);
   if (bypass) return bypass;
 
   const permitted = actor.permissions.some((permission) =>

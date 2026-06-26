@@ -90,12 +90,24 @@ export const GRANT_ONLY_ACTIONS = ['customer.read'] as const;
 export const isGrantOnlyAction = (action: AccessAction): boolean =>
   (GRANT_ONLY_ACTIONS as ReadonlyArray<AccessAction>).includes(action);
 
-export const makeAccessAction = (
+/**
+ * Boundary validation against a given action catalog (ADR-0015: vocabulary
+ * injection). Generic over the catalog, so a different app validates and
+ * narrows to ITS own action union, reusing this one parser.
+ */
+export const makeAccessActionIn = <Action extends string>(
   raw: string,
-): Result<AccessAction, AccessDomainError> => {
-  const match = ACCESS_ACTIONS.find((action) => action === raw);
+  catalog: ReadonlyArray<Action>,
+): Result<Action, AccessDomainError> => {
+  const match = catalog.find((action) => action === raw);
   if (!match) {
     return err(invalidAccessAction(`Unknown access action "${raw}".`));
   }
   return ok(match);
 };
+
+/** This app's boundary validator — validates against `ACCESS_ACTIONS`. */
+export const makeAccessAction = (
+  raw: string,
+): Result<AccessAction, AccessDomainError> =>
+  makeAccessActionIn(raw, ACCESS_ACTIONS);
