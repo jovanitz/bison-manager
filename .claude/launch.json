@@ -20,6 +20,16 @@
       ],
       "port": 4202,
       "autoPort": false
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "npx storybook dev -p 6006 -c libs/ui/.storybook --no-open --host 127.0.0.1"
+      ],
+      "port": 6006,
+      "autoPort": false
     }
   ]
 }

@@ -26,3 +26,6 @@ blob-report
 
 # Harness local markers
 .harness
+
+
+storybook-static

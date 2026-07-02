@@ -6,13 +6,18 @@
  * Today it is consumed in-place by the sensors/hooks under scripts/harness/.
  */
 export default {
-  /** Files an agent must not edit directly (the pre-edit + git guards read this). */
+  /**
+   * Files an agent must not edit directly (the pre-edit + git guards read this).
+   * These encode *rules* (boundaries, aliases, plugins, lint/permissions) — a
+   * change is an architecture decision worth a human pause. `pnpm-lock.yaml` is
+   * deliberately NOT here: it's a generated artifact that churns on every
+   * `pnpm add`, so guarding it is pure friction, not a decision to confirm.
+   */
   protectedFiles: [
     'eslint.config.mjs',
     'docs/ai/capabilities.json',
     'nx.json',
     'tsconfig.base.json',
-    'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.claude/settings.json',
   ],

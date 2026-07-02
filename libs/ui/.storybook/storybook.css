@@ -1,0 +1,124 @@
+/**
+ * Storybook-only overrides (NOT shipped in the design system).
+ *
+ * storybook-dark-mode themes the manager chrome but not the autodocs page, so in
+ * dark mode the Docs surfaces stay white. These rules theme those surfaces with
+ * our design tokens, scoped to `.dark` so light mode keeps Storybook's defaults.
+ *
+ * IMPORTANT — leak safety: every selector targets a Storybook-generated class
+ * (`.sbdocs-*`, `.docblock-argstable`, `.docs-story`, `.sb-bar`), NEVER a bare
+ * tag inside `.sbdocs` (e.g. `.sbdocs td`). Bare tags would also match elements
+ * INSIDE a component preview and make a component look different in Docs than in
+ * Canvas. The component is the source of truth; Docs must only render it.
+ */
+
+/* Page surface. */
+.dark .sbdocs.sbdocs-wrapper {
+  background-color: var(--background);
+}
+
+/* Prose typography (Storybook-generated classes only). */
+.dark .sbdocs-title,
+.dark .sbdocs-h1,
+.dark .sbdocs-h2,
+.dark .sbdocs-h3,
+.dark .sbdocs-h4,
+.dark .sbdocs-p,
+.dark .sbdocs-li,
+.dark .sbdocs-a {
+  color: var(--foreground);
+}
+
+.dark .sbdocs-h2,
+.dark .sbdocs-h3 {
+  border-bottom-color: var(--border);
+}
+
+/* Component description prose (rendered from JSDoc) comes through as UNCLASSED
+   tags, so theme bare prose too — but `:not(.docs-story *)` keeps it out of every
+   component preview (e.g. CardDescription is also a <p>). */
+.dark .sbdocs p:not(.docs-story *),
+.dark .sbdocs li:not(.docs-story *),
+.dark .sbdocs a:not(.docs-story *) {
+  color: var(--foreground);
+}
+
+.dark .sbdocs code:not(.docs-story *) {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+/* Section labels ("STORIES") and story names ("Default") render as unclassed
+   h2/span in a dim color — lift them so the page hierarchy reads on dark. */
+.dark .sbdocs h2:not(.docs-story *) {
+  color: var(--muted-foreground);
+}
+
+.dark .sbdocs span:not(.docs-story *) {
+  color: var(--foreground);
+}
+
+/* Preview blocks: the frame around each component, not the component itself.
+   A touch stronger than the component `--border` token so the frame reads on a
+   dark page. */
+.dark .sbdocs-preview,
+.dark .docs-story {
+  background-color: var(--background);
+  border-color: oklch(1 0 0 / 0.2);
+}
+
+/* Inner story container (Emotion-classed, white) — let the frame's bg show. */
+.dark .docs-story > div {
+  background-color: transparent;
+}
+
+/* Preview-block toolbars (zoom controls / "Show code" bar). */
+.dark .sbdocs .sb-bar {
+  background-color: var(--card);
+  border-bottom-color: var(--border);
+}
+
+.dark .sbdocs .docblock-code-toggle {
+  background-color: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Props (args) table — Storybook's own table only (scoped class, so it can't
+   hit a Table component rendered in a preview). */
+.dark .docblock-argstable th,
+.dark .docblock-argstable td {
+  background-color: var(--background) !important;
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.dark .docblock-argstable td * {
+  color: var(--foreground);
+}
+
+/* Storybook's arg controls inside the props table. */
+.dark .docblock-argstable input,
+.dark .docblock-argstable textarea,
+.dark .docblock-argstable select {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Type/default "pills" and control buttons in the props table (Storybook draws
+   these with a light code background that reads as a white box on dark). */
+.dark .docblock-argstable td span,
+.dark .docblock-argstable td code,
+.dark .docblock-argstable button {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Loading skeleton shown while docs prepare (avoids a white flash). */
+.dark .sb-preparing-docs,
+.dark .sb-preparing-story,
+.dark .sb-argstableBlock td {
+  background-color: var(--background) !important;
+}
