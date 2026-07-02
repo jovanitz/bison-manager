@@ -1,0 +1,12 @@
+/**
+ * Brand preset: Violet (example second brand for another app).
+ *
+ * Apply by adding `class="brand-violet"` to <html> in the consuming app and
+ * importing this file after the base styles. Violet is dark enough that its
+ * foreground is near-white for AA-legible text on the primary button.
+ */
+.brand-violet {
+  --primary: #7c3aed;
+  --primary-foreground: #faf5ff;
+  --ring: #7c3aed;
+}

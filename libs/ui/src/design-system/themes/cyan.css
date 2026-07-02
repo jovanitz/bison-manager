@@ -1,0 +1,13 @@
+/**
+ * Brand preset: Cyan (the design-system default).
+ *
+ * Apply by adding `class="brand-cyan"` to <html> in the consuming app and
+ * importing this file after the base styles. Only the brand surface is set; all
+ * neutrals come from the base. Cyan is light, so its foreground is dark
+ * (cyan-950) for legible text on the primary button — same in light and dark.
+ */
+.brand-cyan {
+  --primary: #38ddf8;
+  --primary-foreground: #083344;
+  --ring: #38ddf8;
+}

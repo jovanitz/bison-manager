@@ -1,7 +1,9 @@
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
 /**
- * Minimal classname combiner. (In a real app you'd use `clsx` + `tailwind-merge`;
- * kept dependency-free here so the reference architecture stays portable.)
+ * Merge class names the shadcn/ui way: `clsx` handles conditionals, then
+ * `tailwind-merge` resolves conflicting Tailwind utilities so a later class
+ * (e.g. a passed `className`) cleanly overrides an earlier one.
  */
-export const cn = (
-  ...parts: Array<string | false | null | undefined>
-): string => parts.filter(Boolean).join(' ');
+export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs));

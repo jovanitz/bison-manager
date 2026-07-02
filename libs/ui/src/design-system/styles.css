@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/**
+ * Tailwind v4 auto-detects template classes from the build root (the consuming
+ * app). The DS components + screens live here in libs/ui, outside that root, so
+ * scan them explicitly — without this their utility classes never get generated.
+ */
+@source '../';
+
+/**
+ * Design-system tokens (shadcn/ui convention, Tailwind v4). Raw values live as
+ * CSS variables on :root / .dark; `@theme inline` maps them to Tailwind color +
+ * radius utilities (bg-primary, text-muted-foreground, …). Components read these
+ * tokens, never raw colors.
+ *
+ * THEMING (multi-app base): this file is brand-agnostic except for a DEFAULT
+ * brand (cyan) on :root so the DS works standalone. The brand surface
+ * (--primary / --primary-foreground / --ring) is overridden per app by a brand
+ * preset class — see ./themes/*.css. Each app applies one brand by importing its
+ * preset and adding the class to <html> (e.g. class="brand-violet"); Storybook's
+ * "Brand" toolbar swaps them live. The .dark block holds NEUTRALS only — brand
+ * tokens are theme-driven so dark mode never pins a brand color.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* default brand (cyan) — overridden per app by a ./themes/*.css preset */
+  --primary: #38ddf8;
+  --primary-foreground: #083344;
+  --ring: #38ddf8;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  /* Status (brand-agnostic, like --destructive): success = green (white text),
+   * warning = amber (dark text). error reuses --destructive. */
+  --success: oklch(0.52 0.15 150);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.78 0.16 75);
+  --warning-foreground: oklch(0.205 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.62 0.16 150);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.82 0.15 78);
+  --warning-foreground: oklch(0.205 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+}
+
+@theme inline {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/**
+ * shadcn base layer (Tailwind v4): the bare `border` utility defaults to
+ * `currentColor` in v4, which makes borders take the text color — light/glowy on
+ * dark, heavy on light. Default every border (and the focus ring) to the design
+ * tokens so components like Card, Table and Dialog read correctly in both themes.
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  /* Tailwind v4 leaves buttons at the default arrow cursor; make every enabled
+   * interactive control show the pointer ("manita"). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  label[for] {
+    cursor: pointer;
+  }
+}
