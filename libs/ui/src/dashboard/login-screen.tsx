@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { AccessClientUseCases } from '@acme/application';
 import { useUseCases } from '../di/use-cases-context';
+import { Button } from '../design-system/button/button';
+import { Card, CardBody } from '../design-system/card/card';
+import { Input } from '../design-system/input/input';
 
 /**
  * First-run check (pre-auth): true only while the instance has no root admin —
@@ -23,6 +26,86 @@ const useNeedsBootstrap = (
   }, [access]);
   return needsBootstrap;
 };
+
+type LoginFormProps = {
+  readonly notice?: string | undefined;
+  readonly needsBootstrap: boolean;
+  readonly email: string;
+  readonly password: string;
+  readonly busy: boolean;
+  readonly error?: string | undefined;
+  readonly onEmail: (value: string) => void;
+  readonly onPassword: (value: string) => void;
+  readonly onSignIn: (event: FormEvent) => void;
+  readonly onSignUp: (event: FormEvent) => void;
+};
+
+/** Presentation only — the screen below owns state and the auth calls. */
+const LoginForm = (props: LoginFormProps) => (
+  <form
+    aria-label="login"
+    onSubmit={props.onSignIn}
+    className="flex flex-col gap-4"
+  >
+    <h1 className="text-lg font-medium text-card-foreground">Staff sign in</h1>
+    {props.notice ? (
+      <p
+        role="status"
+        className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground"
+      >
+        {props.notice}
+      </p>
+    ) : null}
+    {props.needsBootstrap ? (
+      <p
+        role="status"
+        className="rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground"
+      >
+        No owner exists yet — create the first one to claim this instance.
+      </p>
+    ) : null}
+    <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+      Email
+      <Input
+        type="email"
+        autoComplete="username"
+        value={props.email}
+        onChange={(e) => props.onEmail(e.target.value)}
+        required
+      />
+    </label>
+    <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+      Password
+      <Input
+        type="password"
+        autoComplete={
+          props.needsBootstrap ? 'new-password' : 'current-password'
+        }
+        value={props.password}
+        onChange={(e) => props.onPassword(e.target.value)}
+        required
+      />
+    </label>
+    <Button type="submit" disabled={props.busy}>
+      Sign in
+    </Button>
+    {props.needsBootstrap ? (
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={props.busy}
+        onClick={props.onSignUp}
+      >
+        Create the first owner
+      </Button>
+    ) : null}
+    {props.error ? (
+      <p role="alert" className="text-sm text-destructive">
+        {props.error}
+      </p>
+    ) : null}
+  </form>
+);
 
 /**
  * Dashboard sign-in. Normally login-only — staff accounts are created by
@@ -62,47 +145,23 @@ export const DashboardLoginScreen = ({
   };
 
   return (
-    <form aria-label="login" onSubmit={(e) => void submit(e, 'signIn')}>
-      <h1>Staff sign in</h1>
-      {notice ? <p role="status">{notice}</p> : null}
-      {needsBootstrap ? (
-        <p role="status">
-          No owner exists yet — create the first one to claim this instance.
-        </p>
-      ) : null}
-      <label>
-        Email
-        <input
-          type="email"
-          autoComplete="username"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          autoComplete={needsBootstrap ? 'new-password' : 'current-password'}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </label>
-      <button type="submit" disabled={busy}>
-        Sign in
-      </button>
-      {needsBootstrap ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={(e) => void submit(e, 'signUp')}
-        >
-          Create the first owner
-        </button>
-      ) : null}
-      {error ? <p role="alert">{error}</p> : null}
-    </form>
+    <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+      <Card className="w-full max-w-sm">
+        <CardBody>
+          <LoginForm
+            notice={notice}
+            needsBootstrap={needsBootstrap}
+            email={email}
+            password={password}
+            busy={busy}
+            error={error}
+            onEmail={setEmail}
+            onPassword={setPassword}
+            onSignIn={(e) => void submit(e, 'signIn')}
+            onSignUp={(e) => void submit(e, 'signUp')}
+          />
+        </CardBody>
+      </Card>
+    </div>
   );
 };

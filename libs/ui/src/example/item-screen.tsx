@@ -1,5 +1,5 @@
-import { Button } from '../design-system/button';
-import { Card, CardBody } from '../design-system/card';
+import { Button } from '../design-system/button/button';
+import { Card, CardBody } from '../design-system/card/card';
 import { ItemForm } from './item-form';
 import { useArchiveItem, useItems } from './use-items';
 

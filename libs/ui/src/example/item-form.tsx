@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { Button } from '../design-system/button';
-import { Input } from '../design-system/input';
+import { Button } from '../design-system/button/button';
+import { Input } from '../design-system/input/input';
 import { useCreateItem } from './use-items';
 
 /**
