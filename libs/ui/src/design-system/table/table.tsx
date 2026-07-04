@@ -6,12 +6,14 @@ import {
 } from 'react';
 import { cn } from '../cn';
 
-/** Data table primitives (shadcn/ui). Token-based, semantic <table> markup. */
+/** Data table primitives (shadcn/ui). Token-based, semantic <table> markup.
+ *  `containerClassName` styles the scroll wrapper — e.g. pass `overflow-visible`
+ *  when an outer element owns the scroll (so a sticky header sticks to it). */
 export const Table = forwardRef<
   HTMLTableElement,
-  HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  HTMLAttributes<HTMLTableElement> & { readonly containerClassName?: string }
+>(({ className, containerClassName, ...props }, ref) => (
+  <div className={cn('relative w-full overflow-auto', containerClassName)}>
     <table
       ref={ref}
       className={cn('w-full caption-bottom text-sm', className)}

@@ -1,34 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
-  type Header,
   type SortingState,
-  type Table as TanstackTable,
 } from '@tanstack/react-table';
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsUpDown,
-  ChevronUp,
-  Search,
-} from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../table/table';
+import { Search } from 'lucide-react';
 import { Input } from '../input/input';
-import { Button } from '../button/button';
+import { DataTableGrid, DataTablePagination } from './data-table.parts';
 
 export type DataTableProps<TData, TValue> = {
   readonly columns: ColumnDef<TData, TValue>[];
@@ -36,128 +18,27 @@ export type DataTableProps<TData, TValue> = {
   /** Show a global search box with this placeholder (omit to hide). */
   readonly searchPlaceholder?: string;
   readonly pageSize?: number;
+  /** Rows-per-page choices in the footer selector. */
+  readonly pageSizeOptions?: readonly number[];
+  /** Max height of the scrolling body (rows scroll; header + footer stay). */
+  readonly maxHeight?: string;
   /** Shown when there are no (filtered) rows. */
   readonly empty?: ReactNode;
 };
 
-const SortIcon = ({ dir }: { readonly dir: false | 'asc' | 'desc' }) => {
-  if (dir === 'asc') return <ChevronUp className="size-3.5" />;
-  if (dir === 'desc') return <ChevronDown className="size-3.5" />;
-  return <ChevronsUpDown className="size-3.5 opacity-50" />;
-};
-
-/** A header cell — a click-to-sort button when the column is sortable. */
-const HeaderCell = <TData,>({
-  header,
-}: {
-  readonly header: Header<TData, unknown>;
-}) => {
-  if (header.isPlaceholder) return null;
-  const label = flexRender(header.column.columnDef.header, header.getContext());
-  if (!header.column.getCanSort()) return <>{label}</>;
-  return (
-    <button
-      type="button"
-      onClick={header.column.getToggleSortingHandler()}
-      className="inline-flex items-center gap-1 hover:text-foreground"
-    >
-      {label}
-      <SortIcon dir={header.column.getIsSorted()} />
-    </button>
-  );
-};
-
-/** Header + body over the shared Table, with click-to-sort headers. */
-const DataTableGrid = <TData,>({
-  table,
-  colSpan,
-  empty,
-}: {
-  readonly table: TanstackTable<TData>;
-  readonly colSpan: number;
-  readonly empty: ReactNode;
-}) => (
-  <Table>
-    <TableHeader>
-      {table.getHeaderGroups().map((hg) => (
-        <TableRow key={hg.id}>
-          {hg.headers.map((header) => (
-            <TableHead key={header.id}>
-              <HeaderCell header={header} />
-            </TableHead>
-          ))}
-        </TableRow>
-      ))}
-    </TableHeader>
-    <TableBody>
-      {table.getRowModel().rows.length ? (
-        table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id}>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))
-      ) : (
-        <TableRow>
-          <TableCell
-            colSpan={colSpan}
-            className="h-24 text-center text-muted-foreground"
-          >
-            {empty}
-          </TableCell>
-        </TableRow>
-      )}
-    </TableBody>
-  </Table>
-);
-
-const DataTablePagination = <TData,>({
-  table,
-}: {
-  readonly table: TanstackTable<TData>;
-}) => (
-  <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-    <span>{table.getFilteredRowModel().rows.length} row(s)</span>
-    <div className="flex items-center gap-2">
-      <span>
-        Page {table.getState().pagination.pageIndex + 1} of{' '}
-        {table.getPageCount() || 1}
-      </span>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => table.previousPage()}
-        disabled={!table.getCanPreviousPage()}
-        aria-label="Previous page"
-      >
-        <ChevronLeft />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => table.nextPage()}
-        disabled={!table.getCanNextPage()}
-        aria-label="Next page"
-      >
-        <ChevronRight />
-      </Button>
-    </div>
-  </div>
-);
-
 /**
  * Generic data table over TanStack Table + the shared Table primitives:
- * click-to-sort headers, a global search box and client-side pagination. Pass
- * `columns` (ColumnDef[]) and `data`; state is local view state.
+ * click-to-sort headers, a global search box, a rows-per-page selector, and a
+ * bounded body that scrolls (sticky header) while the footer/pagination stay
+ * visible. Pass `columns` + `data`; state is local view state.
  */
 export function DataTable<TData, TValue>({
   columns,
   data,
   searchPlaceholder,
   pageSize = 10,
+  pageSizeOptions = [10, 20, 50],
+  maxHeight = '60vh',
   empty = 'No results.',
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -174,6 +55,10 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize } },
   });
+  // Guarantee the active pageSize is always a selectable option.
+  const options = [...new Set([...pageSizeOptions, pageSize])].sort(
+    (a, b) => a - b,
+  );
   return (
     <div className="space-y-3">
       {searchPlaceholder ? (
@@ -187,10 +72,15 @@ export function DataTable<TData, TValue>({
           />
         </div>
       ) : null}
-      <div className="overflow-hidden rounded-md border border-border">
-        <DataTableGrid table={table} colSpan={columns.length} empty={empty} />
+      <div className="rounded-md border border-border">
+        <div
+          className="overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-background"
+          style={{ maxHeight }}
+        >
+          <DataTableGrid table={table} colSpan={columns.length} empty={empty} />
+        </div>
+        <DataTablePagination table={table} pageSizeOptions={options} />
       </div>
-      <DataTablePagination table={table} />
     </div>
   );
 }

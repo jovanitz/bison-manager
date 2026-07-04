@@ -49,6 +49,12 @@
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.78 0.16 75);
   --warning-foreground: oklch(0.205 0 0);
+  /* Soft status text: a deep, legible tone for labels on a faint tint (Badge
+   * appearance="soft"). The mid-tone --warning is too light to read as text, so
+   * these are darker than the fill. Dark mode lightens them (see .dark). */
+  --success-soft-foreground: oklch(0.46 0.12 150);
+  --warning-soft-foreground: oklch(0.5 0.1 70);
+  --destructive-soft-foreground: oklch(0.51 0.2 27);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
 }
@@ -72,6 +78,9 @@
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.82 0.15 78);
   --warning-foreground: oklch(0.205 0 0);
+  --success-soft-foreground: oklch(0.8 0.15 150);
+  --warning-soft-foreground: oklch(0.86 0.13 88);
+  --destructive-soft-foreground: oklch(0.8 0.16 22);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
 }
@@ -98,6 +107,9 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-success-soft-foreground: var(--success-soft-foreground);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

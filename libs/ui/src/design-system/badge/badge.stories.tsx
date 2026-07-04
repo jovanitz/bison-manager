@@ -46,3 +46,50 @@ export const Statuses: Story = {
     </div>
   ),
 };
+
+/** Soft status pills: faint tint + tone-colored label + a leading dot. The
+ *  low-noise style for row/table status. */
+export const Soft: Story = {
+  render: () => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge variant="success" appearance="soft" dot>
+        active
+      </Badge>
+      <Badge variant="warning" appearance="soft" dot>
+        invited
+      </Badge>
+      <Badge variant="destructive" appearance="soft" dot>
+        blocked
+      </Badge>
+      <Badge variant="secondary" appearance="soft" dot>
+        archived
+      </Badge>
+    </div>
+  ),
+};
+
+/** Soft (new, low-noise) vs. solid (loud) for the same three statuses. */
+export const SoftVsSolid: Story = {
+  render: () => (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-12 text-xs text-muted-foreground">Soft</span>
+        <Badge variant="success" appearance="soft" dot>
+          active
+        </Badge>
+        <Badge variant="warning" appearance="soft" dot>
+          invited
+        </Badge>
+        <Badge variant="destructive" appearance="soft" dot>
+          blocked
+        </Badge>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-12 text-xs text-muted-foreground">Solid</span>
+        <Badge variant="success">active</Badge>
+        <Badge variant="warning">invited</Badge>
+        <Badge variant="destructive">blocked</Badge>
+      </div>
+    </div>
+  ),
+};

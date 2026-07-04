@@ -16,80 +16,17 @@ const statusVariant: Record<Member['status'], BadgeProps['variant']> = {
   blocked: 'destructive',
 };
 
-const data: Member[] = [
-  {
-    name: 'Ana Torres',
-    email: 'ana@acme.com',
-    role: 'Owner',
-    status: 'active',
-  },
-  {
-    name: 'Beto Ruiz',
-    email: 'beto@acme.com',
-    role: 'Admin',
-    status: 'active',
-  },
-  {
-    name: 'Cami Díaz',
-    email: 'cami@acme.com',
-    role: 'Member',
-    status: 'invited',
-  },
-  {
-    name: 'Dario Paz',
-    email: 'dario@acme.com',
-    role: 'Member',
-    status: 'active',
-  },
-  {
-    name: 'Elsa Mora',
-    email: 'elsa@acme.com',
-    role: 'Admin',
-    status: 'blocked',
-  },
-  {
-    name: 'Fito Vega',
-    email: 'fito@acme.com',
-    role: 'Member',
-    status: 'active',
-  },
-  {
-    name: 'Gaby Sol',
-    email: 'gaby@acme.com',
-    role: 'Member',
-    status: 'invited',
-  },
-  {
-    name: 'Hugo Lara',
-    email: 'hugo@acme.com',
-    role: 'Admin',
-    status: 'active',
-  },
-  {
-    name: 'Ivan Cruz',
-    email: 'ivan@acme.com',
-    role: 'Member',
-    status: 'active',
-  },
-  {
-    name: 'Julia Rey',
-    email: 'julia@acme.com',
-    role: 'Owner',
-    status: 'active',
-  },
-  {
-    name: 'Kilo Mata',
-    email: 'kilo@acme.com',
-    role: 'Member',
-    status: 'blocked',
-  },
-  {
-    name: 'Lena Ortiz',
-    email: 'lena@acme.com',
-    role: 'Member',
-    status: 'invited',
-  },
-];
+const roles = ['Owner', 'Admin', 'Member'] as const;
+const statuses = ['active', 'invited', 'blocked'] as const;
+
+// 28 rows so a full page (10) exceeds the body height → the body scrolls while
+// the sticky header + pagination stay put.
+const data: Member[] = Array.from({ length: 28 }, (_, i) => ({
+  name: `Member ${String(i + 1).padStart(2, '0')}`,
+  email: `member${i + 1}@acme.com`,
+  role: roles[i % roles.length],
+  status: statuses[i % statuses.length],
+}));
 
 const columns: ColumnDef<Member>[] = [
   { accessorKey: 'name', header: 'Name' },
@@ -100,7 +37,11 @@ const columns: ColumnDef<Member>[] = [
     header: 'Status',
     cell: ({ row }) => {
       const status = row.original.status;
-      return <Badge variant={statusVariant[status]}>{status}</Badge>;
+      return (
+        <Badge variant={statusVariant[status]} appearance="soft" dot>
+          {status}
+        </Badge>
+      );
     },
   },
 ];
@@ -122,7 +63,8 @@ export const Members: Story = {
       columns={columns}
       data={data}
       searchPlaceholder="Search members…"
-      pageSize={5}
+      pageSize={10}
+      maxHeight="20rem"
     />
   ),
 };

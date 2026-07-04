@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { OrgSwitcher, type Org } from './org-switcher';
 
 const orgs: readonly Org[] = [
-  { id: 'acme', name: 'Acme Inc.', fallback: 'AC', caption: 'Owner' },
+  { id: 'acme', name: 'Acme Inc.', fallback: 'AC', owner: true },
   { id: 'globex', name: 'Globex Corp.', fallback: 'GX', caption: 'Admin' },
   { id: 'initech', name: 'Initech', fallback: 'IN', caption: 'Member' },
 ];
@@ -23,9 +23,22 @@ export default meta;
 
 type Story = StoryObj<typeof OrgSwitcher>;
 
-export const Default: Story = {};
+/** You own one org (Owner badge). Since you already own one, "Create
+ *  organization" is hidden (canCreate=false). */
+export const OwnsAnOrg: Story = { args: { canCreate: false } };
 
-/** A single-org account still works (the menu just lists one + Create). */
-export const SingleOrg: Story = {
-  args: { current: orgs[0], orgs: [orgs[0]] },
+/** No owned org yet → "Create organization" is offered. */
+export const CanCreate: Story = {
+  args: {
+    orgs: [
+      { id: 'globex', name: 'Globex Corp.', fallback: 'GX', caption: 'Admin' },
+    ],
+    current: {
+      id: 'globex',
+      name: 'Globex Corp.',
+      fallback: 'GX',
+      caption: 'Admin',
+    },
+    canCreate: true,
+  },
 };

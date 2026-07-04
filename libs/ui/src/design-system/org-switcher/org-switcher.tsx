@@ -1,6 +1,7 @@
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '../cn';
 import { Avatar } from '../avatar/avatar';
+import { Badge } from '../badge/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +17,10 @@ export type Org = {
   /** Initials fallback for the logo. */
   readonly fallback: string;
   readonly logoSrc?: string | undefined;
-  /** Optional context line (e.g. role/plan): "Owner", "Staff". */
+  /** Optional context line (e.g. role/plan): "Admin", "Member". */
   readonly caption?: string | undefined;
+  /** You are the owner of this org — shown with an "Owner" badge. */
+  readonly owner?: boolean | undefined;
 };
 
 export type OrgSwitcherProps = {
@@ -25,6 +28,9 @@ export type OrgSwitcherProps = {
   readonly orgs: readonly Org[];
   readonly onSelect?: ((id: string) => void) | undefined;
   readonly onCreate?: (() => void) | undefined;
+  /** Gate the "Create organization" item (default true). The app sets this from
+   *  its rule — e.g. hide it once you already own an org. */
+  readonly canCreate?: boolean;
   readonly className?: string;
 };
 
@@ -47,7 +53,17 @@ const OrgRow = ({
       className={orgLogo}
     />
     <span className="flex min-w-0 flex-1 flex-col">
-      <span className="truncate text-sm font-medium">{org.name}</span>
+      <span className="flex items-center gap-1.5">
+        <span className="truncate text-sm font-medium">{org.name}</span>
+        {org.owner ? (
+          <Badge
+            variant="secondary"
+            className="h-4 shrink-0 px-1.5 text-[10px] font-medium"
+          >
+            Owner
+          </Badge>
+        ) : null}
+      </span>
       {org.caption ? (
         <span className="truncate text-xs text-muted-foreground">
           {org.caption}
@@ -69,6 +85,7 @@ export const OrgSwitcher = ({
   orgs,
   onSelect,
   onCreate,
+  canCreate = true,
   className,
 }: OrgSwitcherProps) => (
   <DropdownMenu>
@@ -102,7 +119,7 @@ export const OrgSwitcher = ({
           onSelect={onSelect}
         />
       ))}
-      {onCreate ? (
+      {onCreate && canCreate ? (
         <>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="gap-2" onSelect={onCreate}>
