@@ -3,6 +3,7 @@ import { z } from 'zod';
 /** Zod input schemas for the dashboard flow registry (kept out of registry.ts
  * so the catalog itself stays under the file-length budget). */
 export const empty = z.object({});
+export const accountIdInput = z.object({ accountId: z.string() });
 export const grantInput = z.object({
   accountId: z.string(),
   membershipId: z.string(),

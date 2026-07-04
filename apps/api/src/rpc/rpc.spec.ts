@@ -100,6 +100,8 @@ describe('the rpc pipeline', () => {
       'members.unblock',
       'memberships.mine',
       'org.block',
+      'org.members',
+      'org.summary',
       'org.unblock',
       'permissions.update',
       'roles.assign',

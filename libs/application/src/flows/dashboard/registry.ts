@@ -1,5 +1,6 @@
 import { ok } from '@acme/shared';
 import {
+  accountIdInput,
   assignRolesInput,
   blockInput,
   createRoleInput,
@@ -15,6 +16,7 @@ import type { FlowCommand } from '../registry-types';
 import { findFlowCommand } from '../registry-types';
 import { ADMIN_FLOWS, type DashboardFlowDeps } from './flow-catalog';
 import { loadDashboard, loadStaffMembers, resolveAdminGate } from './queries';
+import { loadOrgDetail } from './org-detail/org-detail';
 import {
   grantStaffPermission,
   inviteStaff,
@@ -57,6 +59,15 @@ export const DASHBOARD_FLOWS: ReadonlyArray<FlowCommand<DashboardFlowDeps>> = [
     description: "Load the actor's account members for the permissions editor.",
     input: empty,
     run: (deps) => loadStaffMembers(deps),
+  },
+  {
+    name: 'org.detail.load',
+    kind: 'query',
+    description:
+      "Load a customer org's detail: admin summary + roster (members.read) + " +
+      'capabilities. Administrative, not impersonation.',
+    input: accountIdInput,
+    run: (deps, input) => loadOrgDetail(deps, accountIdInput.parse(input)),
   },
   {
     name: 'staff.members.grant',

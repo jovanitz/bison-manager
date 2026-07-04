@@ -165,6 +165,8 @@ generated — they are behavior, not documentation:
 | `invitations.regenerate` | `members.invite` | Rotate a pending invitation’s one-time link (new token + expiry); returns the fresh token once, like creation. |
 | `memberships.mine` | — (any authenticated actor) | The caller's own organizations — feeds the organization switcher. |
 | `session.switch-account` | — (any authenticated actor) | Re-bind the current session to ANOTHER of your own memberships; expiry is recomputed under the target account's policy. |
+| `org.summary` | `customer.search` | Read a customer org's admin metadata (name, status, created). Same permission as the customer directory (customer.search) — no grant, administrative, never impersonation. |
+| `org.members` | `members.read` | List a customer org's member roster (members.read). An administrative read of who belongs to the org — distinct from impersonation. |
 | `roles.create` | `permissions.update` | Create a permission bundle: platform-wide (accountId null) or scoped to one customer org. Account-scoped roles may not hold any-scoped power. |
 | `roles.list` | `permissions.update` | List the roles available to an account: the platform-wide roles plus that account's own (accountId null lists platform roles only). |
 | `roles.update` | `permissions.update` | Rotate a role's name and permission set (live reference: every membership holding it sees the change on its next request). |

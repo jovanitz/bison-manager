@@ -14,6 +14,8 @@ export * from './api/api-item-repository';
 // point (wired in phase 4c); specs import it relatively.
 export * from './access/in-memory-access-seed';
 export * from './access/in-memory-access-store';
+// Store-agnostic composition (works over in-memory or Postgres ports alike).
+export * from './access/org-detail/access-org-detail-reader';
 
 // Auth adapters
 export * from './auth/jwt-auth-provider';
@@ -33,6 +35,7 @@ export * from './access-client/gateways/admin/rpc-account-admin-gateway';
 export * from './access-client/gateways/admin/rpc-audit-gateway';
 export * from './access-client/gateways/admin/rpc-sessions-gateway';
 export * from './access-client/gateways/admin/rpc-settings-gateway';
+export * from './access-client/gateways/admin/rpc-org-detail-gateway';
 export * from './access-client/gateways/rpc-roles-gateway';
 export * from './access-client/gateways/client/rpc-orgs-gateway';
 

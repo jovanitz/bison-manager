@@ -154,6 +154,42 @@ export type MembersGateway = {
   }) => Promise<Result<void, ManagePermissionsError>>;
 };
 
+/** A customer org's admin metadata for the directory drill-down (no grant). */
+export type OrgSummaryDto = {
+  readonly accountId: string;
+  readonly name: string;
+  readonly email: string | null;
+  readonly status: string;
+  readonly createdAt: string;
+};
+
+/** One member as the org-detail roster shows it (display-oriented). */
+export type OrgMemberDto = {
+  readonly membershipId: string;
+  readonly userId: string;
+  readonly displayName: string | null;
+  readonly email: string | null;
+  readonly roleNames: ReadonlyArray<string>;
+  readonly isAccountOwner: boolean;
+  readonly isRoot: boolean;
+  readonly blocked: boolean;
+};
+
+/**
+ * The customer (org) detail drill-down the dashboard consumes. Both calls hit
+ * API procedures (bearer attached); the server reauthorizes — `customer.search`
+ * for the summary, `members.read` for the roster. Administrative reads, NOT
+ * impersonation (`customer.read` / acting-as stays its own grant-gated flow).
+ */
+export type OrgDetailGateway = {
+  readonly getSummary: (
+    accountId: string,
+  ) => Promise<Result<OrgSummaryDto, DirectoryGatewayError>>;
+  readonly listMembers: (
+    accountId: string,
+  ) => Promise<Result<ReadonlyArray<OrgMemberDto>, DirectoryGatewayError>>;
+};
+
 /** One of the caller's organizations, for the client's org switcher. */
 export type MyMembershipDto = {
   readonly membershipId: string;

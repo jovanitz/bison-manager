@@ -6,6 +6,7 @@ import {
   makeAccessDirectoryUseCases,
   makeAccessInvitationsUseCases,
   makeAccessMembersUseCases,
+  makeAccessOrgDetailUseCases,
   makeAccessRolesUseCases,
   makeAccessSettingsUseCases,
   makeAccessUseCases,
@@ -17,6 +18,7 @@ import {
 import {
   createInMemoryAccessStore,
   createInMemoryIdentityProvisioner,
+  makeOrgDetailReader,
 } from '@acme/infrastructure';
 import type { InMemoryAccessSeed } from '@acme/infrastructure';
 import {
@@ -201,6 +203,10 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accessInvitations,
     accessMembers,
     accessRoles,
+    accessOrgDetail: makeAccessOrgDetailUseCases({
+      orgs: makeOrgDetailReader(store),
+      clock,
+    }),
   });
   const app = createApi({
     procedures,

@@ -53,6 +53,12 @@ export * from './access-members/use-cases';
 export * from './access-directory/ports';
 export * from './access-directory/use-cases';
 
+// Access org-detail: the customer (org) drill-down — admin summary + roster
+// (members.read), distinct from impersonation (customer.read, grant-only)
+export * from './access-org-detail/ports';
+export * from './access-org-detail/errors';
+export * from './access-org-detail/use-cases';
+
 // Access roles: dynamic role bundles assigned to memberships (ADR-0011)
 export * from './access-roles/ports';
 export * from './access-roles/errors';
@@ -91,6 +97,7 @@ export * from './flows/client/home';
 export * from './flows/client/gate';
 export * from './flows/client/registry';
 export * from './flows/dashboard/queries';
+export * from './flows/dashboard/org-detail/org-detail';
 export * from './flows/dashboard/commands';
 export * from './flows/dashboard/roles';
 export * from './flows/dashboard/registry';
