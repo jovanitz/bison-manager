@@ -93,6 +93,15 @@ export const TOOLS = [
       'Pure layers free of side effects / non-determinism (calls, not imports)',
     script: 'sensors/purity.mjs',
   },
+  {
+    name: 'screens',
+    group: 'check',
+    kind: 'static',
+    blocking: true,
+    summary:
+      'UI views phase-aware: @phase draft|approved, presentational-only, wiring seam',
+    script: 'sensors/screens.mjs',
+  },
   // ── analyze: understand a change (non-blocking) ───────────────────────────
   {
     name: 'impact',

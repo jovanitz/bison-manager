@@ -28,6 +28,29 @@ export default {
     maxFileLoc: 250,
   },
 
+  /**
+   * `screens` sensor — the two-phase, zero-rework view workflow (docs/ai/screens.md).
+   * A `*.view.tsx` is presentational (a fn of ViewModel + actions) and carries a
+   * `@phase draft|approved` tag the harness reads. draft = UI design only;
+   * approved = signed off, requires a `*.container.tsx` wiring seam. The view
+   * never imports architecture in either phase.
+   */
+  screens: {
+    viewSuffix: '.view.tsx',
+    scan: ['libs/ui/src'],
+    requireStory: true,
+    requireContainerWhenApproved: true,
+    presentationalBannedImports: [
+      '@acme/application',
+      '@acme/domain',
+      '@acme/infrastructure',
+      '@acme/platform',
+      '/di/',
+      'use-cases-context',
+      '.store',
+    ],
+  },
+
   /** Path prefixes that count as source (the post-edit hook lints these). */
   sourceRoots: ['libs/', 'apps/'],
 
