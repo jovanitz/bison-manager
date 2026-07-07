@@ -49,6 +49,78 @@ export const adminAccountInput = z.object({
 });
 export const membershipInput = z.object({ membershipId: z.string() });
 export const sessionIdInput = z.object({ sessionId: z.string() });
+// Billing (ADR-0016) — mirrors the API's plans.* / billing.* zod vocabulary.
+const planLimits = z.object({
+  maxOrganizationsOwned: z.number().int().nullable(),
+  maxMembersPerOrg: z.number().int().nullable(),
+});
+const planFeatures = z.array(z.string());
+const planPrice = z
+  .object({
+    amountCents: z.number().int().positive(),
+    currency: z.enum(['MXN', 'USD']),
+    interval: z.enum(['month', 'year']),
+  })
+  .nullable();
+const reason = z.string().min(1).max(500);
+export const planChangesInput = z.object({
+  displayName: z.string().min(1).max(80).optional(),
+  internalNote: z.string().min(1).max(500).optional(),
+  visibility: z.enum(['public', 'hidden']).optional(),
+  entitlements: z
+    .object({ limits: planLimits, features: planFeatures })
+    .optional(),
+  trialMonths: z.number().int().min(0).optional(),
+  price: planPrice.optional(),
+});
+export const createPlanInput = z.object({
+  key: z.string().min(1).max(60),
+  displayName: z.string().min(1).max(80),
+  internalNote: z.string().min(1).max(500),
+  visibility: z.enum(['public', 'hidden']),
+  price: planPrice,
+  trialMonths: z.number().int().min(0),
+  limits: planLimits,
+  features: planFeatures,
+  reason,
+});
+export const previewPlanInput = z.object({
+  planId: z.string(),
+  changes: planChangesInput,
+});
+export const updatePlanInput = z.object({
+  planId: z.string(),
+  changes: planChangesInput,
+  expectedVersion: z.number().int().min(1),
+  reason,
+});
+export const planTargetInput = z.object({ planId: z.string(), reason });
+export const markPaidInput = z.object({
+  accountId: z.string(),
+  paidThrough: z.string().min(1),
+  amountNote: z.string().min(1).max(200).optional(),
+  reason,
+});
+export const extendTrialInput = z.object({
+  accountId: z.string(),
+  trialEndsAt: z.string().min(1),
+  reason,
+});
+export const changePlanInput = z.object({
+  accountId: z.string(),
+  planId: z.string(),
+  reason,
+});
+export const setOverrideInput = z.object({
+  accountId: z.string(),
+  overrides: z
+    .object({
+      limits: planLimits.optional(),
+      features: planFeatures.optional(),
+    })
+    .nullable(),
+  reason,
+});
 const sessionPolicyShape = z.object({
   idleTtlMs: z.number().int().positive(),
   maxLifetimeMs: z.number().int().positive(),

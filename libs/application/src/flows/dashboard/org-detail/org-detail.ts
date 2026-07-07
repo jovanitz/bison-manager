@@ -1,9 +1,14 @@
 import { type Result, err, ok } from '@acme/shared';
+import type { CurrentAccessDto } from '../../../access/dto';
 import type { AccessClientUseCases } from '../../../access-client/use-cases';
 import type {
   OrgDetailGateway,
   OrgMemberDto,
 } from '../../../access-client/ports';
+import type {
+  BillingGateway,
+  BillingSummaryDto,
+} from '../../../access-client/billing-ports';
 import { holdsAction } from '../../capabilities';
 import type { DashboardError } from '../queries';
 
@@ -24,6 +29,23 @@ export type OrgDetailViewModel = {
   /** Actor can start impersonation ("view as customer") — a SEPARATE action. */
   readonly canImpersonate: boolean;
   readonly members: ReadonlyArray<OrgMemberDto>;
+  /** Present when the actor holds `billing.read` AND the summary read worked;
+   * a failed/gated summary leaves it undefined without sinking the page. */
+  readonly subscription?: BillingSummaryDto;
+  /** Actor may pull the manual billing levers (`plans.manage`). */
+  readonly canManageBilling: boolean;
+};
+
+/** Best-effort billing enrichment (gated on `billing.read`): a failed summary
+ * read returns undefined instead of sinking the whole org-detail load. */
+const fetchSubscription = async (
+  deps: { readonly billing: Pick<BillingGateway, 'getSummary'> },
+  access: CurrentAccessDto,
+  accountId: string,
+): Promise<BillingSummaryDto | undefined> => {
+  if (!holdsAction(access, 'billing.read')) return undefined;
+  const summary = await deps.billing.getSummary(accountId);
+  return summary.ok ? summary.value : undefined;
 };
 
 /**
@@ -32,11 +54,14 @@ export type OrgDetailViewModel = {
  * impersonation. "View as customer" (`impersonation.start`) is offered
  * separately. Owner is derived from the roster; when the actor lacks
  * `members.read` the roster is empty and the screen shows the gated state.
+ * When the actor holds `billing.read` the org's subscription summary is
+ * attached (see `fetchSubscription`); `plans.manage` gates the levers.
  */
 export const loadOrgDetail = async (
   deps: {
     readonly access: AccessClientUseCases;
     readonly orgs: OrgDetailGateway;
+    readonly billing: Pick<BillingGateway, 'getSummary'>;
   },
   input: { readonly accountId: string },
 ): Promise<Result<OrgDetailViewModel, DashboardError>> => {
@@ -53,6 +78,7 @@ export const loadOrgDetail = async (
     : ok([] as ReadonlyArray<OrgMemberDto>);
   if (!roster.ok) return err(roster.error);
 
+  const subscription = await fetchSubscription(deps, access, input.accountId);
   const ownerEntry = roster.value.find((m) => m.isAccountOwner);
   return ok({
     accountId: summary.value.accountId,
@@ -69,5 +95,7 @@ export const loadOrgDetail = async (
     canViewMembers,
     canImpersonate: holdsAction(access, 'impersonation.start'),
     members: roster.value,
+    ...(subscription ? { subscription } : {}),
+    canManageBilling: holdsAction(access, 'plans.manage'),
   });
 };

@@ -63,6 +63,19 @@ export * from './access-org-detail/use-cases';
 export * from './access-roles/ports';
 export * from './access-roles/errors';
 export * from './access-roles/use-cases';
+
+// Billing plans: the staff-editable plan catalog (ADR-0016) — live edits with
+// blast-radius preview, optimistic concurrency and before/after audit
+export * from './billing-plans/ports';
+export * from './billing-plans/errors';
+export * from './billing-plans/use-cases';
+
+// Billing subscriptions: per-org subscription facts + entitlement guards and
+// the staff levers (mark paid / extend trial / change plan / override)
+export * from './billing-subscriptions/ports';
+export * from './billing-subscriptions/errors';
+export * from './billing-subscriptions/guards';
+export * from './billing-subscriptions/use-cases';
 export * from './access-roles/expand';
 
 // Access block: soft block of an org or an identity (login yes, operate no)
@@ -78,6 +91,7 @@ export * from './access-settings/use-cases';
 export * from './access-client/ports';
 export * from './access-client/roles-ports';
 export * from './access-client/admin-ports';
+export * from './access-client/billing-ports';
 export * from './access-client/errors';
 export * from './access-client/use-cases';
 export * from './access-client/gateways/directory-use-cases';
@@ -98,6 +112,8 @@ export * from './flows/client/gate';
 export * from './flows/client/registry';
 export * from './flows/dashboard/queries';
 export * from './flows/dashboard/org-detail/org-detail';
+export * from './flows/dashboard/plans/plans';
+export * from './flows/dashboard/plans/commands';
 export * from './flows/dashboard/commands';
 export * from './flows/dashboard/roles';
 export * from './flows/dashboard/registry';

@@ -183,7 +183,7 @@ describe('dashboard flows', () => {
     expect(bad.success).toBe(false);
   });
 
-  it('registers every role + admin flow (behavior in component/flow specs)', () => {
+  it('registers every role + admin + billing flow (behavior in flow specs)', () => {
     for (const name of [
       'roles.load',
       'roles.create',
@@ -202,6 +202,17 @@ describe('dashboard flows', () => {
       'sessions.revokeAll',
       'settings.load',
       'settings.save',
+      'plans.catalog.load',
+      'plans.create',
+      'plans.preview',
+      'plans.update',
+      'plans.retire',
+      'plans.reset',
+      'plans.setDefault',
+      'billing.markPaid',
+      'billing.extendTrial',
+      'billing.changePlan',
+      'billing.setOverride',
     ]) {
       expect(must(name)).toBeDefined();
     }

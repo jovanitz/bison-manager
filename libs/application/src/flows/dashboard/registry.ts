@@ -15,6 +15,7 @@ import {
 import type { FlowCommand } from '../registry-types';
 import { findFlowCommand } from '../registry-types';
 import { ADMIN_FLOWS, type DashboardFlowDeps } from './flow-catalog';
+import { BILLING_FLOWS } from './plans/billing-flows';
 import { loadDashboard, loadStaffMembers, resolveAdminGate } from './queries';
 import { loadOrgDetail } from './org-detail/org-detail';
 import {
@@ -172,6 +173,7 @@ export const DASHBOARD_FLOWS: ReadonlyArray<FlowCommand<DashboardFlowDeps>> = [
       applyTemplateToAll(deps, resetTemplateInput.parse(input)),
   },
   ...ADMIN_FLOWS,
+  ...BILLING_FLOWS,
 ];
 
 export const findDashboardFlow = (name: string) =>

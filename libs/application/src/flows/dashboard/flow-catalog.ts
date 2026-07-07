@@ -11,6 +11,7 @@ import type {
 } from '../../access-client/admin-ports';
 import type { RolesGateway } from '../../access-client/roles-ports';
 import type { OrgDetailGateway } from '../../access-client/ports';
+import type { BillingGateway } from '../../access-client/billing-ports';
 import type { FlowCommand } from '../registry-types';
 import { loadAuditTrail, loadSessionPolicy } from './queries';
 import {
@@ -37,6 +38,7 @@ export type DashboardFlowDeps = {
   readonly block: BlockUseCases;
   readonly roles: RolesGateway;
   readonly orgs: OrgDetailGateway;
+  readonly billing: BillingGateway;
   readonly accounts: AccountAdminGateway;
   readonly audit: AuditGateway;
   readonly sessions: SessionsGateway;

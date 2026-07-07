@@ -17,6 +17,16 @@ export * from './access/in-memory-access-store';
 // Store-agnostic composition (works over in-memory or Postgres ports alike).
 export * from './access/org-detail/access-org-detail-reader';
 
+// Billing adapters (ADR-0016): in-memory reference (browser-safe), seeded
+// from DEFAULT_PLANS, plus the store-agnostic usage composition. The
+// Postgres billing store (./billing/postgres/*) is deliberately NOT exported
+// here — same Node-only `postgres` driver rule as the access store above.
+export * from './billing/in-memory/billing-store-state';
+export * from './billing/in-memory/in-memory-plan-catalog-store';
+export * from './billing/in-memory/in-memory-subscription-store';
+export * from './billing/in-memory/in-memory-billing-store';
+export * from './billing/usage/entitlement-usage-reader';
+
 // Auth adapters
 export * from './auth/jwt-auth-provider';
 export * from './auth/fake-auth-provider';
@@ -36,6 +46,7 @@ export * from './access-client/gateways/admin/rpc-audit-gateway';
 export * from './access-client/gateways/admin/rpc-sessions-gateway';
 export * from './access-client/gateways/admin/rpc-settings-gateway';
 export * from './access-client/gateways/admin/rpc-org-detail-gateway';
+export * from './access-client/gateways/admin/rpc-billing-gateway';
 export * from './access-client/gateways/rpc-roles-gateway';
 export * from './access-client/gateways/client/rpc-orgs-gateway';
 
