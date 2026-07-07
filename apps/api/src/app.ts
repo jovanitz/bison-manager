@@ -6,6 +6,7 @@ import type {
   AccessInvitationsUseCases,
   AccessUseCases,
   CreateOrganizationUseCases,
+  EntitlementGuards,
 } from '@acme/application';
 import { handlePasswordVerificationHook } from './identity/auth-hook';
 import type { AuthHookDeps } from './identity/auth-hook';
@@ -70,6 +71,8 @@ const handleActivate = async (
 export const createApi = (deps: {
   readonly procedures: ReadonlyArray<ApiProcedure>;
   readonly resolveActor: AccessUseCases['resolveRequestActor'];
+  /** ADR-0016 D4: the entitlement guard behind the declarative feature gate. */
+  readonly guardFeature: EntitlementGuards['guardFeature'];
   /** Public, pre-login invitation activation (the token is the credential). */
   readonly activateInvitation: AccessInvitationsUseCases['activateInvitation'];
   /** Identity-level (org-less): a verified user creates their own org. */
@@ -151,7 +154,7 @@ export const createApi = (deps: {
   }
 
   app.use('/rpc/*', createAccessActorMiddleware(deps));
-  registerRpcRoutes(app, deps.procedures);
+  registerRpcRoutes(app, deps.procedures, deps.guardFeature);
 
   return app;
 };

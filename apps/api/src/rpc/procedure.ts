@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { Result, TaggedError } from '@acme/shared';
-import type { AccessAction, AccessActor } from '@acme/domain';
+import type { AccessAction, AccessActor, PlanFeature } from '@acme/domain';
 
 /**
  * One declared API capability. The registry of these drives everything:
@@ -21,6 +21,16 @@ export type ApiProcedure = {
   readonly name: string;
   readonly summary: string;
   readonly action: AccessAction | null;
+  /**
+   * Declarative premium-feature gate (ADR-0016 Decision 4). UNLIKE `action`,
+   * the pipeline enforces this one centrally (entitlement guards, after actor
+   * resolution, before the handler): a feature check needs no resource or
+   * scope — the actor's account + its plan suffice — so a forgotten
+   * server-side gate becomes unrepresentable. Denials surface the guard's own
+   * billing tags (402/404), never `app/access-denied`; staff accounts are
+   * exempt by the guard itself.
+   */
+  readonly feature?: PlanFeature;
   readonly input: z.ZodTypeAny;
   readonly handler: (
     context: ApiProcedureContext,
@@ -36,6 +46,7 @@ export const defineApiProcedure = <Schema extends z.ZodTypeAny>(procedure: {
   readonly name: string;
   readonly summary: string;
   readonly action: AccessAction | null;
+  readonly feature?: PlanFeature;
   readonly input: Schema;
   readonly handler: (context: {
     readonly actor: AccessActor;
@@ -50,21 +61,38 @@ export const defineApiProcedure = <Schema extends z.ZodTypeAny>(procedure: {
     }),
 });
 
-export type ApiErrorStatus = 400 | 401 | 403 | 404 | 409;
+export type ApiErrorStatus = 400 | 401 | 402 | 403 | 404 | 409;
+
+/**
+ * Exact-tag mappings that beat the family rules below. Billing-phase denials
+ * are upsell-grade (ADR-0016 Decision 5): 402, never 403 — that status stays
+ * reserved for authorization. A reasonless staff lever is a request-shape
+ * defect like a zod failure (400); a live plan whose key has no code seed has
+ * no floor to reset to (404).
+ */
+const EXACT_TAG_STATUS: Readonly<Record<string, ApiErrorStatus>> = {
+  'app/access-denied': 403,
+  'app/impersonation-grant-not-owned': 403,
+  'app/access-actor-not-found': 401,
+  'app/subscription-expired': 402,
+  'app/feature-not-in-plan': 402,
+  'app/reason-required': 400,
+  'app/plan-seed-missing': 404,
+};
 
 /**
  * The single `Result`-tag → HTTP-status translation:
- * - `app/access-denied`, `app/impersonation-grant-not-owned` → 403
- *   (authenticated, but not allowed)
- * - `app/access-actor-not-found` → 401 (the session vanished mid-request)
+ * - exact mappings above (403 authorization, 401 dead session, 402 billing)
  * - `*-not-found` → 404
  * - `domain/*` → 400 (input that passed zod but violated a domain rule)
- * - anything else → 409 (expected state conflicts: already-disabled, …)
+ * - anything else → 409: expected state conflicts (already-disabled,
+ *   plan-key-taken, plan-concurrently-modified, plan-limit-exceeded,
+ *   plan-retired, and default-plan-missing — an operator-config failure kept
+ *   in the conflict family).
  */
 export const statusForErrorTag = (tag: string): ApiErrorStatus => {
-  if (tag === 'app/access-denied') return 403;
-  if (tag === 'app/impersonation-grant-not-owned') return 403;
-  if (tag === 'app/access-actor-not-found') return 401;
+  const exact = EXACT_TAG_STATUS[tag];
+  if (exact) return exact;
   if (tag.endsWith('-not-found')) return 404;
   if (tag.startsWith('domain/')) return 400;
   return 409;

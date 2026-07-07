@@ -4,7 +4,7 @@ import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { productionBootErrors } from './boot-safety';
 import { createApiRuntime } from './composition-root';
-import { seedWorld } from './seed';
+import { seedBillingWorld, seedWorld } from './seed';
 
 // Env files (Node-native, no deps). Real environment variables always win;
 // files only fill gaps. `.env` (gitignored, personal overrides) loads before
@@ -85,6 +85,7 @@ const runtime = createApiRuntime({
             Date.now() + DEV_SESSION_TTL_MS,
           ).toISOString(),
         }),
+        billingSeed: seedBillingWorld(),
       }),
   ...(jwksUrl ? { jwksUrl } : {}),
   ...(env.data.SUPABASE_JWT_SECRET

@@ -1,5 +1,4 @@
 import { systemClock, uuidGenerator } from '@acme/shared';
-import type { Clock, IdGenerator } from '@acme/shared';
 import {
   makeAccessAdminUseCases,
   makeAccessBlockUseCases,
@@ -18,20 +17,29 @@ import {
 import {
   createInMemoryAccessStore,
   createInMemoryIdentityProvisioner,
+  createInMemorySubscriptionStore,
   makeOrgDetailReader,
+  toBillingStoreState,
 } from '@acme/infrastructure';
-import type { InMemoryAccessSeed } from '@acme/infrastructure';
 import {
   createNodeSecretTokenService,
   createPostgresAccessStore,
   createSupabaseAdminProvisioner,
 } from '@acme/infrastructure-node';
 import { createApi } from './app';
-import type { AuthHookDeps } from './identity/auth-hook';
 import { createSupabaseTokenVerifier } from './identity/token-verifier';
 import { createApiProcedures } from './procedures';
 import type { ApiIdentityPipeline } from './rpc/actor-middleware';
 import type { ApiProcedure } from './rpc/procedure';
+import { toCreateOrgBilling, wireBilling } from './wiring/billing';
+import {
+  extraProceduresOf,
+  toApiOptions,
+  toVerifierConfig,
+} from './wiring/config';
+import type { ApiConfig } from './wiring/config';
+
+export type { ApiConfig } from './wiring/config';
 
 /**
  * The API composition root — the only place concrete adapters are chosen.
@@ -53,55 +61,24 @@ export type ApiRuntime = {
   readonly close: () => Promise<void>;
 };
 
-export type ApiConfig = {
-  readonly seed?: InMemoryAccessSeed;
-  readonly databaseUrl?: string;
-  /** Modern Supabase: JWKS endpoint (asymmetric signing keys). */
-  readonly jwksUrl?: string;
-  /** Legacy/tests: shared HS256 JWT secret. */
-  readonly jwtSecret?: string;
-  /** Supabase project URL — used to provision identities on invitation activation. */
-  readonly supabaseUrl?: string;
-  /** Supabase SECRET (service) key for admin provisioning. Server-only; never shipped. */
-  readonly supabaseSecretKey?: string;
-  /** ADR-0010 owner bootstrap — comes from BOOTSTRAP_OWNER_EMAIL, only here. */
-  readonly bootstrapOwnerEmail?: string | null;
-  /** Browser origins allowed on /rpc (bearer auth, no cookies → no CSRF). */
-  readonly corsOrigins?: ReadonlyArray<string>;
-  /** Dev-only test console at GET /dev (never wire in production). */
-  readonly devConsole?: () => string;
-  /** standard-webhooks secret for the GoTrue password-verification hook. */
-  readonly authHookSecret?: string;
-  readonly clock?: Clock;
-  readonly ids?: IdGenerator;
-};
-
-const toVerifierConfig = (
-  config: ApiConfig,
-): Parameters<typeof createSupabaseTokenVerifier>[0] | null => {
-  if (config.jwksUrl) return { jwksUrl: config.jwksUrl };
-  if (config.jwtSecret) return { jwtSecret: config.jwtSecret };
-  return null;
-};
-
-/** Optional createApi deps (exactOptionalPropertyTypes: omit, never undefined). */
-const toApiOptions = (
-  config: ApiConfig,
-  identity: ApiIdentityPipeline | undefined,
-  authHook: AuthHookDeps,
-) => ({
-  authHook,
-  ...(identity ? { identity } : {}),
-  ...(config.corsOrigins ? { corsOrigins: config.corsOrigins } : {}),
-  ...(config.devConsole ? { devConsole: config.devConsole } : {}),
-});
-
 export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
   const clock = config.clock ?? systemClock;
   const ids = config.ids ?? uuidGenerator;
+  // Billing state FIRST (ADR-0016): the in-memory onboarding's atomic org
+  // birth writes subscriptions through the same maps the billing stores read.
+  // (With Postgres, the onboarding adapter writes the billing TABLES in its
+  // own transaction; the in-memory billing wiring below still serves the
+  // catalog until the Postgres billing store is wired — F5.)
+  const billingState = toBillingStoreState(config.billingSeed);
   const store = config.databaseUrl
     ? createPostgresAccessStore({ databaseUrl: config.databaseUrl })
-    : { ...createInMemoryAccessStore(config.seed ?? {}), close: undefined };
+    : {
+        ...createInMemoryAccessStore(
+          config.seed ?? {},
+          createInMemorySubscriptionStore(billingState),
+        ),
+        close: undefined,
+      };
 
   const access = makeAccessUseCases({
     actors: store.actors,
@@ -133,9 +110,21 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     clock,
     ids,
   });
+  // Billing (ADR-0016): its own bounded context, composed over the access
+  // store's member/ownership surface and the pre-built shared state (the
+  // code floor is seeded idempotently by `toBillingStoreState`).
+  const billing = wireBilling({
+    access: store,
+    clock,
+    ids,
+    state: billingState,
+  });
+  // The enforcement vertical (ADR-0016 Decision 4): the pre-actor ownership
+  // guard + trial-once probe + default plan feed org creation.
   const { createOrganization } = makeCreateOrganizationUseCases({
     onboarding: store.onboarding,
     installDefaults: accessRoles.installDefaults,
+    billing: toCreateOrgBilling(billing),
     clock,
     ids,
   });
@@ -156,6 +145,8 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
           sessions: store.admin,
           invitations: store.invitations,
           members: store.members,
+          // ADR-0016 D1: the attach-time seat ceiling for invitation accepts.
+          billing: { seatLimitFor: billing.guards.seatLimitFor },
           clock,
           ids,
           bootstrapOwnerEmail: config.bootstrapOwnerEmail ?? null,
@@ -192,25 +183,32 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     sessionPolicies: store.sessionPolicies,
     clock,
   });
-  const procedures = createApiProcedures({
-    access,
-    auditTrail,
-    accessAdmin,
-    accessDirectory,
-    accessBlock,
-    impersonation,
-    accessSettings,
-    accessInvitations,
-    accessMembers,
-    accessRoles,
-    accessOrgDetail: makeAccessOrgDetailUseCases({
-      orgs: makeOrgDetailReader(store),
-      clock,
+  const procedures = [
+    ...createApiProcedures({
+      access,
+      auditTrail,
+      accessAdmin,
+      accessDirectory,
+      accessBlock,
+      impersonation,
+      accessSettings,
+      accessInvitations,
+      accessMembers,
+      accessRoles,
+      accessOrgDetail: makeAccessOrgDetailUseCases({
+        orgs: makeOrgDetailReader(store),
+        clock,
+      }),
+      billingPlans: billing.plans,
+      billingSubscriptions: billing.subscriptions,
     }),
-  });
+    // TEST-ONLY seam (see ApiConfig): pipeline contract tests inject probes.
+    ...extraProceduresOf(config),
+  ];
   const app = createApi({
     procedures,
     resolveActor: access.resolveRequestActor,
+    guardFeature: billing.guards.guardFeature,
     activateInvitation: accessInvitations.activateInvitation,
     createOrganization,
     // First-run: true while the instance has no root admin (drives the

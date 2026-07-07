@@ -9,11 +9,15 @@ import type {
   AccessSettingsUseCases,
   AccessUseCases,
   AuditTrailUseCases,
+  BillingPlansUseCases,
+  BillingSubscriptionsUseCases,
   ImpersonationUseCases,
 } from '@acme/application';
 import type { ApiProcedure } from '../rpc/procedure';
 import { createAccessProcedures } from './access-procedures';
 import { createAdminProcedures } from './admin-procedures';
+import { createBillingProcedures } from './billing/billing-procedures';
+import { createPlansProcedures } from './billing/plans-procedures';
 import { createBlockProcedures } from './block-procedures';
 import { createDirectoryProcedures } from './directory-procedures';
 import { createImpersonationProcedures } from './impersonation-procedures';
@@ -37,6 +41,8 @@ export type ApiUseCases = {
   readonly accessBlock: AccessBlockUseCases;
   readonly accessRoles: AccessRolesUseCases;
   readonly accessOrgDetail: AccessOrgDetailUseCases;
+  readonly billingPlans: BillingPlansUseCases;
+  readonly billingSubscriptions: BillingSubscriptionsUseCases;
 };
 
 /**
@@ -60,4 +66,6 @@ export const createApiProcedures = (
   ...createOrgDetailProcedures(useCases.accessOrgDetail),
   ...createRolesProcedures(useCases.accessRoles),
   ...createTemplatesProcedures(useCases.accessRoles),
+  ...createPlansProcedures(useCases.billingPlans),
+  ...createBillingProcedures(useCases.billingSubscriptions),
 ];

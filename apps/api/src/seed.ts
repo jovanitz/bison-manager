@@ -1,5 +1,9 @@
 import { accessPresetPermissions } from '@acme/domain';
-import type { InMemoryAccessSeed } from '@acme/infrastructure';
+import type { Plan, PlanId, SubscriptionId } from '@acme/domain';
+import type {
+  InMemoryAccessSeed,
+  InMemoryBillingSeed,
+} from '@acme/infrastructure';
 
 /**
  * The standard phase-3 world for the dev server and the contract tests: one
@@ -73,6 +77,74 @@ export const seedWorld = (config: {
       accountId: 'acct-customer',
       displayName: 'Casa Pampa',
       email: 'ops@casapampa.example',
+    },
+  ],
+});
+
+/**
+ * The billing companion of the seeded world (ADR-0016): deterministic twins
+ * of the plans (ids the tests can reference — the store's own code-floor
+ * seeding mints random ids) plus one subscription for the customer org.
+ * Seeding a plan with key `free` makes the idempotent code-floor pass skip
+ * its own copy, so `plan-free` IS the default plan everywhere.
+ */
+export const SEED_PLAN_FREE: Plan = {
+  id: 'plan-free' as PlanId,
+  key: 'free',
+  displayName: 'Free',
+  internalNote: 'Code-floor twin with a deterministic id for dev/tests.',
+  status: 'active',
+  visibility: 'public',
+  isDefaultForNewOrgs: true,
+  entitlements: {
+    limits: { maxOrganizationsOwned: 1, maxMembersPerOrg: 3 },
+    features: [],
+  },
+  trialMonths: 3,
+  price: null,
+  priceSetAt: null,
+  version: 1,
+};
+
+/** Premium, unpriced tier — carries features for the feature-gate contracts. */
+export const SEED_PLAN_PRO: Plan = {
+  id: 'plan-pro' as PlanId,
+  key: 'pro',
+  displayName: 'Pro',
+  internalNote: 'Premium tier for the feature-gate and lever contracts.',
+  status: 'active',
+  visibility: 'public',
+  isDefaultForNewOrgs: false,
+  entitlements: {
+    limits: { maxOrganizationsOwned: null, maxMembersPerOrg: null },
+    features: ['reports.advanced', 'export.csv'],
+  },
+  trialMonths: 0,
+  price: null,
+  priceSetAt: null,
+  version: 1,
+};
+
+/**
+ * `acct-customer`'s subscription: trial over and unpaid — `past_due` at the
+ * test clock (2026-06-09) — but on the UNPRICED free plan, so there is no
+ * billing hold; `billing.markPaid` flips the derived phase to `active`.
+ */
+export const seedBillingWorld = (config?: {
+  readonly customerPlanId?: PlanId;
+}): InMemoryBillingSeed => ({
+  plans: [SEED_PLAN_FREE, SEED_PLAN_PRO],
+  subscriptions: [
+    {
+      id: 'sub-customer' as SubscriptionId,
+      accountId: 'acct-customer',
+      planId: config?.customerPlanId ?? SEED_PLAN_FREE.id,
+      createdByUserId: 'user-customer',
+      startedAt: '2026-03-01T00:00:00.000Z',
+      trialEndsAt: '2026-06-01T00:00:00.000Z',
+      paidThroughAt: null,
+      canceledAt: null,
+      overrides: null,
     },
   ],
 });
