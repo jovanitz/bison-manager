@@ -53,6 +53,13 @@ of the Stop guardrail, so a violation blocks "done".
 - **Function > 70 / too complex** → extract named helper functions. Prefer many
   small pure functions over one big one.
 
+## App naming (giros)
+
+New giro apps are named `<giro>-<app>` (e.g. `girob-api`, `girob-dashboard`).
+The unqualified names (`api`, `dashboard`, `client`, `web`, `mobile`,
+`desktop`) are legacy names owned by the EXISTING giro — never mint new
+unqualified app names (ADR-0017; Nx project names are workspace-unique).
+
 ## Exemptions (deliberate)
 
 - **Composition roots** (`apps/*/composition-root.ts`): wiring is assembly —

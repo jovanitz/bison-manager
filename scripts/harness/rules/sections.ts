@@ -54,6 +54,10 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
     'Remove a membership from its account (sessions die with it)',
   'members.block':
     'Soft-block one member inside your own org (own scope): they can sign in but cannot operate',
+  'plans.manage':
+    'Administer the plan catalog and staff billing levers (ADR-0016) — owner-only in v1',
+  'billing.read':
+    "Read an org's billing summary: plan, phase, seats, trial/paid dates (staff any, org admin own)",
 };
 
 const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {

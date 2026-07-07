@@ -5,6 +5,9 @@
 
 # Access — business rules
 
+> Covers the EXISTING giro's API (`apps/api`) and vocabulary — each giro gets
+> its own generated rules doc (ADR-0017).
+
 Human-readable representation of the authorization system (ADR-0010). Every
 table below is derived from — or executed against — the real code.
 
@@ -70,6 +73,8 @@ gained through later activity.
 | `members.read` | List an account's memberships with their permissions | ✅ any account | — | — | ✅ own account |
 | `members.remove` | Remove a membership from its account (sessions die with it) | ✅ any account | — | — | ✅ own account |
 | `members.block` | Soft-block one member inside your own org (own scope): they can sign in but cannot operate | — | — | — | ✅ own account |
+| `plans.manage` | Administer the plan catalog and staff billing levers (ADR-0016) — owner-only in v1 | ✅ any account | — | — | — |
+| `billing.read` | Read an org's billing summary: plan, phase, seats, trial/paid dates (staff any, org admin own) | ✅ any account | ✅ any account | — | ✅ own account |
 
 Presets are starting bundles: an owner can change any membership's
 permissions afterwards (`permissions.update` is root-equivalent — whoever
@@ -85,7 +90,7 @@ with `own` scope. `any` scope additionally requires a staff account
 accounts, promoting, impersonation, session policy, the directory) is
 platform-staff machinery.
 
-`customer.read` · `sessions.revoke` · `sessions.read` · `members.invite` · `members.read` · `members.remove` · `members.block` · `permissions.update` · `audit.read`
+`customer.read` · `sessions.revoke` · `sessions.read` · `members.invite` · `members.read` · `members.remove` · `members.block` · `permissions.update` · `audit.read` · `billing.read`
 
 **Anti-orphan rule:** every account always keeps at least one membership
 holding `permissions.update` (the root-equivalent capability). A
@@ -177,6 +182,19 @@ generated — they are behavior, not documentation:
 | `templates.update` | `permissions.update` | Edit a default template's name and permissions (ADR-0013). Coherence is checked against the template's own scope; the key must exist. |
 | `templates.reset` | `permissions.update` | Reset a default template to its code definition — the recovery floor (ADR-0013). Discards staff edits for that template key. |
 | `templates.apply-all` | `permissions.update` | Force every live instance of a template — synced or forked — back to the template (ADR-0014). Overrides org-local edits; returns the count. |
+| `plans.list` | `plans.manage` | List the FULL plan catalog — hidden and retired included. Staff-only: hidden plan names encode who got special terms. |
+| `plans.create` | `plans.manage` | Register a new plan: entitlements, trial months, optional price (null = undecided). The key is a stable unique slug customers never see. |
+| `plans.preview` | `plans.manage` | Preview the blast radius of a plan edit before committing: subscriber count, how many orgs would go over-limit or lose a feature. |
+| `plans.update` | `plans.manage` | Edit a plan — entitlement changes propagate LIVE to every subscriber. CAS-guarded by expectedVersion; audited with full before/after terms. |
+| `plans.retire` | `plans.manage` | Retire a plan — never delete: frozen and closed to ALL new subscriptions, even staff. The default plan cannot be retired. |
+| `plans.reset` | `plans.manage` | Restore a live plan to its code floor (DEFAULT_PLANS). A reset is a mass live-edit in disguise: same audit payload and CAS gate as update. |
+| `plans.setDefault` | `plans.manage` | Move the singular default-for-new-orgs marker to an active, public plan. Audited as billing.default-plan-changed. |
+| `plans.subscribers` | `plans.manage` | List a plan's subscribed orgs (accountId, since when) — the minimum staff instrument for edits, appeasement and cleanup. |
+| `billing.summary` | `billing.read` | Read one org's billing state: plan, derived phase, seats, trial/paid dates, hold flag. Reachable under a billing hold — the pay moment. |
+| `billing.markPaid` | `plans.manage` | Staff lever: mark an org paid through an absolute DATE (manual-era payment webhook). Optional amount note feeds the collection ledger. |
+| `billing.extendTrial` | `plans.manage` | Staff lever: set an org's trial end to an absolute DATE — the ONLY way a new trial is ever granted (plan changes never regrant one). |
+| `billing.changePlan` | `plans.manage` | Staff lever: move an org to another plan (staff-only in v1). Retired plans are refused; hidden+active is assignable (legacy/custom home). |
+| `billing.setOverride` | `plans.manage` | Staff lever: set (or clear with null) the per-org entitlement exception — "you keep 25 seats" is one override, not a new plan. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.

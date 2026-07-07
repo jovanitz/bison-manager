@@ -3,6 +3,11 @@
 Postgres + Auth for the access system (ADR-0010). Everything here runs
 locally in Docker — no credentials, no cloud project needed for development.
 
+> **This stack belongs to the EXISTING giro** (ADR-0017). A new giro gets its
+> own supabase dir: own `project_id`, own ports (54321+ collide if two run at
+> once), own hook secret and password-verification port — never a copy-paste
+> of this config.
+
 ```bash
 supabase start     # boot local stack (applies migrations + seed.sql)
 supabase stop      # shut it down

@@ -154,7 +154,7 @@ emit(
     wired,
     nextSteps: [
       `Extend AppUseCases in libs/ui/src/di/use-cases-context.tsx: import type { ${Pascal}UseCases } from '@acme/application' and add 'readonly ${name}s: ${Pascal}UseCases;'.`,
-      `In each apps/*/src/composition-root.ts, build the use cases with make${Pascal}UseCases({ repository, clock, ids, events, logger }) and add '${name}s' to the returned useCases (mirror how 'items' is wired). Choose a repository adapter (e.g. createInMemory${Pascal}Repository for a quick start, or the Dexie/offline stack like items).`,
+      `In the composition roots of the OWNING giro's apps only (ADR-0017 — a giro-specific feature is never wired into another giro's apps; giro UI goes under libs/ui/src/<giro>/), build the use cases with make${Pascal}UseCases({ repository, clock, ids, events, logger }) and add '${name}s' to the returned useCases (mirror how 'items' is wired). Choose a repository adapter (e.g. createInMemory${Pascal}Repository for a quick start, or the Dexie/offline stack like items).`,
       `Replace the copied example logic with the real ${Pascal} domain rules, then run 'pnpm harness quality' (and 'pnpm harness gaps') to verify the slice is green.`,
     ],
     note: 'domain/application/infrastructure should compile and test on their own; the UI typecheck stays red until AppUseCases is extended (step 1).',

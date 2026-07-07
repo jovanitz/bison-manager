@@ -44,6 +44,9 @@ const renderDocument = async (): Promise<string> => {
 
 # Access — business rules
 
+> Covers the EXISTING giro's API (\`apps/api\`) and vocabulary — each giro gets
+> its own generated rules doc (ADR-0017).
+
 Human-readable representation of the authorization system (ADR-0010). Every
 table below is derived from — or executed against — the real code.
 

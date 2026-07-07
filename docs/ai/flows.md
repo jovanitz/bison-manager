@@ -35,11 +35,13 @@ Authorization always stays server-side; capability flags (`holdsAction`,
 ## Why headless: the MCP payoff
 
 Each controller is registered in an **enumerable catalog** (`CLIENT_FLOWS`,
-`DASHBOARD_FLOWS`) — `{ name, kind: 'query'|'command', input: ZodSchema, run }`.
-A UI store calls the typed controller directly; a future `apps/mcp` iterates the
-registry to expose **one tool per entry** (read `name`, derive a JSON schema from
-`input`, validate, `run`). Same brain, two front-ends. So orchestration that
-leaks into a component is orchestration the MCP can't reuse — that's the test.
+`DASHBOARD_FLOWS` — per app OF A GIRO; a new giro's apps add their own
+catalogs, ADR-0017) — `{ name, kind: 'query'|'command', input: ZodSchema, run }`.
+A UI store calls the typed controller directly; a future MCP app (one per giro)
+iterates the registry to expose **one tool per entry** (read `name`, derive a
+JSON schema from `input`, validate, `run`). Same brain, two front-ends. So
+orchestration that leaks into a component is orchestration the MCP can't
+reuse — that's the test.
 
 ## Rules (enforced or to-be-enforced)
 
@@ -72,5 +74,6 @@ wire in `apps/*`.
 ```
 libs/application/src/flows/{capabilities,registry-types}.ts
 libs/application/src/flows/<area>/{<feature>.ts, registry.ts, *.spec.ts}
-libs/ui/src/<app>/store/{<feature>-store.ts, hooks.ts}
+libs/ui/src/<product>/<app>/store/{<feature>-store.ts, hooks.ts}   # product-first, see screens.md
+
 ```

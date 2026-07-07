@@ -184,7 +184,7 @@ export const TOOLS = [
     kind: 'runtime',
     blocking: false,
     summary:
-      'Backend e2e: real Supabase + API + web/dashboard/client (Docker-heavy)',
+      "Backend e2e: a giro's real auth stack + API + its apps (Docker-heavy)",
     script: 'sensors/e2e-auth.mjs',
   },
   // ── meta: self-care + generators ──────────────────────────────────────────

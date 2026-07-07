@@ -1,7 +1,9 @@
 # apps/api — `layer:app` (composition root)
 
 HTTP API target (Hono on Node). **May import every layer** — like the other
-apps, this is a composition root.
+apps, this is a composition root. This is the **existing giro's** API: every
+giro stands up its own thin API app + composition root (ADR-0017); never grow
+this one to serve a second giro.
 
 - **Job:** [src/composition-root.ts](src/composition-root.ts) wires adapters
   (explicit DI by parameters — no container) and [src/app.ts](src/app.ts)

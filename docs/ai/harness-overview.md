@@ -41,7 +41,7 @@ and when it fires**. Concepts: [harness.md](harness.md) · Tools: [sensors.md](s
 - `methodology.md` — how we model (DDD) and work (TDD).
 - `structure.md` — small files, ≤8 files/folder, screaming folders.
 - `security.md` — rules for sensitive features (auth, tokens, permissions).
-- `auth.md` — how this app's authentication & access model actually works (the model).
+- `auth.md` — how the shared auth engine + the existing giro's instance work (the model; each giro instantiates its own — ADR-0017).
 - `flows.md` — one-way UI→Store→Controller→Use case→Domain; headless flows (UI + MCP reuse).
 - `workflow.md` — the step-by-step loop to build a feature.
 - `capabilities.json` — the layer rules in machine-readable form.

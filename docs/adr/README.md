@@ -21,3 +21,4 @@ consequences. They are immutable once accepted; supersede rather than edit.
 | 0014 | [Access model — final shape: roles-only, propagation, extensible scope](0014-access-model-final-shape.md)            |
 | 0015 | [Shareable auth — shared identity, per-app embedded authz](0015-shareable-auth-shared-identity-embedded-authz.md)    |
 | 0016 | [Plans, subscriptions & entitlements — billing as its own bounded context](0016-plans-subscriptions-entitlements.md) |
+| 0017 | [Business verticals (giros) fully isolated — A never knows B exists](0017-giro-isolation.md)                         |

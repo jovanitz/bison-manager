@@ -152,6 +152,10 @@ for (const name of SMOKE) {
   const res = spawnSync(process.execPath, [script, `--root=${ROOT}`], {
     cwd: ROOT,
     encoding: 'utf8',
+    // Sensor output scales with the working tree (consumers exceeds the 1MB
+    // spawnSync default on large change sets) — truncation must not read as
+    // "invalid JSON".
+    maxBuffer: 64 * 1024 * 1024,
   });
   let parsed = null;
   try {

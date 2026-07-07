@@ -7,15 +7,15 @@ the machine-readable form is [capabilities.json](capabilities.json).
 
 ## Layers, in dependency order
 
-| Layer            | Tag                    | Lives in                    | Responsibility                                                           | May import                        |
-| ---------------- | ---------------------- | --------------------------- | ------------------------------------------------------------------------ | --------------------------------- |
-| `shared`         | `layer:shared`         | `libs/shared`               | `Result`/`Either`, branded types, clock & logger contracts               | _nothing_                         |
-| `domain`         | `layer:domain`         | `libs/domain`               | Entities, value objects, business rules, domain events — pure            | `shared`                          |
-| `application`    | `layer:application`    | `libs/application`          | Use cases, **port types**, DTOs, **flows** (controllers) — orchestration | `domain`, `shared`                |
-| `infrastructure` | `layer:infrastructure` | `libs/infrastructure`       | Adapters: Dexie, REST, JWT auth, sync engine                             | `application`, `domain`, `shared` |
-| `platform`       | `layer:platform`       | `libs/platform`             | Device ports + browser/Capacitor/Tauri adapters                          | `application`, `domain`, `shared` |
-| `ui`             | `layer:ui`             | `libs/ui`                   | Design system + feature screens + stores (read ViewModels, dispatch)     | `application`, `shared`           |
-| `apps/*`         | `layer:app`            | `apps/{web,mobile,desktop}` | Composition roots — wire concrete adapters                               | everything                        |
+| Layer            | Tag                    | Lives in                                                                                       | Responsibility                                                           | May import                        |
+| ---------------- | ---------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------- |
+| `shared`         | `layer:shared`         | `libs/shared`                                                                                  | `Result`/`Either`, branded types, clock & logger contracts               | _nothing_                         |
+| `domain`         | `layer:domain`         | `libs/domain`                                                                                  | Entities, value objects, business rules, domain events — pure            | `shared`                          |
+| `application`    | `layer:application`    | `libs/application`                                                                             | Use cases, **port types**, DTOs, **flows** (controllers) — orchestration | `domain`, `shared`                |
+| `infrastructure` | `layer:infrastructure` | `libs/infrastructure`                                                                          | Adapters: Dexie, REST, JWT auth, sync engine                             | `application`, `domain`, `shared` |
+| `platform`       | `layer:platform`       | `libs/platform`                                                                                | Device ports + browser/Capacitor/Tauri adapters                          | `application`, `domain`, `shared` |
+| `ui`             | `layer:ui`             | `libs/ui`                                                                                      | Design system + feature screens + stores (read ViewModels, dispatch)     | `application`, `shared`           |
+| `apps/*`         | `layer:app`            | `apps/*` (one folder per app; a giro ships several — api, dashboard, client + platform shells) | Composition roots — wire concrete adapters                               | everything                        |
 
 ## Where does my change go?
 
@@ -43,6 +43,10 @@ the machine-readable form is [capabilities.json](capabilities.json).
   database", it actually needs a use case; add/extend one in `application`.
 - Adding a platform = one new `apps/*` + the native adapters; the inward layers do
   not change. See [new-platform.md](../guidelines/new-platform.md).
+- Adding a **giro** (a new isolated product) = new thin API app + its own
+  auth/DB project + its own `AccessConfig` vocabulary + its own migrations —
+  never a schema/table shared with another giro. See
+  [ADR-0017](../adr/0017-giro-isolation.md); `apps/app-b` is the seed shape.
 
 ## Folder layout per layer
 

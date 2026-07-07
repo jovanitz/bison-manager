@@ -1,10 +1,16 @@
-# AI context — Authentication & Access (how THIS app works)
+# AI context — Authentication & Access (the shared engine + THIS giro's instance)
 
 > Audience: an AI agent in a **cold session**. This is the reference for how
 > identity, sessions and authorization actually work in Acme — the _model_, not
 > the build rules. For build rules of sensitive code read [security.md](security.md).
 > For the live per-action/preset matrix read the **generated**
 > [../business-rules/access.md](../business-rules/access.md) (`pnpm harness rules`).
+>
+> **Giro scoping (ADR-0017):** the ENGINE (domain/application/infrastructure
+> machinery) is shared by all giros; the concrete vocabulary, API (`apps/api`),
+> auth project and generated rules doc described below belong to the EXISTING
+> giro. Each giro instantiates its own world from the same engine
+> ([ADR-0017](../adr/0017-giro-isolation.md); `apps/app-b` is the template).
 
 ## The one idea that explains everything: **identity ≠ authorization**
 

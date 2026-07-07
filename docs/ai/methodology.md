@@ -192,5 +192,7 @@ heavy and Docker-dependent (it `supabase start`s the local stack and boots the
 API + all three apps — web, dashboard, client). They are split on purpose: the
 cheap web e2e must not pay for Docker. The API's CORS allowlist must include each
 app's port (4200/4201/4202) — the auth config sets `CORS_ORIGINS` accordingly.
+(This stack is the EXISTING giro's; a new giro brings its own auth config +
+suite — ADR-0017.)
 
 See [sensors.md](sensors.md) and [workflow.md](workflow.md).

@@ -4,29 +4,32 @@ This file is the **router**. It is auto-loaded as context. It is intentionally
 short: it tells you _where to look_, not everything at once. Read the linked doc
 only when the task needs it (progressive disclosure).
 
-> **Acme** is a Clean + Hexagonal, fully-functional TypeScript app built as an Nx
-> monorepo that ships to Web, PWA, iOS, Android, Windows and macOS from one
-> codebase. Business logic is portable: it imports no framework, browser, DB or
-> SDK.
+> **Acme** is a Clean + Hexagonal TypeScript **monorepo shipping multiple
+> isolated products ("giros")** — each giro owns its dashboard + apps + API +
+> auth/DB project, and one giro never references another (ADR-0017). Shared
+> code is compile-time libs only; each app ships to Web, PWA, iOS, Android,
+> Windows and macOS from one codebase. Business logic is portable: it imports
+> no framework, browser, DB or SDK.
 
 ## Read this when…
 
-| You are about to…                                               | Read                                                       |
-| --------------------------------------------------------------- | ---------------------------------------------------------- |
-| See the whole harness at a glance (what fires when)             | [docs/ai/harness-overview.md](docs/ai/harness-overview.md) |
-| Understand the harness terms (Guides/Sensors/Guardrails)        | [docs/ai/harness.md](docs/ai/harness.md)                   |
-| Place a change in the right layer / import                      | [docs/ai/architecture.md](docs/ai/architecture.md)         |
-| Check what is **forbidden** (hard rules)                        | [docs/ai/constraints.md](docs/ai/constraints.md)           |
-| Build something sensitive (auth, tokens, perms)                 | [docs/ai/security.md](docs/ai/security.md)                 |
-| Understand how **auth/access actually works** (the model)       | [docs/ai/auth.md](docs/ai/auth.md)                         |
-| Build a feature end-to-end (the agent loop)                     | [docs/ai/workflow.md](docs/ai/workflow.md)                 |
-| Build a **screen/view** (presentational-first → wire, `@phase`) | [docs/ai/screens.md](docs/ai/screens.md)                   |
-| Touch a screen / cross-module orchestration (flows, stores)     | [docs/ai/flows.md](docs/ai/flows.md)                       |
-| Model the domain & work test-first (DDD/TDD)                    | [docs/ai/methodology.md](docs/ai/methodology.md)           |
-| Organize files/folders (small, screaming arch)                  | [docs/ai/structure.md](docs/ai/structure.md)               |
-| Measure quality / impact / perf / gaps (sensors)                | [docs/ai/sensors.md](docs/ai/sensors.md)                   |
-| Know a layer's local rules                                      | the `CLAUDE.md` inside that `libs/<layer>/`                |
-| Understand _why_ a rule exists                                  | [docs/adr/README.md](docs/adr/README.md)                   |
+| You are about to…                                               | Read                                                                                          |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| See the whole harness at a glance (what fires when)             | [docs/ai/harness-overview.md](docs/ai/harness-overview.md)                                    |
+| Understand the harness terms (Guides/Sensors/Guardrails)        | [docs/ai/harness.md](docs/ai/harness.md)                                                      |
+| Place a change in the right layer / import                      | [docs/ai/architecture.md](docs/ai/architecture.md)                                            |
+| Check what is **forbidden** (hard rules)                        | [docs/ai/constraints.md](docs/ai/constraints.md)                                              |
+| Build something sensitive (auth, tokens, perms)                 | [docs/ai/security.md](docs/ai/security.md)                                                    |
+| Understand how **auth/access actually works** (the model)       | [docs/ai/auth.md](docs/ai/auth.md)                                                            |
+| Build a feature end-to-end (the agent loop)                     | [docs/ai/workflow.md](docs/ai/workflow.md)                                                    |
+| Build a **screen/view** (presentational-first → wire, `@phase`) | [docs/ai/screens.md](docs/ai/screens.md)                                                      |
+| Touch a screen / cross-module orchestration (flows, stores)     | [docs/ai/flows.md](docs/ai/flows.md)                                                          |
+| Model the domain & work test-first (DDD/TDD)                    | [docs/ai/methodology.md](docs/ai/methodology.md)                                              |
+| Organize files/folders (small, screaming arch)                  | [docs/ai/structure.md](docs/ai/structure.md)                                                  |
+| Measure quality / impact / perf / gaps (sensors)                | [docs/ai/sensors.md](docs/ai/sensors.md)                                                      |
+| Stand up / touch a new product (**giro**)                       | [docs/adr/0017-giro-isolation.md](docs/adr/0017-giro-isolation.md) + [apps/app-b](apps/app-b) |
+| Know a layer's local rules                                      | the `CLAUDE.md` inside that `libs/<layer>/`                                                   |
+| Understand _why_ a rule exists                                  | [docs/adr/README.md](docs/adr/README.md)                                                      |
 
 Machine-readable layer rules (use cases, not prose): [docs/ai/capabilities.json](docs/ai/capabilities.json).
 
