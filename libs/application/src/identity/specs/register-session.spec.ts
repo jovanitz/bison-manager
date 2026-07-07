@@ -1,34 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
-import type { AccountId, InvitationId, MembershipId } from '@acme/domain';
-import type {
-  ActiveIdentitySession,
-  IdentityMembershipSnapshot,
-} from './ports';
+import type { AccountId } from '@acme/domain';
+import type { ActiveIdentitySession } from '../ports';
 import {
   IDENTITY_TEST_CONTEXT,
   makeIdentityWorld as makeWorld,
-} from './testing';
-import { makeIdentityUseCases } from './use-cases';
-
-const CUSTOMER_EXPIRES = '2026-06-11T12:00:00.000Z'; // NOW + 24 h idle
-const STAFF_EXPIRES = '2026-06-10T12:30:00.000Z'; // NOW + 30 min idle
-
-const knownCustomerMembership: Record<string, IdentityMembershipSnapshot> = {
-  'user-1': {
-    membershipId: 'membership-9' as MembershipId,
-    accountId: 'acct-9' as AccountId,
-    accountKind: 'customer',
-  },
-};
-
-const register = (world: ReturnType<typeof makeWorld>, email: string | null) =>
-  makeIdentityUseCases(world.deps).registerIdentitySession({
-    userId: 'user-1',
-    sessionId: 'session-1',
-    email,
-    context: IDENTITY_TEST_CONTEXT,
-  });
+} from '../testing';
+import { makeIdentityUseCases } from '../use-cases';
+import {
+  CUSTOMER_EXPIRES,
+  STAFF_EXPIRES,
+  knownCustomerMembership,
+  pendingInvite,
+  register,
+} from './fixtures';
 
 describe('registerIdentitySession', () => {
   it('is idempotent for a session that already exists', async () => {
@@ -82,6 +67,11 @@ describe('registerIdentitySession', () => {
       'owner.bootstrapped',
       'login.succeeded',
     ]);
+    // ADR-0016: the owner bootstrap (staff org) is subscription-free — no
+    // billing facts are written and no entitlement is ever consulted.
+    expect(world.subscriptions).toHaveLength(0);
+    expect(world.billingEvents).toHaveLength(0);
+    expect(world.seatLimitCalls).toHaveLength(0);
   });
 
   it('never bootstraps twice: with a root admin present the email is left org-less', async () => {
@@ -100,12 +90,7 @@ describe('registerIdentitySession', () => {
     const world = makeWorld({
       // even the bootstrap email defers to an invitation
       bootstrapOwnerEmail: 'invitee@example.com',
-      pendingInvitation: {
-        invitationId: 'inv-1' as InvitationId,
-        accountId: 'acct-owner' as AccountId,
-        accountKind: 'staff',
-        permissions: accessPresetPermissions('support'),
-      },
+      pendingInvitation: pendingInvite(),
     });
     const r = await register(world, 'invitee@example.com');
     expect(r.ok).toBe(true);
@@ -126,12 +111,7 @@ describe('registerIdentitySession', () => {
   it('a user with an existing membership still joins the inviting account', async () => {
     const world = makeWorld({
       memberships: knownCustomerMembership,
-      pendingInvitation: {
-        invitationId: 'inv-1' as InvitationId,
-        accountId: 'acct-owner' as AccountId,
-        accountKind: 'staff',
-        permissions: accessPresetPermissions('support'),
-      },
+      pendingInvitation: pendingInvite(),
     });
     const r = await register(world, 'a@example.com');
     expect(r.ok).toBe(true);
@@ -151,12 +131,11 @@ describe('registerIdentitySession', () => {
   it('ignores an invitation into an account the user already belongs to', async () => {
     const world = makeWorld({
       memberships: knownCustomerMembership,
-      pendingInvitation: {
-        invitationId: 'inv-1' as InvitationId,
+      pendingInvitation: pendingInvite({
         accountId: 'acct-9' as AccountId, // same account as the membership
         accountKind: 'customer',
         permissions: [],
-      },
+      }),
     });
     const r = await register(world, 'a@example.com');
     expect(r.ok).toBe(true);

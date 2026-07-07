@@ -6,10 +6,12 @@ import type {
   AccessPermission,
   AccountId,
   AccountKind,
+  BillingSubscriptionStarted,
   InvitationId,
   MembershipId,
   RoleId,
   SessionId,
+  Subscription,
   UserId,
 } from '@acme/domain';
 
@@ -81,6 +83,20 @@ export type ActiveIdentitySession = {
   readonly lastSeenAt: string;
 };
 
+/**
+ * Attach-time seat enforcement (ADR-0016 D1 — invitations never reserve
+ * seats, so the limit holds HERE, transactionally): the resolved seat ceiling
+ * travels with the accept and the adapter counts current members inside its
+ * own transaction. `null` = unlimited (staff orgs, unlimited plans).
+ */
+export type AcceptInvitationTarget = {
+  readonly invitationId: InvitationId;
+  readonly seatLimit: number | null;
+};
+
+/** `seat-blocked` = the org is full; NOTHING was written (the bounce). */
+export type InvitationAttachOutcome = 'attached' | 'seat-blocked';
+
 export type IdentityOnboardingRepository = {
   readonly findMembershipByUser: (
     userId: UserId,
@@ -93,20 +109,29 @@ export type IdentityOnboardingRepository = {
     membership: NewIdentityMembership,
     event: AccessOwnerBootstrapped,
   ) => Promise<void>;
-  /** Creates a customer account + membership (self-signup default). */
+  /**
+   * Creates a customer account + membership (self-signup default) AND the
+   * org's subscription (+ its `subscription.started` billing event) in ONE
+   * transaction — birth is atomic (ADR-0016 Decision 2): an org can never
+   * exist without its subscription facts.
+   */
   readonly createCustomerMembership: (
     membership: NewIdentityMembership,
+    subscription: Subscription,
+    event: BillingSubscriptionStarted,
   ) => Promise<void>;
   /**
    * Joins an EXISTING account (invitation flow): membership creation, the
    * invitation's acceptance mark and the audit event commit in one
-   * transaction. No account row is created.
+   * transaction. No account row is created. When the account already sits at
+   * `seatLimit` members (counted under lock, in-transaction) the attach is
+   * refused: `seat-blocked`, nothing written — the ADR-0016 bounce.
    */
   readonly acceptInvitation: (
     membership: NewIdentityMembership,
-    invitationId: InvitationId,
+    invitation: AcceptInvitationTarget,
     event: AccessInvitationAccepted,
-  ) => Promise<void>;
+  ) => Promise<InvitationAttachOutcome>;
   /** Registers the session row, atomically with its login event. */
   readonly createSession: (
     session: NewIdentitySession,

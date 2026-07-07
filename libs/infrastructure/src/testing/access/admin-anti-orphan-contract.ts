@@ -70,7 +70,7 @@ const accept = (store: AccessStorePorts, m: NewMember) =>
       roleIds: m.roleIds ?? [],
       occurredAt: NOW,
     },
-    crypto.randomUUID() as never,
+    { invitationId: crypto.randomUUID() as never, seatLimit: null },
     {
       type: 'invitation.accepted',
       invitationId: crypto.randomUUID() as never,

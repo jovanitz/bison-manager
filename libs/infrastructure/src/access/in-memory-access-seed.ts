@@ -126,6 +126,8 @@ export type StoredInvitation = {
   readonly acceptedAt: string | null;
   /** SHA-256 of the one-time activation token; null once consumed. */
   tokenHash: string | null;
+  /** When a login-time attach bounced off the seat limit (ADR-0016 D1). */
+  seatBlockedAt: string | null;
 };
 
 export type AccessStoreState = {

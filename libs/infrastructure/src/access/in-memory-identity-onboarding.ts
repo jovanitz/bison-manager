@@ -2,6 +2,7 @@ import type {
   IdentityOnboardingRepository,
   NewIdentityMembership,
   NewIdentitySession,
+  SubscriptionStore,
 } from '@acme/application';
 import type {
   AccessPermission,
@@ -12,6 +13,15 @@ import type {
 import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
 import { upsertPersonalRole } from './admin/in-memory-membership-perms';
 import type { AccessStoreState } from './in-memory-access-seed';
+
+/**
+ * The billing seam of the onboarding (ADR-0016 Decision 2): org birth writes
+ * the subscription + its `subscription.started` event through the SAME
+ * in-memory billing state the billing stores read (synchronous = the Postgres
+ * transaction). Wired by the composition root from
+ * `createInMemorySubscriptionStore(billingState)`.
+ */
+export type InMemoryIdentityBillingSink = Pick<SubscriptionStore, 'save'>;
 
 /**
  * In-memory onboarding, sharing the store state: provisioned memberships and
@@ -74,8 +84,46 @@ const storeSession = (
   });
 };
 
+const acceptInvitation: (
+  state: AccessStoreState,
+  ...args: Parameters<IdentityOnboardingRepository['acceptInvitation']>
+) => ReturnType<IdentityOnboardingRepository['acceptInvitation']> = async (
+  state,
+  membership,
+  { invitationId, seatLimit },
+  event,
+) => {
+  // Attach-time seat check (ADR-0016 D1): at the ceiling nothing is
+  // written — the bounce. Synchronous = the Postgres locked count.
+  const members = [...state.memberships.values()].filter(
+    (m) => m.accountId === membership.accountId,
+  ).length;
+  if (seatLimit !== null && members >= seatLimit) return 'seat-blocked';
+  const invitation = state.invitations.get(invitationId);
+  if (invitation) {
+    state.invitations.set(invitationId, {
+      ...invitation,
+      acceptedAt: event.occurredAt,
+    });
+  }
+  // join the EXISTING account: membership only, no account row. Roles come
+  // from the invitation (ADR-0011); its one-off grant becomes a personal role.
+  const { membershipId, permissions } = membership;
+  state.memberships.set(membershipId, {
+    userId: membership.userId,
+    accountId: membership.accountId,
+    isRoot: false,
+    roleIds: membership.roleIds ?? [],
+    isAccountOwner: false,
+  });
+  movePermsToPersonalRole(state, membershipId, permissions);
+  appendInMemoryAuditRecord(state, event);
+  return 'attached';
+};
+
 export const makeInMemoryIdentityOnboarding = (
   state: AccessStoreState,
+  billing: InMemoryIdentityBillingSink,
 ): IdentityOnboardingRepository => ({
   findMembershipByUser: async (userId) => {
     for (const [id, membership] of state.memberships) {
@@ -104,7 +152,7 @@ export const makeInMemoryIdentityOnboarding = (
     appendInMemoryAuditRecord(state, event);
   },
 
-  createCustomerMembership: async (membership) => {
+  createCustomerMembership: async (membership, subscription, event) => {
     // Self-signup: the creator owns the org they just made (own-scope bypass).
     storeMembership(state, membership, false, true);
     state.customers.set(membership.accountId, {
@@ -114,29 +162,13 @@ export const makeInMemoryIdentityOnboarding = (
       status: 'active',
       createdAt: membership.occurredAt,
     });
+    // Birth is atomic (ADR-0016): the subscription + its started event land
+    // in the billing state in the same synchronous step.
+    await billing.save(subscription, event);
   },
 
-  acceptInvitation: async (membership, invitationId, event) => {
-    const invitation = state.invitations.get(invitationId);
-    if (invitation) {
-      state.invitations.set(invitationId, {
-        ...invitation,
-        acceptedAt: event.occurredAt,
-      });
-    }
-    // join the EXISTING account: membership only, no account row. Roles come
-    // from the invitation (ADR-0011); its one-off grant becomes a personal role.
-    const { membershipId, permissions } = membership;
-    state.memberships.set(membershipId, {
-      userId: membership.userId,
-      accountId: membership.accountId,
-      isRoot: false,
-      roleIds: membership.roleIds ?? [],
-      isAccountOwner: false,
-    });
-    movePermsToPersonalRole(state, membershipId, permissions);
-    appendInMemoryAuditRecord(state, event);
-  },
+  acceptInvitation: (membership, invitation, event) =>
+    acceptInvitation(state, membership, invitation, event),
 
   createSession: async (session, event) => {
     storeSession(state, session);

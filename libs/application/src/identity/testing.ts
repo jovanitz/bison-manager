@@ -1,8 +1,16 @@
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import { ACCESS_SESSION_POLICY_DEFAULTS } from '@acme/domain';
-import type { AccessAuditEvent, InvitationId, UserId } from '@acme/domain';
+import type {
+  AccessAuditEvent,
+  BillingEvent,
+  InvitationId,
+  Subscription,
+  UserId,
+} from '@acme/domain';
+import type { BillingAccountRef } from '../billing-subscriptions/ports';
 import type { PendingAccessInvitation } from '../access-invitations/ports';
 import type {
+  AcceptInvitationTarget,
   ActiveIdentitySession,
   IdentityMembershipSnapshot,
   NewIdentityMembership,
@@ -25,6 +33,10 @@ type IdentityWorldInput = {
   sessions?: string[];
   activeSessions?: ReadonlyArray<ActiveIdentitySession>;
   pendingInvitation?: PendingAccessInvitation;
+  /** Members already in the invited org — the attach-time count (ADR-0016). */
+  invitedOrgMembers?: number;
+  /** Seat ceiling `seatLimitFor` resolves for CUSTOMER orgs (null = unlimited). */
+  invitedOrgSeatLimit?: number | null;
 };
 
 type IdentityWorldState = {
@@ -35,6 +47,10 @@ type IdentityWorldState = {
   readonly audit: AccessAuditEvent[];
   readonly accepted: InvitationId[];
   readonly capRevoked: string[];
+  readonly subscriptions: Subscription[];
+  readonly billingEvents: BillingEvent[];
+  readonly seatBlockedMarks: InvitationId[];
+  readonly seatLimitCalls: BillingAccountRef[];
   readonly root: { exists: boolean };
 };
 
@@ -54,17 +70,29 @@ const makeOnboardingFake = (
     state.audit.push(event);
     state.root.exists = true;
   },
-  createCustomerMembership: async (membership: NewIdentityMembership) => {
-    state.created.push(membership);
-  },
-  acceptInvitation: async (
+  createCustomerMembership: async (
     membership: NewIdentityMembership,
-    invitationId: InvitationId,
-    event: AccessAuditEvent,
+    subscription: Subscription,
+    event: BillingEvent,
   ) => {
     state.created.push(membership);
-    state.accepted.push(invitationId);
+    state.subscriptions.push(subscription);
+    state.billingEvents.push(event);
+  },
+  // Mirrors the adapters: at the seat ceiling nothing is written (the bounce).
+  acceptInvitation: async (
+    membership: NewIdentityMembership,
+    invitation: AcceptInvitationTarget,
+    event: AccessAuditEvent,
+  ) => {
+    const members = input.invitedOrgMembers ?? 0;
+    if (invitation.seatLimit !== null && members >= invitation.seatLimit) {
+      return 'seat-blocked' as const;
+    }
+    state.created.push(membership);
+    state.accepted.push(invitation.invitationId);
     state.audit.push(event);
+    return 'attached' as const;
   },
   createSession: async (
     session: NewIdentitySession,
@@ -78,6 +106,26 @@ const makeOnboardingFake = (
     input.activeSessions ?? [],
 });
 
+const makeInvitationFakes = (
+  input: IdentityWorldInput,
+  state: IdentityWorldState,
+) => ({
+  invitations: {
+    findPendingByEmail: async () => input.pendingInvitation ?? null,
+    markSeatBlocked: async (invitationId: InvitationId) => {
+      state.seatBlockedMarks.push(invitationId);
+    },
+  },
+  // Mirrors the real guard: staff orgs are never billing-gated (null).
+  billing: {
+    seatLimitFor: async (account: BillingAccountRef) => {
+      state.seatLimitCalls.push(account);
+      if (account.kind === 'staff') return null;
+      return input.invitedOrgSeatLimit ?? null;
+    },
+  },
+});
+
 export const makeIdentityWorld = (input: IdentityWorldInput) => {
   const state: IdentityWorldState = {
     memberships: new Map(Object.entries(input.memberships ?? {})),
@@ -87,6 +135,10 @@ export const makeIdentityWorld = (input: IdentityWorldInput) => {
     audit: [],
     accepted: [],
     capRevoked: [],
+    subscriptions: [],
+    billingEvents: [],
+    seatBlockedMarks: [],
+    seatLimitCalls: [],
     root: { exists: input.rootAdminExists ?? false },
   };
   const deps = {
@@ -97,9 +149,7 @@ export const makeIdentityWorld = (input: IdentityWorldInput) => {
         state.audit.push(event);
       },
     },
-    invitations: {
-      findPendingByEmail: async () => input.pendingInvitation ?? null,
-    },
+    ...makeInvitationFakes(input, state),
     members: {
       // mirrors the memberships record: one membership per seeded user
       listMembershipsByUser: async (userId: UserId) => {
@@ -131,5 +181,9 @@ export const makeIdentityWorld = (input: IdentityWorldInput) => {
     audit: state.audit,
     capRevoked: state.capRevoked,
     accepted: state.accepted,
+    subscriptions: state.subscriptions,
+    billingEvents: state.billingEvents,
+    seatBlockedMarks: state.seatBlockedMarks,
+    seatLimitCalls: state.seatLimitCalls,
   };
 };

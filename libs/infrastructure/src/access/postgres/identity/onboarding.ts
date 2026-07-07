@@ -3,18 +3,23 @@ import type {
   NewIdentityMembership,
 } from '@acme/application';
 import type {
-  AccessInvitationAccepted,
   AccessOwnerBootstrapped,
   AccountId,
   AccountKind,
-  InvitationId,
+  BillingSubscriptionStarted,
   MembershipId,
   SessionId,
+  Subscription,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
+import {
+  insertBillingEvent,
+  insertSubscriptionRow,
+} from '../../../billing/postgres/rows';
 import { upsertPersonalRole } from '../admin/personal-role';
 import { insertAuditEvent, isUuid } from '../rows';
 import type { SqlLike } from '../rows';
+import { acceptInvitationAttach } from './onboarding-attach';
 
 /**
  * Postgres onboarding. Provisioning writes (account + membership [+ event])
@@ -75,46 +80,6 @@ const insertMembershipBundle = async (
   }
 };
 
-const acceptInvitation = async (
-  sql: Sql,
-  input: {
-    readonly membership: NewIdentityMembership;
-    readonly invitationId: InvitationId;
-    readonly event: AccessInvitationAccepted;
-  },
-): Promise<void> => {
-  const { membership, invitationId, event } = input;
-  await sql.begin(async (tx) => {
-    await tx`
-      update public.invitations
-      set accepted_at = ${event.occurredAt}
-      where id = ${invitationId}
-    `;
-    await tx`
-      insert into public.memberships
-        (id, user_id, account_id, role_ids, is_root, created_at)
-      values (${membership.membershipId}, ${membership.userId},
-        ${membership.accountId},
-        ${(membership.roleIds ?? []) as unknown as string[]}::uuid[],
-        false, ${membership.occurredAt})
-    `;
-    // roles-only (ADR-0014 2.B′): the invitation's direct grant becomes a
-    // personal role, appended alongside any inherited shared roles.
-    if (membership.permissions.length > 0) {
-      await upsertPersonalRole(
-        tx,
-        {
-          id: membership.membershipId,
-          accountId: membership.accountId,
-          roleIds: membership.roleIds ?? [],
-        },
-        membership.permissions,
-      );
-    }
-    await insertAuditEvent(tx, event);
-  });
-};
-
 // Creating an account makes you its owner (ADR-0011): own-scope bypass for the
 // self-signup customer, plus the (stronger) root flag for the bootstrap owner.
 const createOwnerMembership = (
@@ -131,16 +96,28 @@ const createOwnerMembership = (
     await insertAuditEvent(tx, event);
   }) as Promise<void>;
 
+// Birth is atomic (ADR-0016 Decision 2): account + owner membership +
+// subscription (+ its billing event) commit in ONE transaction.
 const createCustomerMembership = (
   sql: Sql,
   membership: NewIdentityMembership,
+  subscription: Subscription,
+  event: BillingSubscriptionStarted,
 ): Promise<void> =>
   sql.begin(async (tx) => {
+    // maxOrganizationsOwned counts rows that DO NOT EXIST YET: two concurrent
+    // creates by the same identity each count N and both insert — a phantom
+    // that `select … for update` cannot lock (there is no row to lock). The
+    // per-user advisory xact lock is the serialization point instead
+    // (ADR-0016 Decision 4); it releases automatically at commit/rollback.
+    await tx`select pg_advisory_xact_lock(hashtext(${membership.userId}))`;
     await insertMembershipBundle(tx, membership, {
       kind: 'customer',
       isRoot: false,
       isAccountOwner: true,
     });
+    await insertSubscriptionRow(tx, subscription);
+    await insertBillingEvent(tx, event);
   }) as Promise<void>;
 
 export const createPostgresIdentityOnboarding = (
@@ -183,11 +160,11 @@ export const createPostgresIdentityOnboarding = (
   createOwnerMembership: (membership, event) =>
     createOwnerMembership(sql, membership, event),
 
-  createCustomerMembership: (membership) =>
-    createCustomerMembership(sql, membership),
+  createCustomerMembership: (membership, subscription, event) =>
+    createCustomerMembership(sql, membership, subscription, event),
 
-  acceptInvitation: (membership, invitationId, event) =>
-    acceptInvitation(sql, { membership, invitationId, event }),
+  acceptInvitation: (membership, invitation, event) =>
+    acceptInvitationAttach(sql, { membership, invitation, event }),
 
   createSession: async (session, event) => {
     await sql.begin(async (tx) => {

@@ -33,6 +33,7 @@ import { makeInMemoryBlockStore } from './in-memory-block-store';
 import { createInMemoryRoleStore } from './role/in-memory-role-store';
 import { createInMemoryRoleTemplateStore } from './role/in-memory-role-template-store';
 import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
+import type { InMemoryIdentityBillingSink } from './in-memory-identity-onboarding';
 import { makeInMemoryInvitationStore } from './in-memory-invitations';
 import {
   makeInMemorySessionActivityRecorder,
@@ -144,6 +145,13 @@ const makeCustomerDirectory = (state: AccessStoreState): CustomerDirectory => ({
 
 export const createInMemoryAccessStore = (
   seed: InMemoryAccessSeed,
+  /**
+   * Where org birth writes the subscription + `subscription.started` event
+   * (ADR-0016 Decision 2). Pass `createInMemorySubscriptionStore` over the
+   * SAME billing state the billing stores are built on, so the birth facts
+   * are immediately readable by guards and `billing.summary`.
+   */
+  billing: InMemoryIdentityBillingSink,
 ): InMemoryAccessStore => {
   const state = toAccessStoreState(seed);
   return {
@@ -175,7 +183,7 @@ export const createInMemoryAccessStore = (
       // No auth layer in memory, so nothing can be orphaned from it.
       listOrphanIdentities: async () => [],
     },
-    onboarding: makeInMemoryIdentityOnboarding(state),
+    onboarding: makeInMemoryIdentityOnboarding(state, billing),
     sessionPolicies: makeInMemorySessionPolicyStore(state),
     sessionActivity: makeInMemorySessionActivityRecorder(state),
     invitations: makeInMemoryInvitationStore(state),

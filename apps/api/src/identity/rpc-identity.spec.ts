@@ -204,3 +204,6 @@ describe('identity pipeline (Supabase-shaped JWTs)', () => {
     }
   });
 });
+
+// The ADR-0016 org-creation enforcement E2E (plan limits, trial-once) lives
+// in ../procedures/billing/create-org-enforcement.spec.ts.

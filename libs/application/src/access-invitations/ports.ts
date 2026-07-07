@@ -21,6 +21,13 @@ export type PendingAccessInvitation = {
   readonly permissions: ReadonlyArray<AccessPermission>;
   /** Roles to assign to the membership on acceptance (ADR-0011). */
   readonly roleIds: ReadonlyArray<RoleId>;
+  /**
+   * When a login-time attach bounced off the seat limit (ADR-0016 D1). A
+   * marked invitation stays pending, but never silently auto-attaches on a
+   * later login once the user holds any other membership; a still org-less
+   * user may retry (and attach once a seat frees).
+   */
+  readonly seatBlockedAt: string | null;
 };
 
 /** A pending invitation located by its one-time activation token (by hash). */
@@ -41,6 +48,8 @@ export type PendingInvitationSummary = {
   readonly email: string;
   readonly createdAt: string;
   readonly expiresAt: string;
+  /** Set when the attach bounced off the seat limit — admin visibility (ADR-0016). */
+  readonly seatBlockedAt: string | null;
 };
 
 export type AccessInvitationStore = {
@@ -76,6 +85,15 @@ export type AccessInvitationStore = {
   ) => Promise<PendingInvitationByToken | null>;
   /** Burns the one-time token (idempotent) so a link cannot be replayed. */
   readonly consumeToken: (invitationId: InvitationId) => Promise<void>;
+  /**
+   * Marks a pending invitation as seat-blocked (the attach bounced: org
+   * full). First bounce wins — the timestamp is written once; the invitation
+   * stays pending and visibly marked for the inviting admin (ADR-0016 D1).
+   */
+  readonly markSeatBlocked: (
+    invitationId: InvitationId,
+    occurredAt: string,
+  ) => Promise<void>;
   /** Every unexpired, unaccepted invitation — the dashboard's pending list. */
   readonly listPending: (
     now: string,

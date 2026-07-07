@@ -22,7 +22,35 @@ const pendingSummaries = (
       email: i.email,
       createdAt: i.createdAt,
       expiresAt: i.expiresAt,
+      seatBlockedAt: i.seatBlockedAt,
     }));
+
+const findPendingByEmail = (
+  state: AccessStoreState,
+  email: string,
+  now: string,
+): ReturnType<AccessInvitationStore['findPendingByEmail']> => {
+  const needle = email.trim().toLowerCase();
+  for (const invitation of state.invitations.values()) {
+    if (
+      invitation.email === needle &&
+      invitation.acceptedAt === null &&
+      new Date(invitation.expiresAt).getTime() > new Date(now).getTime()
+    ) {
+      return Promise.resolve({
+        invitationId: invitation.invitationId,
+        accountId: invitation.accountId as never,
+        accountKind: state.customers.has(invitation.accountId)
+          ? ('customer' as const)
+          : ('staff' as const),
+        permissions: invitation.permissions,
+        roleIds: invitation.roleIds as never,
+        seatBlockedAt: invitation.seatBlockedAt,
+      });
+    }
+  }
+  return Promise.resolve(null);
+};
 
 /** In-memory invitations, sharing the store state (same rules as Postgres). */
 export const makeInMemoryInvitationStore = (
@@ -39,6 +67,7 @@ export const makeInMemoryInvitationStore = (
       expiresAt: invitation.expiresAt,
       acceptedAt: null,
       tokenHash: invitation.tokenHash,
+      seatBlockedAt: null,
     });
     appendInMemoryAuditRecord(state, event);
   },
@@ -75,25 +104,13 @@ export const makeInMemoryInvitationStore = (
     if (invitation) invitation.tokenHash = null;
   },
 
-  findPendingByEmail: async (email, now) => {
-    const needle = email.trim().toLowerCase();
-    for (const invitation of state.invitations.values()) {
-      if (
-        invitation.email === needle &&
-        invitation.acceptedAt === null &&
-        new Date(invitation.expiresAt).getTime() > new Date(now).getTime()
-      ) {
-        return {
-          invitationId: invitation.invitationId,
-          accountId: invitation.accountId as never,
-          accountKind: state.customers.has(invitation.accountId)
-            ? ('customer' as const)
-            : ('staff' as const),
-          permissions: invitation.permissions,
-          roleIds: invitation.roleIds as never,
-        };
-      }
+  // First bounce wins: the mark records WHEN the org was first found full.
+  markSeatBlocked: async (invitationId, occurredAt) => {
+    const invitation = state.invitations.get(invitationId);
+    if (invitation && invitation.seatBlockedAt === null) {
+      invitation.seatBlockedAt = occurredAt;
     }
-    return null;
   },
+
+  findPendingByEmail: (email, now) => findPendingByEmail(state, email, now),
 });

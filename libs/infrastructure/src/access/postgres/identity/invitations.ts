@@ -13,13 +13,17 @@ import type {
 import type { Sql } from 'postgres';
 import { insertAuditEvent } from '../rows';
 
+const isoOrNull = (value: Date | string | null): string | null =>
+  value === null ? null : new Date(value).toISOString();
+
 const pendingByEmail = async (
   sql: Sql,
   email: string,
   now: string,
 ): Promise<PendingAccessInvitation | null> => {
   const rows = await sql`
-    select i.id, i.account_id, i.permissions, i.role_ids, a.kind
+    select i.id, i.account_id, i.permissions, i.role_ids, i.seat_blocked_at,
+      a.kind
     from public.invitations i
     join public.accounts a on a.id = i.account_id
     where lower(i.email) = lower(${email})
@@ -36,6 +40,7 @@ const pendingByEmail = async (
     accountKind: row['kind'] as AccountKind,
     permissions: row['permissions'] as ReadonlyArray<AccessPermission>,
     roleIds: row['role_ids'] as ReadonlyArray<RoleId>,
+    seatBlockedAt: isoOrNull(row['seat_blocked_at'] as Date | null),
   };
 };
 
@@ -44,7 +49,7 @@ const listPendingInvitations = async (
   now: string,
 ): Promise<ReadonlyArray<PendingInvitationSummary>> => {
   const rows = await sql`
-    select id, account_id, email, created_at, expires_at
+    select id, account_id, email, created_at, expires_at, seat_blocked_at
     from public.invitations
     where accepted_at is null and expires_at > ${now}
     order by created_at asc
@@ -55,6 +60,7 @@ const listPendingInvitations = async (
     email: row['email'] as string,
     createdAt: new Date(row['created_at'] as string | Date).toISOString(),
     expiresAt: new Date(row['expires_at'] as string | Date).toISOString(),
+    seatBlockedAt: isoOrNull(row['seat_blocked_at'] as Date | null),
   }));
 };
 
@@ -99,6 +105,15 @@ export const createPostgresInvitationStore = (
   consumeToken: async (invitationId) => {
     await sql`
       update public.invitations set token_hash = null where id = ${invitationId}
+    `;
+  },
+
+  // First bounce wins: the mark records WHEN the org was first found full.
+  markSeatBlocked: async (invitationId, occurredAt) => {
+    await sql`
+      update public.invitations
+      set seat_blocked_at = ${occurredAt}
+      where id = ${invitationId} and seat_blocked_at is null
     `;
   },
 

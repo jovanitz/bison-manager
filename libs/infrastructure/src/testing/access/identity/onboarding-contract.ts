@@ -1,59 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
 import type { SessionId, UserId } from '@acme/domain';
-import type {
-  IdentityOnboardingRepository,
-  NewIdentityMembership,
-} from '@acme/application';
-import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
+  ACCESS_CONTRACT_TRIAL_ENDS,
   accessContractSeed,
   makeAccessContractIds,
-} from './access-store-fixtures';
-import type {
-  AccessContractIds,
-  AccessStorePorts,
-} from './access-store-fixtures';
-import { identityInvitationContract } from './identity-invitation-contract';
-
-const EXPIRES = '2026-07-09T12:00:00.000Z';
-
-const newMembership = (
-  ids: AccessContractIds,
-  preset: 'owner' | 'customer',
-): NewIdentityMembership => ({
-  membershipId: crypto.randomUUID() as NewIdentityMembership['membershipId'],
-  accountId: crypto.randomUUID() as NewIdentityMembership['accountId'],
-  userId: ids.userNew,
-  email: 'new@example.com',
-  displayName: preset === 'owner' ? 'Owner' : 'New Customer',
-  permissions: accessPresetPermissions(preset),
-  occurredAt: NOW,
-});
-
-const registerSession = async (
-  onboarding: IdentityOnboardingRepository,
-  membership: NewIdentityMembership,
-): Promise<SessionId> => {
-  const sessionId = crypto.randomUUID() as SessionId;
-  await onboarding.createSession(
-    {
-      sessionId,
-      membershipId: membership.membershipId,
-      createdAt: NOW,
-      expiresAt: EXPIRES,
-      context: { userAgent: 'contract-test', ipAddress: '203.0.113.7' },
-    },
-    {
-      type: 'login.succeeded',
-      userId: membership.userId,
-      sessionId,
-      occurredAt: NOW,
-    },
-  );
-  return sessionId;
-};
+} from '../access-store-fixtures';
+import type { AccessStorePorts } from '../access-store-fixtures';
+import { customerBirth, newMembership, registerSession } from './fixtures';
+import { identityInvitationContract } from './invitation-contract';
 
 /**
  * Contract for the identity-onboarding port: linking verified identities to
@@ -116,7 +73,7 @@ export const identityOnboardingContract = (
       const ids = makeAccessContractIds();
       const store = await makeStore(accessContractSeed(ids));
       const customer = newMembership(ids, 'customer');
-      await store.onboarding.createCustomerMembership(customer);
+      await customerBirth(store, customer);
 
       expect(await store.onboarding.rootAdminExists()).toBe(false);
       expect(await store.customers.read(customer.accountId)).toMatchObject({
@@ -133,6 +90,46 @@ export const identityOnboardingContract = (
       expect(
         (await store.actors.findActorBySession(session))?.isAccountOwner,
       ).toBe(true);
+    });
+
+    it('births the subscription + its started event with the org (ADR-0016)', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const customer = newMembership(ids, 'customer');
+      const birth = await customerBirth(store, customer);
+
+      // the subscription facts are readable from the billing store…
+      const sub = await store.billing.subscriptions.findByAccount(
+        customer.accountId,
+      );
+      expect(sub).toMatchObject({
+        id: birth.subscription.id,
+        accountId: customer.accountId,
+        createdByUserId: customer.userId,
+        trialEndsAt: ACCESS_CONTRACT_TRIAL_ENDS,
+        paidThroughAt: null,
+        canceledAt: null,
+      });
+      // …and the birth event landed on billing's own audit stream.
+      expect(
+        (await store.billing.events()).map((event) => event.type),
+      ).toContain('subscription.started');
+    });
+
+    it('the owner bootstrap (staff org) is subscription-free (ADR-0016)', async () => {
+      const ids = makeAccessContractIds();
+      const store = await makeStore(accessContractSeed(ids));
+      const owner = newMembership(ids, 'owner');
+      await store.onboarding.createOwnerMembership(owner, {
+        type: 'owner.bootstrapped',
+        membershipId: owner.membershipId,
+        userId: owner.userId,
+        occurredAt: NOW,
+      });
+      expect(
+        await store.billing.subscriptions.findByAccount(owner.accountId),
+      ).toBeNull();
+      expect(await store.billing.events()).toEqual([]);
     });
 
     it('lists only the live sessions of a membership', async () => {

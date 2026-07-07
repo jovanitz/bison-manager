@@ -17,6 +17,7 @@ import type {
   AccessContractIds,
   AccessStorePorts,
 } from './access-store-fixtures';
+import { customerBirth } from './identity/fixtures';
 
 /** Joins a second member to the support account (invitation-accept path). */
 const joinSecondMember = async (
@@ -34,7 +35,7 @@ const joinSecondMember = async (
       permissions: accessPresetPermissions('customer'),
       occurredAt: NOW,
     },
-    crypto.randomUUID() as InvitationId,
+    { invitationId: crypto.randomUUID() as InvitationId, seatLimit: null },
     {
       type: 'invitation.accepted',
       invitationId: crypto.randomUUID() as InvitationId,
@@ -130,7 +131,7 @@ export const memberDirectoryContract = (
       const inStaffOrg = await joinSecondMember(store, ids);
       // …and self-signs-up a customer account of their own.
       const ownOrg = crypto.randomUUID() as MembershipId;
-      await store.onboarding.createCustomerMembership({
+      await customerBirth(store, {
         membershipId: ownOrg,
         accountId: crypto.randomUUID() as AccountId,
         userId: ids.userNew,

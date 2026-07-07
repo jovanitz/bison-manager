@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
 import type { InvitationId, MembershipId, Role, RoleId } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory-access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   accessContractSeed,
   makeAccessContractIds,
-} from './access-store-fixtures';
-import type { AccessStorePorts } from './access-store-fixtures';
+} from '../access-store-fixtures';
+import type { AccessStorePorts } from '../access-store-fixtures';
+import { invitationSeatBlockContract } from './seat-block-contract';
 
 const INVITE_EXPIRES = '2026-07-09T12:00:00.000Z';
 const AFTER_EXPIRY = '2026-08-01T00:00:00.000Z';
@@ -64,6 +65,7 @@ export const identityInvitationContract = (
         accountKind: 'customer',
         permissions,
         roleIds: [],
+        seatBlockedAt: null,
       });
       // an expired invitation is not pending
       expect(
@@ -90,7 +92,7 @@ export const identityInvitationContract = (
       ).toBeNull();
 
       const membershipId = crypto.randomUUID() as MembershipId;
-      await store.onboarding.acceptInvitation(
+      const outcome = await store.onboarding.acceptInvitation(
         {
           membershipId,
           accountId: ids.acctCustomer,
@@ -100,7 +102,7 @@ export const identityInvitationContract = (
           permissions,
           occurredAt: NOW,
         },
-        invitationId,
+        { invitationId, seatLimit: null },
         {
           type: 'invitation.accepted',
           invitationId,
@@ -110,6 +112,7 @@ export const identityInvitationContract = (
           occurredAt: NOW,
         },
       );
+      expect(outcome).toBe('attached');
       // consumed: no longer pending; membership joined the EXISTING account
       expect(
         await store.invitations.findPendingByEmail('invitee@example.com', NOW),
@@ -183,7 +186,7 @@ export const identityInvitationContract = (
           roleIds: pending?.roleIds ?? [],
           occurredAt: NOW,
         },
-        invitationId,
+        { invitationId, seatLimit: null },
         {
           type: 'invitation.accepted',
           invitationId,
@@ -198,4 +201,6 @@ export const identityInvitationContract = (
       expect(await store.roles.countAssignments(role.id)).toBe(1);
     });
   });
+
+  invitationSeatBlockContract(name, makeStore);
 };
