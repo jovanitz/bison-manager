@@ -75,6 +75,49 @@ describe('makeAccessVocabulary', () => {
   });
 });
 
+describe('ADR-0016: plans/billing actions in the access vocabulary', () => {
+  const holds = (
+    preset: (typeof PRESET_NAMES)[number],
+    action: string,
+    scope: string,
+  ): boolean =>
+    accessPresetPermissions(preset).some(
+      (p) => p.action === action && p.scope === scope,
+    );
+
+  it('catalogs plans.manage and billing.read as known actions', () => {
+    expect(ACCESS_ACTIONS).toContain('plans.manage');
+    expect(ACCESS_ACTIONS).toContain('billing.read');
+  });
+
+  it('owner alone manages the catalog; staff presets read billing at any', () => {
+    expect(holds('owner', 'plans.manage', 'any')).toBe(true);
+    expect(holds('owner', 'billing.read', 'any')).toBe(true);
+    expect(holds('support', 'billing.read', 'any')).toBe(true);
+    // plans.manage is owner-only in v1 — support never manages the catalog.
+    expect(
+      accessPresetPermissions('support').some(
+        (p) => p.action === 'plans.manage',
+      ),
+    ).toBe(false);
+  });
+
+  it('customer-admin reads own billing; base customer does not', () => {
+    expect(holds('customer-admin', 'billing.read', 'own')).toBe(true);
+    expect(
+      accessPresetPermissions('customer').some(
+        (p) => p.action === 'billing.read',
+      ),
+    ).toBe(false);
+  });
+
+  it('billing.read is delegable into an org; plans.manage never is', () => {
+    expect(isCustomerDelegableAction('billing.read')).toBe(true);
+    expect(isCustomerDelegableAction('plans.manage')).toBe(false);
+    expect(ACCESS_CUSTOMER_DELEGABLE_ACTIONS).not.toContain('plans.manage');
+  });
+});
+
 // A second, structurally-different vocabulary — abstract on purpose, NOT this
 // app's giro — proving the generic core serves any `AccessConfig<Action,
 // Preset>`. A real app's vocabulary lives in that app (see apps/app-b), never

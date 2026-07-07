@@ -6,6 +6,9 @@ import type { AccessAction } from './value-objects';
  * permission list stored per membership; a preset is just a starting bundle an
  * admin applies (and may then edit freely). Nothing in the policy ever asks
  * "is this actor an owner?" — it only ever checks permissions and grants.
+ *
+ * ADR-0017: these are the EXISTING giro's presets — a new giro defines its
+ * own (injectable via `AccessConfig`, ADR-0015), never extends these.
  */
 export type AccessPresetName =
   | 'owner'
@@ -28,6 +31,9 @@ const ownerAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'members.invite', scope: 'any' },
   { action: 'members.read', scope: 'any' },
   { action: 'members.remove', scope: 'any' },
+  // ADR-0016: administering the plan catalog is owner-only in v1.
+  { action: 'plans.manage', scope: 'any' },
+  { action: 'billing.read', scope: 'any' },
 ];
 
 /**
@@ -39,6 +45,8 @@ const supportAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'customer.search', scope: 'any' },
   { action: 'impersonation.start', scope: 'any' },
   { action: 'impersonation.end', scope: 'any' },
+  // ADR-0016: support may read any org's billing, never manage the catalog.
+  { action: 'billing.read', scope: 'any' },
 ];
 
 const customerAccessPreset: ReadonlyArray<AccessPermission> = [
@@ -60,6 +68,8 @@ const customerAdminAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'members.block', scope: 'own' },
   { action: 'permissions.update', scope: 'own' },
   { action: 'audit.read', scope: 'own' },
+  // ADR-0016: an org admin reads their own org's billing/subscription state.
+  { action: 'billing.read', scope: 'own' },
 ];
 
 const presets: Record<AccessPresetName, ReadonlyArray<AccessPermission>> = {
@@ -92,6 +102,9 @@ export const ACCESS_CUSTOMER_DELEGABLE_ACTIONS = [
   'members.block',
   'permissions.update',
   'audit.read',
+  // ADR-0016: customers may delegate reading their own billing. `plans.manage`
+  // is deliberately absent — the catalog is staff machinery, never delegable.
+  'billing.read',
 ] as const satisfies ReadonlyArray<AccessAction>;
 
 export const isCustomerDelegableAction = (action: AccessAction): boolean =>

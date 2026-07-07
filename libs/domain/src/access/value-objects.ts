@@ -54,6 +54,11 @@ export const makeRoleId = (raw: string): Result<RoleId, AccessDomainError> =>
  * an action that is not in this union cannot even be expressed, let alone
  * allowed. New capabilities extend this list (and the presets/policies that
  * reference it) — they never bypass it.
+ *
+ * ADR-0017: this is the EXISTING giro's vocabulary, not "the platform's" —
+ * each giro injects its own (`AccessConfig`, see `apps/app-b/src/access.ts`);
+ * per-giro injection through the application slices = ADR-0015 fase 0b
+ * (pending until a second giro needs it).
  */
 export const ACCESS_ACTIONS = [
   'account.disable',
@@ -74,6 +79,8 @@ export const ACCESS_ACTIONS = [
   'members.read',
   'members.remove',
   'members.block',
+  'plans.manage',
+  'billing.read',
 ] as const;
 
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];
