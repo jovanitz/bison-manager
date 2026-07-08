@@ -1,7 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Users } from 'lucide-react';
 import { Badge } from '../../../design-system/badge/badge';
-import { Button } from '../../../design-system/button/button';
 
 /** Local row types — decoupled from application DTOs (the container maps to these). */
 export type StaffRow = {
@@ -24,10 +23,12 @@ export type CustomerRow = {
   /** Hard disable — the whole account is off (Disable/Enable account). */
   readonly disabled?: boolean;
 };
+export type InvitationStatus = 'pending' | 'expiring' | 'expired';
 export type InvitationRow = {
   readonly invitationId: string;
   readonly email: string;
   readonly expiresAt: string;
+  readonly status: InvitationStatus;
 };
 export type OrphanRow = {
   readonly userId: string;
@@ -44,6 +45,15 @@ export type DirectoryActions = {
   readonly onRegenerate: (invitationId: string) => void;
   /** Open an organization's detail (its owner + member roster). */
   readonly onOpenOrg: (accountId: string) => void;
+  /** Open a staff member's access detail (permissions, roles, sessions). */
+  readonly onOpenStaff: (accountId: string) => void;
+  /** Invitation lifecycle. */
+  readonly onCopyInvite: (invitationId: string) => void;
+  readonly onResendInvite: (invitationId: string) => void;
+  readonly onRevokeInvitation: (invitationId: string) => void;
+  /** Orphaned identity (registered, no org). */
+  readonly onInviteOrphan: (userId: string) => void;
+  readonly onDeleteOrphan: (userId: string) => void;
 };
 
 /** Directory screen ViewModel — lives here (the types hub) so the view and its
@@ -124,11 +134,22 @@ export const membersColumn = (
   ),
 });
 
-export const staffColumns: ColumnDef<StaffRow>[] = [
+/** Clickable staff rows — the name opens the member's access detail. */
+export const staffColumns = (
+  onOpenStaff: (accountId: string) => void,
+): ColumnDef<StaffRow>[] => [
   {
     accessorKey: 'displayName',
     header: 'Name',
-    cell: ({ row }) => dash(row.original.displayName),
+    cell: ({ row }) => (
+      <button
+        type="button"
+        onClick={() => onOpenStaff(row.original.accountId)}
+        className="font-medium text-foreground hover:underline"
+      >
+        {dash(row.original.displayName)}
+      </button>
+    ),
   },
   {
     accessorKey: 'email',
@@ -138,34 +159,4 @@ export const staffColumns: ColumnDef<StaffRow>[] = [
   { accessorKey: 'accountId', header: 'Account' },
 ];
 
-export const orphanColumns: ColumnDef<OrphanRow>[] = [
-  {
-    accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => dash(row.original.email),
-  },
-  { accessorKey: 'userId', header: 'User' },
-  { accessorKey: 'createdAt', header: 'Registered' },
-];
-
-export const invitationColumns = (
-  onRegenerate: DirectoryActions['onRegenerate'],
-): ColumnDef<InvitationRow>[] => [
-  { accessorKey: 'email', header: 'Email' },
-  { accessorKey: 'expiresAt', header: 'Expires' },
-  {
-    id: 'actions',
-    header: '',
-    cell: ({ row }) => (
-      <div className="text-right">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onRegenerate(row.original.invitationId)}
-        >
-          Regenerate link
-        </Button>
-      </div>
-    ),
-  },
-];
+// invitationColumns + orphanColumns now live in ./lists (with ⋯ actions).

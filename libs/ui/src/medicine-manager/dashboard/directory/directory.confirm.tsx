@@ -23,7 +23,7 @@ export type PendingAction =
       readonly action: 'disable' | 'enable' | 'promote';
     };
 
-type Copy = {
+export type Copy = {
   readonly title: string;
   readonly description: string;
   readonly confirmLabel: string;
@@ -93,6 +93,25 @@ const Body = ({
       </AlertDialogAction>
     </AlertDialogFooter>
   </>
+);
+
+/** Generic confirmation — pass the copy directly (used by list-row actions). */
+export const ConfirmDialog = ({
+  open,
+  copy,
+  onOpenChange,
+  onConfirm,
+}: {
+  readonly open: boolean;
+  readonly copy: Copy | null;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onConfirm: () => void;
+}) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      {copy ? <Body copy={copy} onConfirm={onConfirm} /> : null}
+    </AlertDialogContent>
+  </AlertDialog>
 );
 
 export const ConfirmActionDialog = ({

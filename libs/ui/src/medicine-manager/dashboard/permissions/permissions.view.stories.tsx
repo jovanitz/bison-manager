@@ -1,28 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { PermissionsView } from './permissions.view';
-import type { MemberRow, PermissionsVM, SessionRow } from './permissions.types';
+import { StaffDetailView, type StaffDetailVM } from './permissions.view';
+import type { MemberRow, SessionRow } from './permissions.types';
 import { DashboardShell } from '../dashboard.shell';
 
-const members: readonly MemberRow[] = [
-  {
-    membershipId: 'm1',
-    userId: 'u1',
-    displayName: 'Ana Torres',
-    email: 'ana@acme.com',
-    permissions: ['staff.read:any', 'roles.manage:own'],
-    roleIds: ['r1'],
-    blocked: false,
-  },
-  {
-    membershipId: 'm2',
-    userId: 'u2',
-    displayName: 'Beto Ruiz',
-    email: 'beto@acme.com',
-    permissions: ['home.read:own'],
-    roleIds: [],
-    blocked: true,
-  },
-];
+const member: MemberRow = {
+  membershipId: 'm1',
+  userId: 'u1',
+  displayName: 'Ana Torres',
+  email: 'ana@acme.com',
+  permissions: ['staff.read:any', 'roles.manage:own'],
+  roleIds: ['r1'],
+  blocked: false,
+};
 
 const availableRoles = [
   { id: 'r1', name: 'Owner' },
@@ -39,44 +28,51 @@ const actions = {
   onGrant: () => undefined,
   onAssignRoles: () => undefined,
   onBlockIdentity: () => undefined,
-  onLoadSessions: () => undefined,
   onRevokeSession: () => undefined,
   onRevokeAll: () => undefined,
 };
 
-const vm: PermissionsVM = {
-  members,
+const vm: StaffDetailVM = {
+  member,
   availableRoles,
+  sessions,
   canEdit: true,
   canBlock: true,
   canReadSessions: true,
 };
 
-const meta: Meta<typeof PermissionsView> = {
-  title: 'Medicine Manager/Dashboard/Permissions',
-  component: PermissionsView,
+const meta: Meta<typeof StaffDetailView> = {
+  title: 'Medicine Manager/Dashboard/Staff Detail',
+  component: StaffDetailView,
   tags: ['autodocs'],
   parameters: { layout: 'fullscreen' },
 };
 export default meta;
 
-type Story = StoryObj<typeof PermissionsView>;
+type Story = StoryObj<typeof StaffDetailView>;
 
-/** Pick a member to reveal grants, role toggles, block switch and sessions. */
+/** A staff member's access — grants, role toggles, block switch and sessions. */
 export const Default: Story = {
   render: () => (
-    <DashboardShell active="Permissions">
-      <PermissionsView vm={vm} sessions={sessions} {...actions} />
+    <DashboardShell active="Directory">
+      <StaffDetailView vm={vm} onBack={() => undefined} {...actions} />
     </DashboardShell>
   ),
 };
 
+/** A role without edit/block/session rights — read-only access view. */
 export const ReadOnly: Story = {
   render: () => (
-    <DashboardShell active="Permissions">
-      <PermissionsView
-        vm={{ ...vm, canEdit: false, canBlock: false, canReadSessions: false }}
-        sessions={[]}
+    <DashboardShell active="Directory">
+      <StaffDetailView
+        vm={{
+          ...vm,
+          canEdit: false,
+          canBlock: false,
+          canReadSessions: false,
+          sessions: [],
+        }}
+        onBack={() => undefined}
         {...actions}
       />
     </DashboardShell>

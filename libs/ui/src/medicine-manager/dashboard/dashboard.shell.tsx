@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import {
   CreditCard,
-  KeyRound,
   LayoutDashboard,
   LayoutTemplate,
   ScrollText,
@@ -35,7 +34,6 @@ import { UserMenu } from '../../design-system/user-menu/user-menu';
  */
 export type DashboardSection =
   | 'Directory'
-  | 'Permissions'
   | 'Roles'
   | 'Templates'
   | 'Plans'
@@ -48,7 +46,6 @@ const NAV: ReadonlyArray<{
   readonly icon: typeof Users;
 }> = [
   { label: 'Directory', icon: Users },
-  { label: 'Permissions', icon: KeyRound },
   { label: 'Roles', icon: ShieldCheck },
   { label: 'Templates', icon: LayoutTemplate },
   { label: 'Plans', icon: CreditCard },
@@ -61,7 +58,7 @@ const NAV: ReadonlyArray<{
 // AppShell appends a "More" entry that opens the full nav as a bottom sheet.
 const BOTTOM: readonly DashboardSection[] = [
   'Directory',
-  'Permissions',
+  'Roles',
   'Plans',
   'Audit',
 ];

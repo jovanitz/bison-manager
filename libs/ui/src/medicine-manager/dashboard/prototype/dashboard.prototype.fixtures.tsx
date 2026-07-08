@@ -38,6 +38,15 @@ const members: readonly MemberRow[] = [
     roleIds: [],
     blocked: true,
   },
+  {
+    membershipId: 'm3',
+    userId: 'u3',
+    displayName: 'Cami Díaz',
+    email: 'cami@acme.com',
+    permissions: ['staff.read:own'],
+    roleIds: ['r2'],
+    blocked: false,
+  },
 ];
 
 export const permissionsSessions: readonly SessionRow[] = [

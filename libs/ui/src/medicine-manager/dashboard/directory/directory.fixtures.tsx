@@ -49,8 +49,24 @@ const customers = [
 ];
 
 const pendingInvitations = [
-  { invitationId: 'inv_1', email: 'nuevo@norte.mx', expiresAt: '2026-07-09' },
-  { invitationId: 'inv_2', email: 'staff@sur.mx', expiresAt: '2026-07-11' },
+  {
+    invitationId: 'inv_1',
+    email: 'nuevo@norte.mx',
+    expiresAt: '2026-07-09',
+    status: 'expiring' as const,
+  },
+  {
+    invitationId: 'inv_2',
+    email: 'staff@sur.mx',
+    expiresAt: '2026-07-11',
+    status: 'pending' as const,
+  },
+  {
+    invitationId: 'inv_3',
+    email: 'old@lab.mx',
+    expiresAt: '2026-07-02',
+    status: 'expired' as const,
+  },
 ];
 
 const orphans = [

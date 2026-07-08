@@ -24,12 +24,12 @@ import {
   AlertTitle,
 } from '../../../design-system/alert/alert';
 import {
-  invitationColumns,
-  orphanColumns,
   staffColumns,
   type DirectoryActions,
   type DirectoryVM,
 } from './directory.columns';
+import { invitationColumns } from './lists/invitations';
+import { orphanColumns } from './lists/orphans';
 import { OrganizationsPanel } from './organizations/organizations';
 
 export type { DirectoryVM };
@@ -46,6 +46,12 @@ const DirectoryTabs = ({
   onAdmin,
   onRegenerate,
   onOpenOrg,
+  onOpenStaff,
+  onCopyInvite,
+  onResendInvite,
+  onRevokeInvitation,
+  onInviteOrphan,
+  onDeleteOrphan,
 }: { readonly vm: DirectoryVM } & DirectoryActions) => (
   <Tabs defaultValue="customers">
     <TabsList>
@@ -64,7 +70,7 @@ const DirectoryTabs = ({
     </TabsList>
     <TabsContent value="staff">
       <DataTable
-        columns={staffColumns}
+        columns={staffColumns(onOpenStaff)}
         data={vm.staff}
         searchPlaceholder="Search staff…"
       />
@@ -79,7 +85,12 @@ const DirectoryTabs = ({
     </TabsContent>
     <TabsContent value="invitations">
       <DataTable
-        columns={invitationColumns(onRegenerate)}
+        columns={invitationColumns({
+          onCopyInvite,
+          onResendInvite,
+          onRegenerate,
+          onRevokeInvitation,
+        })}
         data={vm.pendingInvitations}
         searchPlaceholder="Search invitations…"
         empty="No pending invitations."
@@ -87,7 +98,7 @@ const DirectoryTabs = ({
     </TabsContent>
     <TabsContent value="orphans">
       <DataTable
-        columns={orphanColumns}
+        columns={orphanColumns({ onInviteOrphan, onDeleteOrphan })}
         data={vm.orphans}
         searchPlaceholder="Search orphans…"
         empty="No orphaned identities."

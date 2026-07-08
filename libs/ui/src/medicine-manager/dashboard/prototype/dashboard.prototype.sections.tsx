@@ -6,6 +6,8 @@
  */
 import { useState } from 'react';
 import { OrgDetailView } from '../org-detail/org-detail.view';
+import { StaffDetailView } from '../permissions/permissions.view';
+import type { MemberRow } from '../permissions/permissions.types';
 import type {
   BillingDialogVM,
   OrgMemberRow,
@@ -31,6 +33,44 @@ const withDisabled = (
   disabled: boolean,
 ): OrgMemberRow[] =>
   ms.map((m) => (m.userId === userId ? { ...m, disabled } : m));
+
+/** Interactive staff-access detail — block/roles/grants and sessions mutate
+ *  local fixture state so the click-through feels real. */
+export const StaffDetailSection = ({
+  member,
+  onBack,
+}: {
+  readonly member: MemberRow;
+  readonly onBack: () => void;
+}) => {
+  const [m, setM] = useState(member);
+  const [sessions, setSessions] = useState(fx.permissionsSessions);
+  return (
+    <StaffDetailView
+      vm={{
+        member: m,
+        availableRoles: fx.permissionsVM.availableRoles,
+        sessions,
+        canEdit: true,
+        canBlock: true,
+        canReadSessions: true,
+      }}
+      onBack={onBack}
+      onGrant={(_id, action, scope) =>
+        setM((s) => ({
+          ...s,
+          permissions: [...s.permissions, `${action}:${scope}`],
+        }))
+      }
+      onAssignRoles={(_id, roleIds) => setM((s) => ({ ...s, roleIds }))}
+      onBlockIdentity={(_uid, blocked) => setM((s) => ({ ...s, blocked }))}
+      onRevokeSession={(sid) =>
+        setSessions((ss) => ss.filter((x) => x.id !== sid))
+      }
+      onRevokeAll={() => setSessions([])}
+    />
+  );
+};
 
 const markPaid = (
   ps: readonly OrgPaymentRow[],

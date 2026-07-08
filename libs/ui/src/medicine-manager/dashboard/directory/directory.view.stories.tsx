@@ -31,6 +31,12 @@ const inShell = (vm: DirectoryVM) =>
           onAdmin={() => undefined}
           onRegenerate={() => undefined}
           onOpenOrg={() => undefined}
+          onOpenStaff={() => undefined}
+          onCopyInvite={() => undefined}
+          onResendInvite={() => undefined}
+          onRevokeInvitation={() => undefined}
+          onInviteOrphan={() => undefined}
+          onDeleteOrphan={() => undefined}
         />
       </DashboardShell>
     );
@@ -81,6 +87,12 @@ export const OrgDrilldown: Story = {
             onAdmin={() => undefined}
             onRegenerate={() => undefined}
             onOpenOrg={setOrgId}
+            onOpenStaff={() => undefined}
+            onCopyInvite={() => undefined}
+            onResendInvite={() => undefined}
+            onRevokeInvitation={() => undefined}
+            onInviteOrphan={() => undefined}
+            onDeleteOrphan={() => undefined}
           />
         )}
       </DashboardShell>
