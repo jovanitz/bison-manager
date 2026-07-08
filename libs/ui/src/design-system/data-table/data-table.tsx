@@ -7,12 +7,69 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type RowSelectionState,
   type SortingState,
+  type Table as TanstackTable,
 } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { Input } from '../input/input';
+import { Button } from '../button/button';
 import { DataTableGrid } from './data-table.parts';
 import { DataTablePagination } from './data-table.pagination';
+
+const SearchBox = ({
+  value,
+  onChange,
+  placeholder,
+}: {
+  readonly value: string;
+  readonly onChange: (v: string) => void;
+  readonly placeholder: string;
+}) => (
+  <div className="relative max-w-xs">
+    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+    <Input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="pl-8"
+    />
+  </div>
+);
+
+/** Bulk-actions bar — renders while rows are selected: count + actions + Clear. */
+const BulkToolbar = <TData,>({
+  table,
+  render,
+}: {
+  readonly table: TanstackTable<TData>;
+  readonly render: (selected: readonly TData[], clear: () => void) => ReactNode;
+}) => {
+  const selected = table.getSelectedRowModel().rows;
+  if (selected.length === 0) return null;
+  const clear = () => table.resetRowSelection();
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+      <span className="text-sm font-medium text-foreground">
+        {selected.length} selected
+      </span>
+      <div className="flex flex-wrap items-center gap-2">
+        {render(
+          selected.map((r) => r.original),
+          clear,
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={clear}
+        className="ml-auto text-muted-foreground"
+      >
+        Clear
+      </Button>
+    </div>
+  );
+};
 
 export type DataTableProps<TData, TValue> = {
   readonly columns: ColumnDef<TData, TValue>[];
@@ -28,6 +85,12 @@ export type DataTableProps<TData, TValue> = {
   readonly empty?: ReactNode;
   /** When set, each row gets an expander that reveals this collapsed detail. */
   readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
+  /** Enable per-row checkboxes + a bulk-actions toolbar (see renderBulkActions). */
+  readonly enableSelection?: boolean;
+  /** Toolbar shown while rows are selected — gets the selected rows + a clear fn. */
+  readonly renderBulkActions?:
+    | ((selected: readonly TData[], clear: () => void) => ReactNode)
+    | undefined;
 };
 
 /**
@@ -45,15 +108,20 @@ export function DataTable<TData, TValue>({
   maxHeight = '60vh',
   empty = 'No results.',
   renderExpanded,
+  enableSelection = false,
+  renderBulkActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const table = useReactTable({
     data: data as TData[],
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, rowSelection },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: enableSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -62,22 +130,20 @@ export function DataTable<TData, TValue>({
     getRowCanExpand: () => renderExpanded !== undefined,
     initialState: { pagination: { pageSize } },
   });
-  // Guarantee the active pageSize is always a selectable option.
   const options = [...new Set([...pageSizeOptions, pageSize])].sort(
     (a, b) => a - b,
   );
   return (
     <div className="space-y-3">
       {searchPlaceholder ? (
-        <div className="relative max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="pl-8"
-          />
-        </div>
+        <SearchBox
+          value={globalFilter}
+          onChange={setGlobalFilter}
+          placeholder={searchPlaceholder}
+        />
+      ) : null}
+      {renderBulkActions ? (
+        <BulkToolbar table={table} render={renderBulkActions} />
       ) : null}
       <div className="rounded-md border border-border">
         <div
@@ -89,6 +155,7 @@ export function DataTable<TData, TValue>({
             colSpan={columns.length}
             empty={empty}
             renderExpanded={renderExpanded}
+            selectable={enableSelection}
           />
         </div>
         <DataTablePagination table={table} pageSizeOptions={options} />

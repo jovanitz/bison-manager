@@ -12,6 +12,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { cn } from '../cn';
+import { Checkbox } from '../checkbox/checkbox';
 import {
   Table,
   TableBody,
@@ -53,13 +54,24 @@ const ExpandableRow = <TData,>({
   row,
   renderExpanded,
   totalCols,
+  selectable,
 }: {
   readonly row: TanstackRow<TData>;
   readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
   readonly totalCols: number;
+  readonly selectable?: boolean | undefined;
 }) => (
   <Fragment>
     <TableRow>
+      {selectable ? (
+        <TableCell className="w-8">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(v) => row.toggleSelected(!!v)}
+            aria-label="Select row"
+          />
+        </TableCell>
+      ) : null}
       {renderExpanded ? (
         <TableCell className="w-8 pr-0">
           <button
@@ -99,19 +111,31 @@ export const DataTableGrid = <TData,>({
   colSpan,
   empty,
   renderExpanded,
+  selectable,
 }: {
   readonly table: TanstackTable<TData>;
   readonly colSpan: number;
   readonly empty: ReactNode;
   /** When set, each row gets an expander that reveals this detail content. */
   readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
+  /** Leading checkbox column for row selection. */
+  readonly selectable?: boolean | undefined;
 }) => {
-  const totalCols = colSpan + (renderExpanded ? 1 : 0);
+  const totalCols = colSpan + (renderExpanded ? 1 : 0) + (selectable ? 1 : 0);
   return (
     <Table containerClassName="overflow-visible">
       <TableHeader>
         {table.getHeaderGroups().map((hg) => (
           <TableRow key={hg.id}>
+            {selectable ? (
+              <TableHead className="w-8">
+                <Checkbox
+                  checked={table.getIsAllPageRowsSelected()}
+                  onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+                  aria-label="Select all"
+                />
+              </TableHead>
+            ) : null}
             {renderExpanded ? <TableHead className="w-8" /> : null}
             {hg.headers.map((header) => (
               <TableHead key={header.id}>
@@ -131,6 +155,7 @@ export const DataTableGrid = <TData,>({
                 row={row}
                 renderExpanded={renderExpanded}
                 totalCols={totalCols}
+                selectable={selectable}
               />
             ))
         ) : (

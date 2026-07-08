@@ -5,6 +5,7 @@
  * state (like search/sort), so it stays local — the VM contract is unchanged.
  */
 import { useMemo, useState, type ReactNode } from 'react';
+import { Button } from '../../../../design-system/button/button';
 import { DataTable } from '../../../../design-system/data-table/data-table';
 import { customerColumns } from '../directory.customer-columns';
 import { MemberCount, PlanTag } from '../directory.columns';
@@ -108,6 +109,19 @@ export const OrganizationsPanel = ({
         searchPlaceholder="Search organizations…"
         renderExpanded={(row) => (
           <OrgRowDetails row={row} onOpenOrg={onOpenOrg} />
+        )}
+        enableSelection
+        renderBulkActions={(selected, clear) => (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              selected.forEach((r) => onBlock(r.accountId, true));
+              clear();
+            }}
+          >
+            Block
+          </Button>
         )}
         empty={
           filtersActive(filters)
