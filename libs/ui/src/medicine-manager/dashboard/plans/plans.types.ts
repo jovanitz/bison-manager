@@ -38,12 +38,31 @@ export type PlanRow = {
   readonly subscribers: number;
 };
 
-/** The confirm gate on plans.update/plans.reset — the ADR-0014 "apply to all" UX. */
+/** One field's before→after in the review step — the staff sees exactly what
+ *  they are about to apply, not just how many orgs it reaches. */
+export type PlanChangeLine = {
+  readonly label: string;
+  readonly before: string;
+  readonly after: string;
+};
+
+/**
+ * The confirm gate on plans.update/plans.reset — the ADR-0016 "apply to all" UX.
+ * `changes` is WHAT you edited (before→after); the counts are WHO it reaches;
+ * `priceRaised` triggers the grandfather callout (a raise hits every subscriber
+ * live — the legacy-plan playbook is the way to spare them).
+ */
 export type BlastRadiusVM = {
   readonly planName: string;
   readonly subscribers: number;
+  readonly changes: readonly PlanChangeLine[];
   readonly wouldGoOverLimit: number;
   readonly wouldLoseFeature: number;
+  readonly priceRaised: boolean;
+  /** The confirm request is in flight (button spinner, inputs locked). */
+  readonly confirming?: boolean | undefined;
+  /** The confirm failed — shown inline so the staff can retry. */
+  readonly error?: string | undefined;
 };
 
 /** What the create/edit form edits and submits. */
@@ -66,6 +85,10 @@ export type PlanFormVM = {
   readonly draft: PlanDraft;
   /** Edit context: how many orgs live on this plan (shown before the gate). */
   readonly subscribers?: number | undefined;
+  /** Create is a backend write — the submit spins while it's in flight. */
+  readonly submitting?: boolean | undefined;
+  /** The create failed — shown inline so the staff can retry. */
+  readonly error?: string | undefined;
 };
 
 /** Stable key auto-derived from the display name — staff never types keys. */
@@ -83,6 +106,10 @@ export type RetireConfirmVM = {
   readonly planId: string;
   readonly displayName: string;
   readonly subscribers: number;
+  /** The retire request is in flight (button spinner). */
+  readonly retiring?: boolean | undefined;
+  /** The retire failed — shown inline so the staff can retry. */
+  readonly error?: string | undefined;
 };
 
 /**

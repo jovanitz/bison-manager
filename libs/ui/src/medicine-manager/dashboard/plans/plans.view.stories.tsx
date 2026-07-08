@@ -17,6 +17,7 @@ import {
   retireVM,
   emptyDraft,
   draftFromPlan,
+  demoBlast,
 } from './plans.fixtures';
 import { DashboardShell } from '../dashboard.shell';
 
@@ -90,15 +91,7 @@ const FlowHost = ({ initial }: { readonly initial: Flow }) => {
         }}
         onReset={(id) => {
           const p = byId(id);
-          if (p)
-            setFlow({
-              pendingEdit: {
-                planName: p.displayName,
-                subscribers: p.subscribers,
-                wouldGoOverLimit: 0,
-                wouldLoseFeature: 0,
-              },
-            });
+          if (p) setFlow({ pendingEdit: demoBlast(p, draftFromPlan(p)) });
         }}
         onRetire={(id) => {
           const p = byId(id);
@@ -114,14 +107,7 @@ const FlowHost = ({ initial }: { readonly initial: Flow }) => {
         onSubmitForm={(draft) =>
           setFlow((f) =>
             f.form?.mode === 'edit'
-              ? {
-                  pendingEdit: {
-                    planName: draft.displayName,
-                    subscribers: byId(f.form.planId ?? '')?.subscribers ?? 0,
-                    wouldGoOverLimit: 4,
-                    wouldLoseFeature: 2,
-                  },
-                }
+              ? { pendingEdit: demoBlast(byId(f.form.planId ?? ''), draft) }
               : {},
           )
         }

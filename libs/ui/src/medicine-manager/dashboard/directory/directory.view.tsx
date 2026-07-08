@@ -24,27 +24,15 @@ import {
   AlertTitle,
 } from '../../../design-system/alert/alert';
 import {
-  customerColumns,
   invitationColumns,
   orphanColumns,
   staffColumns,
-  type CustomerRow,
   type DirectoryActions,
-  type InvitationRow,
-  type OrphanRow,
-  type StaffRow,
+  type DirectoryVM,
 } from './directory.columns';
+import { OrganizationsPanel } from './organizations/organizations';
 
-export type DirectoryVM = {
-  readonly staff: readonly StaffRow[];
-  readonly customers: readonly CustomerRow[];
-  readonly pendingInvitations: readonly InvitationRow[];
-  readonly orphans: readonly OrphanRow[];
-  readonly canBlock: boolean;
-  readonly canAdminAccounts: boolean;
-  readonly loading: boolean;
-  readonly error?: string;
-};
+export type { DirectoryVM };
 
 const Count = ({ n }: { readonly n: number }) => (
   <Badge variant="secondary" className="ml-2">
@@ -59,7 +47,7 @@ const DirectoryTabs = ({
   onRegenerate,
   onOpenOrg,
 }: { readonly vm: DirectoryVM } & DirectoryActions) => (
-  <Tabs defaultValue="staff">
+  <Tabs defaultValue="customers">
     <TabsList>
       <TabsTrigger value="staff">
         Staff <Count n={vm.staff.length} />
@@ -82,16 +70,11 @@ const DirectoryTabs = ({
       />
     </TabsContent>
     <TabsContent value="customers">
-      <DataTable
-        columns={customerColumns({
-          canBlock: vm.canBlock,
-          canAdminAccounts: vm.canAdminAccounts,
-          onBlock,
-          onAdmin,
-          onOpenOrg,
-        })}
-        data={vm.customers}
-        searchPlaceholder="Search organizations…"
+      <OrganizationsPanel
+        vm={vm}
+        onBlock={onBlock}
+        onAdmin={onAdmin}
+        onOpenOrg={onOpenOrg}
       />
     </TabsContent>
     <TabsContent value="invitations">

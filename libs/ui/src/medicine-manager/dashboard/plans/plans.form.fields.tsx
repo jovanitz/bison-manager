@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { Checkbox } from '../../../design-system/checkbox/checkbox';
 import { Input } from '../../../design-system/input/input';
 import { Label } from '../../../design-system/label/label';
+import { Stack } from '../../../design-system/stack/stack';
 import {
   RadioGroup,
   RadioGroupItem,
@@ -28,22 +29,22 @@ export const FormSection = (p: {
   readonly title: string;
   readonly children: ReactNode;
 }) => (
-  <div className="grid gap-4">
-    <p className="border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+  <Stack gap="field">
+    <p className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {p.title}
     </p>
     {p.children}
-  </div>
+  </Stack>
 );
 
 export const Field = (p: {
   readonly label: string;
   readonly children: ReactNode;
 }) => (
-  <div className="grid gap-1.5">
+  <Stack gap="tight">
     <Label>{p.label}</Label>
     {p.children}
-  </div>
+  </Stack>
 );
 
 export const CheckRow = (p: {
@@ -67,7 +68,11 @@ const RadioRow = (p: {
     <RadioGroupItem value={p.value} className="mt-0.5" />
     <span>
       {p.label}
-      <span className="block text-xs text-muted-foreground">{p.caption}</span>
+      {p.caption ? (
+        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+          {p.caption}
+        </span>
+      ) : null}
     </span>
   </label>
 );
@@ -79,6 +84,7 @@ export const AvailabilityField = (p: {
 }) => (
   <Field label="Availability">
     <RadioGroup
+      className="gap-3"
       value={p.visibility}
       onValueChange={(v) => p.set(v === 'hidden' ? 'hidden' : 'public')}
     >
@@ -125,6 +131,7 @@ export const PriceFields = (p: {
   return (
     <Field label="Pricing">
       <RadioGroup
+        className="gap-3"
         value={p.price ? 'priced' : 'none'}
         onValueChange={(v) => p.patch({ price: noPrice(v === 'none') })}
       >

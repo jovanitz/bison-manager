@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import { AppShell } from '../../design-system/app-shell/app-shell';
+import { BottomNavItem } from '../../design-system/bottom-nav/bottom-nav';
 import {
   SidebarContent,
   SidebarHeader,
@@ -55,6 +56,38 @@ const NAV: ReadonlyArray<{
   { label: 'Audit', icon: ScrollText },
   { label: 'Settings', icon: Settings },
 ];
+
+// The 3-4 thumb-reachable destinations for the mobile/tablet bottom bar; the
+// AppShell appends a "More" entry that opens the full nav as a bottom sheet.
+const BOTTOM: readonly DashboardSection[] = [
+  'Directory',
+  'Permissions',
+  'Plans',
+  'Audit',
+];
+
+const MobileNav = ({
+  active,
+  onNavigate,
+}: {
+  readonly active: DashboardSection;
+  readonly onNavigate?: ((section: DashboardSection) => void) | undefined;
+}) => (
+  <>
+    {NAV.filter(({ label }) => BOTTOM.includes(label)).map(
+      ({ label, icon: Icon }) => (
+        <BottomNavItem
+          key={label}
+          icon={<Icon />}
+          active={label === active}
+          onClick={() => onNavigate?.(label)}
+        >
+          {label}
+        </BottomNavItem>
+      ),
+    )}
+  </>
+);
 
 const ORGS: readonly Org[] = [
   { id: 'acme', name: 'Acme Health', fallback: 'AH', owner: true },
@@ -132,6 +165,7 @@ export const DashboardShell = ({
   <AppShell
     sidebar={<Nav active={active} onNavigate={onNavigate} />}
     topbar={<Head />}
+    bottomNav={<MobileNav active={active} onNavigate={onNavigate} />}
   >
     {children}
   </AppShell>

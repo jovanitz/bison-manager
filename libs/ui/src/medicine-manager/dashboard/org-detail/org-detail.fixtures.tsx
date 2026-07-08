@@ -8,27 +8,31 @@ import type {
 const members: readonly OrgMemberRow[] = [
   {
     membershipId: 'mem_1',
+    userId: 'usr_a1f9',
     name: 'Lucía Fuentes',
     email: 'lucia@norte.mx',
     role: 'Owner',
     isOwner: true,
-    status: 'active',
+    joinedAt: '2026-03-14',
   },
   {
     membershipId: 'mem_2',
+    userId: 'usr_b2c7',
     name: 'Marco Peña',
     email: 'marco@norte.mx',
     role: 'Admin',
     isOwner: false,
-    status: 'active',
+    joinedAt: '2026-04-02',
   },
   {
     membershipId: 'mem_3',
+    userId: 'usr_c3d5',
     name: 'Sofía Ramos',
     email: 'sofia@norte.mx',
     role: 'Member',
     isOwner: false,
-    status: 'blocked',
+    joinedAt: '2026-05-20',
+    blocked: true,
   },
 ];
 
@@ -64,6 +68,7 @@ const base: OrgDetailVM = {
   createdAt: '2026-03-14',
   owner: { name: 'Lucía Fuentes', email: 'lucia@norte.mx' },
   canViewMembers: true,
+  canManageMembers: true,
   canImpersonate: false,
   canManageBilling: true,
   members,
@@ -87,6 +92,7 @@ export const withImpersonationVM: OrgDetailVM = {
 export const gatedVM: OrgDetailVM = {
   ...base,
   canViewMembers: false,
+  canManageMembers: false,
   canManageBilling: false,
   members: [],
   subscription: activeSubscription,
@@ -184,4 +190,10 @@ export const extendTrialDialogVM: OrgDetailVM = {
   ...base,
   subscription: trialingSubscription,
   billingDialog: { kind: 'extend-trial' },
+};
+
+/** Member detail panel open on the blocked member (offers Unblock + Disable). */
+export const memberDetailVM: OrgDetailVM = {
+  ...populatedVM,
+  openMember: members[2],
 };

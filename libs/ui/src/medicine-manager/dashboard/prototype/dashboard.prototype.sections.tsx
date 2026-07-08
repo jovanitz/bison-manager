@@ -1,150 +1,72 @@
 /**
- * Interactive PROTOTYPE sections — flow simulations with local fixture state
- * and no real logic. The views stay pure (`fn(vm + actions)`); every mutation
- * here only rewrites local state so the click-through feels real: creating a
- * plan appends a row, retiring flips the badge, mark-paid revives a past_due
- * org. dashboard.prototype.tsx stitches these into the shell.
+ * Interactive PROTOTYPE — the org-detail billing section. The view stays pure
+ * (`fn(vm + actions)`); mutations here only rewrite local fixture state so the
+ * click-through feels real (mark-paid revives a past_due org, change-plan swaps
+ * the labels). The Plans section lives in dashboard.prototype.plans.
  */
 import { useState } from 'react';
-import { PlansView } from '../plans/plans.view';
 import { OrgDetailView } from '../org-detail/org-detail.view';
-import { draftFromPlan, emptyDraft } from '../plans/plans.fixtures';
-import type {
-  BlastRadiusVM,
-  PlanDraft,
-  PlanFormVM,
-  PlanRow,
-  RetireConfirmVM,
-} from '../plans/plans.types';
 import type {
   BillingDialogVM,
+  OrgMemberRow,
+  OrgPaymentRow,
   OrgSubscriptionVM,
 } from '../org-detail/org-detail.types';
+import { demoPayments } from '../org-detail/payments/payments.fixtures';
 import * as fx from './dashboard.prototype.fixtures';
 
 const noop = () => undefined;
 
-/** An edit held at the blast-radius gate — the draft applies on confirm. */
-type PendingEdit = {
-  readonly planId: string;
-  readonly draft: PlanDraft;
-  readonly blast: BlastRadiusVM;
+/** Pure roster updaters — kept flat so the handlers below don't nest deeply. */
+const withBlocked = (
+  ms: readonly OrgMemberRow[],
+  membershipId: string,
+  blocked: boolean,
+): OrgMemberRow[] =>
+  ms.map((m) => (m.membershipId === membershipId ? { ...m, blocked } : m));
+
+const withDisabled = (
+  ms: readonly OrgMemberRow[],
+  userId: string,
+  disabled: boolean,
+): OrgMemberRow[] =>
+  ms.map((m) => (m.userId === userId ? { ...m, disabled } : m));
+
+const markPaid = (
+  ps: readonly OrgPaymentRow[],
+  paymentId: string,
+  paidAt: string,
+): OrgPaymentRow[] =>
+  ps.map((p) =>
+    p.paymentId === paymentId ? { ...p, status: 'paid', paidAt } : p,
+  );
+
+/** Local payment ledger state for the prototype (mark pending/failed as paid). */
+const usePayments = () => {
+  const [payments, setPayments] = useState(demoPayments);
+  return {
+    payments,
+    onMarkPaymentPaid: (id: string) =>
+      setPayments((ps) =>
+        markPaid(ps, id, new Date().toISOString().slice(0, 10)),
+      ),
+  };
 };
 
-const blastFor = (
-  plan: PlanRow | undefined,
-  draft: PlanDraft,
-): BlastRadiusVM => ({
-  planName: draft.displayName,
-  subscribers: plan?.subscribers ?? 0,
-  wouldGoOverLimit: 4,
-  wouldLoseFeature: 2,
-});
-
-const createdRow = (plans: readonly PlanRow[], draft: PlanDraft): PlanRow => ({
-  ...draft,
-  planId: `plan_new_${plans.length + 1}`,
-  status: 'active',
-  isDefault: false,
-  subscribers: 0,
-});
-
-/** Row-menu handlers, extracted so the component stays inside the size caps. */
-const rowActions = (deps: {
-  readonly byId: (id: string) => PlanRow | undefined;
-  readonly setForm: (f: PlanFormVM) => void;
-  readonly setPending: (p: PendingEdit) => void;
-  readonly setRetire: (r: RetireConfirmVM) => void;
-}) => ({
-  onEdit: (id: string) => {
-    const p = deps.byId(id);
-    if (p)
-      deps.setForm({
-        mode: 'edit',
-        planId: id,
-        draft: draftFromPlan(p),
-        subscribers: p.subscribers,
-      });
-  },
-  onReset: (id: string) => {
-    const p = deps.byId(id);
-    if (!p) return;
-    const draft = draftFromPlan(p);
-    deps.setPending({
-      planId: id,
-      draft,
-      blast: {
-        ...blastFor(p, draft),
-        wouldGoOverLimit: 0,
-        wouldLoseFeature: 0,
-      },
-    });
-  },
-  onRetire: (id: string) => {
-    const p = deps.byId(id);
-    if (p)
-      deps.setRetire({
-        planId: id,
-        displayName: p.displayName,
-        subscribers: p.subscribers,
-      });
-  },
-});
-
-export const PlansSection = () => {
-  const [plans, setPlans] = useState(fx.plansVM.plans);
-  const [form, setForm] = useState<PlanFormVM | undefined>(undefined);
-  const [pending, setPending] = useState<PendingEdit | undefined>(undefined);
-  const [retire, setRetire] = useState<RetireConfirmVM | undefined>(undefined);
-  const byId = (id: string) => plans.find((p) => p.planId === id);
-  const submitForm = (draft: PlanDraft) => {
-    if (form?.mode === 'edit' && form.planId) {
-      const id = form.planId;
-      setPending({ planId: id, draft, blast: blastFor(byId(id), draft) });
-    } else {
-      setPlans([...plans, createdRow(plans, draft)]);
-    }
-    setForm(undefined);
+/** Local member moderation state for the prototype (block/disable + open panel). */
+const useMembers = () => {
+  const [members, setMembers] = useState(fx.orgDetailVM.members);
+  const [openId, setOpenId] = useState<string | null>(null);
+  return {
+    members,
+    openMember: members.find((m) => m.membershipId === openId),
+    onViewMember: (id: string) => setOpenId(id),
+    onCloseMember: () => setOpenId(null),
+    onBlockMember: (id: string, blocked: boolean) =>
+      setMembers((ms) => withBlocked(ms, id, blocked)),
+    onSetMemberAccount: (userId: string, action: 'disable' | 'enable') =>
+      setMembers((ms) => withDisabled(ms, userId, action === 'disable')),
   };
-  const confirmEdit = () => {
-    if (pending)
-      setPlans(
-        plans.map((p) =>
-          p.planId === pending.planId ? { ...p, ...pending.draft } : p,
-        ),
-      );
-    setPending(undefined);
-  };
-  const confirmRetire = () => {
-    if (retire)
-      setPlans(
-        plans.map((p) =>
-          p.planId === retire.planId ? { ...p, status: 'retired' } : p,
-        ),
-      );
-    setRetire(undefined);
-  };
-  return (
-    <PlansView
-      vm={{
-        ...fx.plansVM,
-        plans,
-        form,
-        pendingEdit: pending?.blast,
-        pendingRetire: retire,
-      }}
-      onCreate={() =>
-        setForm({ mode: 'create', planId: null, draft: emptyDraft })
-      }
-      {...rowActions({ byId, setForm, setPending, setRetire })}
-      onSubmitForm={submitForm}
-      onCancelForm={() => setForm(undefined)}
-      onConfirmEdit={confirmEdit}
-      onCancelEdit={() => setPending(undefined)}
-      onConfirmRetire={confirmRetire}
-      onCancelRetire={() => setRetire(undefined)}
-    />
-  );
 };
 
 export const OrgDetailSection = ({
@@ -158,6 +80,8 @@ export const OrgDetailSection = ({
 }) => {
   const [sub, setSub] = useState(fx.orgDetailVM.subscription);
   const [dialog, setDialog] = useState<BillingDialogVM | undefined>(undefined);
+  const mem = useMembers();
+  const pay = usePayments();
   const close = () => setDialog(undefined);
   const patch = (p: Partial<OrgSubscriptionVM>) =>
     setSub((s) => (s ? { ...s, ...p } : s));
@@ -169,6 +93,9 @@ export const OrgDetailSection = ({
         name,
         subscription: sub,
         billingDialog: dialog,
+        members: mem.members,
+        openMember: mem.openMember,
+        payments: pay.payments,
       }}
       onBack={onBack}
       onImpersonate={noop}
@@ -192,6 +119,11 @@ export const OrgDetailSection = ({
           patch({ planName: target.label, priceLabel: target.priceLabel });
         close();
       }}
+      onViewMember={mem.onViewMember}
+      onCloseMember={mem.onCloseMember}
+      onBlockMember={mem.onBlockMember}
+      onSetMemberAccount={mem.onSetMemberAccount}
+      onMarkPaymentPaid={pay.onMarkPaymentPaid}
     />
   );
 };

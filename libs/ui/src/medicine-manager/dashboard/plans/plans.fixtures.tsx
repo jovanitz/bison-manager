@@ -1,4 +1,5 @@
-import type { PlanDraft, PlanRow, PlansVM } from './plans.types';
+import type { BlastRadiusVM, PlanDraft, PlanRow, PlansVM } from './plans.types';
+import { planChangeLines, priceRaised } from './review/diff';
 
 const proPlan: PlanRow = {
   planId: 'plan_2',
@@ -103,14 +104,21 @@ export const errorVM: PlansVM = {
   error: 'Could not reach the billing service.',
 };
 
-/** An edit to "Pro" awaiting the blast-radius confirm (mandatory reason). */
+/** An edit to "Pro" awaiting the review gate: a price raise + a tighter seat
+ *  limit + a dropped feature — so every consequence callout is exercised. */
 export const blastRadiusVM: PlansVM = {
   ...plansVM,
   pendingEdit: {
     planName: 'Pro',
     subscribers: 37,
+    changes: [
+      { label: 'Price', before: '499 MXN/mo', after: '599 MXN/mo' },
+      { label: 'Max members per org', before: '25', after: '15' },
+      { label: 'Features', before: '3 included', after: '2 included' },
+    ],
     wouldGoOverLimit: 4,
     wouldLoseFeature: 2,
+    priceRaised: true,
   },
 };
 
@@ -139,6 +147,44 @@ export const draftFromPlan = (plan: PlanRow): PlanDraft => ({
   maxMembersPerOrg: plan.maxMembersPerOrg,
   features: plan.features,
 });
+
+const tightened = (before: number | null, after: number | null): boolean =>
+  after !== null && (before === null || after < before);
+
+/**
+ * Build the review VM for a demo edit. The before→after diff is real
+ * (planChangeLines); the over-limit / lose-feature counts are backend truth in
+ * production, faked here proportional to the actual edit so the prototype and
+ * stories stay self-consistent (a rename shows no impact; a tighter limit does).
+ */
+export const demoBlast = (
+  plan: PlanRow | undefined,
+  draft: PlanDraft,
+): BlastRadiusVM => {
+  if (!plan) {
+    return {
+      planName: draft.displayName,
+      subscribers: 0,
+      changes: [],
+      wouldGoOverLimit: 0,
+      wouldLoseFeature: 0,
+      priceRaised: false,
+    };
+  }
+  const subs = plan.subscribers;
+  const droppedFeature = plan.features.some((f) => !draft.features.includes(f));
+  const tighter =
+    tightened(plan.maxOrganizationsOwned, draft.maxOrganizationsOwned) ||
+    tightened(plan.maxMembersPerOrg, draft.maxMembersPerOrg);
+  return {
+    planName: draft.displayName,
+    subscribers: subs,
+    changes: planChangeLines(plan, draft),
+    wouldGoOverLimit: tighter ? Math.max(1, Math.round(subs * 0.1)) : 0,
+    wouldLoseFeature: droppedFeature ? Math.max(1, Math.round(subs * 0.05)) : 0,
+    priceRaised: priceRaised(plan.price, draft.price),
+  };
+};
 
 /** The create form open on a blank draft. */
 export const formCreateVM: PlansVM = {

@@ -15,7 +15,9 @@ import { TemplatesView } from '../roles/templates.view';
 import { InviteView } from '../invite/invite.view';
 import { AuditView } from '../audit/audit.view';
 import { SettingsView } from '../settings/settings.view';
-import { OrgDetailSection, PlansSection } from './dashboard.prototype.sections';
+import { Toaster } from '../../../design-system/toast/toaster';
+import { OrgDetailSection } from './dashboard.prototype.sections';
+import { PlansSection } from './dashboard.prototype.plans';
 import * as fx from './dashboard.prototype.fixtures';
 
 const noop = () => undefined;
@@ -85,25 +87,28 @@ export const DashboardPrototype = () => {
   const [section, setSection] = useState<DashboardSection>('Directory');
   const [orgId, setOrgId] = useState<string | null>(null);
   return (
-    <DashboardShell
-      active={section}
-      onNavigate={(next) => {
-        setSection(next);
-        setOrgId(null);
-      }}
-    >
-      {section === 'Directory' && orgId ? (
-        <OrgDetailSection
-          accountId={orgId}
-          name={
-            fx.directoryVM.customers.find((c) => c.accountId === orgId)
-              ?.displayName ?? fx.orgDetailVM.name
-          }
-          onBack={() => setOrgId(null)}
-        />
-      ) : (
-        <Section section={section} onOpenOrg={setOrgId} />
-      )}
-    </DashboardShell>
+    <>
+      <DashboardShell
+        active={section}
+        onNavigate={(next) => {
+          setSection(next);
+          setOrgId(null);
+        }}
+      >
+        {section === 'Directory' && orgId ? (
+          <OrgDetailSection
+            accountId={orgId}
+            name={
+              fx.directoryVM.customers.find((c) => c.accountId === orgId)
+                ?.displayName ?? fx.orgDetailVM.name
+            }
+            onBack={() => setOrgId(null)}
+          />
+        ) : (
+          <Section section={section} onOpenOrg={setOrgId} />
+        )}
+      </DashboardShell>
+      <Toaster />
+    </>
   );
 };

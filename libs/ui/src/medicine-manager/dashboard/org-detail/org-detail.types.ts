@@ -8,7 +8,7 @@
  */
 
 export type OrgStatus = 'active' | 'disabled' | 'blocked';
-export type OrgMemberStatus = 'active' | 'blocked' | 'root';
+export type OrgMemberStatus = 'active' | 'blocked' | 'disabled' | 'root';
 
 /** Derived subscription phase (ADR-0016, Stripe vocabulary) — never stored. */
 export type SubscriptionPhase = 'trialing' | 'active' | 'past_due' | 'canceled';
@@ -48,16 +48,38 @@ export type BillingDialogVM =
   | { readonly kind: 'mark-paid' }
   | { readonly kind: 'extend-trial' };
 
+export type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
+
+/** One entry in the org's payment ledger (manual reconciliation, no Stripe). */
+export type OrgPaymentRow = {
+  readonly paymentId: string;
+  /** Billing period the charge covers (e.g. "Jul 2026"). */
+  readonly period: string;
+  /** Preformatted amount (e.g. "$49.00"). */
+  readonly amountLabel: string;
+  readonly status: PaymentStatus;
+  /** When it settled — null until paid. */
+  readonly paidAt: string | null;
+};
+
 export type OrgMemberRow = {
   readonly membershipId: string;
+  /** The user's stable identity id — shown in the detail panel. */
+  readonly userId: string;
   /** Display name — wiring maps `userId` → profile. */
   readonly name: string;
   readonly email: string;
   /** Role name — wiring maps `roleIds` → the org's role. */
   readonly role: string;
-  /** Holds the owner role / `isAccountOwner`. */
+  /** Holds the owner role / `isAccountOwner` — protected from block/disable. */
   readonly isOwner: boolean;
-  readonly status: OrgMemberStatus;
+  readonly joinedAt: string;
+  /** Root identity — protected: never blockable/disableable. */
+  readonly isRoot?: boolean;
+  /** Soft block — access to THIS org suspended, reversible (`members.block`). */
+  readonly blocked?: boolean;
+  /** Hard disable — the user's whole account is off (identity-level). */
+  readonly disabled?: boolean;
 };
 
 export type OrgDetailVM = {
@@ -69,6 +91,10 @@ export type OrgDetailVM = {
   readonly owner?: { readonly name: string; readonly email?: string };
   /** Staff holds `members.read` (any) → the roster is visible (not a grant). */
   readonly canViewMembers: boolean;
+  /** Staff can moderate members (block / disable) — the ⋯ menu + panel levers. */
+  readonly canManageMembers: boolean;
+  /** The member whose detail panel is open — panel state is VM data, not view. */
+  readonly openMember?: OrgMemberRow | undefined;
   /** An active `customer.read` grant → offer "view as customer" (impersonation). */
   readonly canImpersonate: boolean;
   /** The org's billing block (ADR-0016); absent while loading / on error. */
@@ -78,6 +104,8 @@ export type OrgDetailVM = {
   /** The open billing lever dialog, if any — dialog state is VM data. */
   readonly billingDialog?: BillingDialogVM | undefined;
   readonly members: readonly OrgMemberRow[];
+  /** The org's payment ledger — absent hides the Payments card. */
+  readonly payments?: readonly OrgPaymentRow[] | undefined;
   readonly loading: boolean;
   readonly error?: string;
 };
@@ -97,4 +125,17 @@ export type OrgDetailActions = {
   readonly onSubmitChangePlan: (planId: string, reason: string) => void;
   readonly onSubmitMarkPaid: (paidThrough: string, reason: string) => void;
   readonly onSubmitExtendTrial: (trialEndsAt: string, reason: string) => void;
+  /** Open a member's detail panel (id, info + moderation levers). */
+  readonly onViewMember: (membershipId: string) => void;
+  /** Close the member detail panel. */
+  readonly onCloseMember: () => void;
+  /** Soft block / unblock a member in THIS org (`members.block`). */
+  readonly onBlockMember: (membershipId: string, blocked: boolean) => void;
+  /** Hard disable / enable the member's whole account (identity-level). */
+  readonly onSetMemberAccount: (
+    userId: string,
+    action: 'disable' | 'enable',
+  ) => void;
+  /** Reconcile a ledger entry — mark a pending/failed payment as paid. */
+  readonly onMarkPaymentPaid: (paymentId: string) => void;
 };

@@ -1,13 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { Badge } from '../../../design-system/badge/badge';
 import { Button } from '../../../design-system/button/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../../../design-system/dropdown-menu/dropdown-menu';
 
 /** Local row types — decoupled from application DTOs (the container maps to these). */
 export type StaffRow = {
@@ -19,6 +13,16 @@ export type CustomerRow = {
   readonly accountId: string;
   readonly displayName: string;
   readonly email?: string;
+  /** How many users belong to the org — its size at a glance. */
+  readonly memberCount?: number;
+  /** The org's current subscription plan (display name). */
+  readonly plan?: string;
+  /** True when the org has at least one unpaid (pending/failed) charge. */
+  readonly pendingPayment?: boolean;
+  /** Soft block — org access suspended, reversible (Block/Unblock org). */
+  readonly blocked?: boolean;
+  /** Hard disable — the whole account is off (Disable/Enable account). */
+  readonly disabled?: boolean;
 };
 export type InvitationRow = {
   readonly invitationId: string;
@@ -42,7 +46,83 @@ export type DirectoryActions = {
   readonly onOpenOrg: (accountId: string) => void;
 };
 
+/** Directory screen ViewModel — lives here (the types hub) so the view and its
+ *  parts (organizations panel) share it without a view↔part import cycle. */
+export type DirectoryVM = {
+  readonly staff: readonly StaffRow[];
+  readonly customers: readonly CustomerRow[];
+  readonly pendingInvitations: readonly InvitationRow[];
+  readonly orphans: readonly OrphanRow[];
+  readonly canBlock: boolean;
+  readonly canAdminAccounts: boolean;
+  readonly loading: boolean;
+  readonly error?: string;
+};
+
 const dash = (v?: string) => v ?? '—';
+
+/** Org size cell — a muted people glyph + the member count (dash if unknown). */
+export const MemberCount = ({ n }: { readonly n?: number | undefined }) =>
+  n === undefined ? (
+    <span className="text-muted-foreground">—</span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 tabular-nums">
+      <Users className="size-3.5 text-muted-foreground" />
+      {n}
+    </span>
+  );
+
+/** The org's subscription tier — a quiet outlined tag (dash if none). Neutral,
+ *  not state-coloured, so it reads as a category next to the coloured Status. */
+export const PlanTag = ({ name }: { readonly name?: string | undefined }) =>
+  name === undefined ? (
+    <span className="text-muted-foreground">—</span>
+  ) : (
+    <Badge variant="outline" className="whitespace-nowrap">
+      {name}
+    </Badge>
+  );
+
+/** Billing attention flag — an amber "Pending" pill when a charge is unpaid. */
+const PendingPaymentTag = ({
+  pending,
+}: {
+  readonly pending?: boolean | undefined;
+}) =>
+  pending ? (
+    <Badge variant="warning" appearance="soft" dot>
+      Pending
+    </Badge>
+  ) : (
+    <span className="text-muted-foreground">—</span>
+  );
+
+/** "Payment" column — flags orgs with an unpaid charge (amber pill). */
+export const paymentColumn: ColumnDef<CustomerRow> = {
+  id: 'payment',
+  header: 'Payment',
+  cell: ({ row }) => (
+    <PendingPaymentTag pending={row.original.pendingPayment} />
+  ),
+};
+
+/** The clickable "Members" column — the count opens the org's roster. */
+export const membersColumn = (
+  onOpenOrg: (accountId: string) => void,
+): ColumnDef<CustomerRow> => ({
+  id: 'members',
+  header: 'Members',
+  cell: ({ row }) => (
+    <button
+      type="button"
+      onClick={() => onOpenOrg(row.original.accountId)}
+      aria-label="View members"
+      className="rounded-sm hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <MemberCount n={row.original.memberCount} />
+    </button>
+  ),
+});
 
 export const staffColumns: ColumnDef<StaffRow>[] = [
   {
@@ -89,104 +169,3 @@ export const invitationColumns = (
     ),
   },
 ];
-
-const CustomerActions = ({
-  id,
-  canBlock,
-  canAdminAccounts,
-  onBlock,
-  onAdmin,
-}: {
-  readonly id: string;
-  readonly canBlock: boolean;
-  readonly canAdminAccounts: boolean;
-} & Pick<DirectoryActions, 'onBlock' | 'onAdmin'>) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="ghost" size="icon" aria-label="Account actions">
-        <MoreHorizontal />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      {canBlock ? (
-        <>
-          <DropdownMenuItem onSelect={() => onBlock(id, true)}>
-            Block org
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onBlock(id, false)}>
-            Unblock org
-          </DropdownMenuItem>
-        </>
-      ) : null}
-      {canBlock && canAdminAccounts ? <DropdownMenuSeparator /> : null}
-      {canAdminAccounts ? (
-        <>
-          <DropdownMenuItem onSelect={() => onAdmin(id, 'disable')}>
-            Disable account
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onAdmin(id, 'enable')}>
-            Enable account
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onAdmin(id, 'promote')}>
-            Promote to staff
-          </DropdownMenuItem>
-        </>
-      ) : null}
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
-
-export const customerColumns = ({
-  canBlock,
-  canAdminAccounts,
-  onBlock,
-  onAdmin,
-  onOpenOrg,
-}: {
-  readonly canBlock: boolean;
-  readonly canAdminAccounts: boolean;
-} & Pick<
-  DirectoryActions,
-  'onBlock' | 'onAdmin' | 'onOpenOrg'
->): ColumnDef<CustomerRow>[] => {
-  const base: ColumnDef<CustomerRow>[] = [
-    {
-      accessorKey: 'displayName',
-      header: 'Name',
-      cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={() => onOpenOrg(row.original.accountId)}
-          className="font-medium text-foreground hover:underline"
-        >
-          {row.original.displayName}
-        </button>
-      ),
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      cell: ({ row }) => dash(row.original.email),
-    },
-    { accessorKey: 'accountId', header: 'Account' },
-  ];
-  if (!canBlock && !canAdminAccounts) return base;
-  return [
-    ...base,
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <div className="text-right">
-          <CustomerActions
-            id={row.original.accountId}
-            canBlock={canBlock}
-            canAdminAccounts={canAdminAccounts}
-            onBlock={onBlock}
-            onAdmin={onAdmin}
-          />
-        </div>
-      ),
-    },
-  ];
-};

@@ -68,6 +68,11 @@ export const OrgDrilldown: Story = {
             onSubmitChangePlan={() => undefined}
             onSubmitMarkPaid={() => undefined}
             onSubmitExtendTrial={() => undefined}
+            onViewMember={() => undefined}
+            onCloseMember={() => undefined}
+            onBlockMember={() => undefined}
+            onSetMemberAccount={() => undefined}
+            onMarkPaymentPaid={() => undefined}
           />
         ) : (
           <DirectoryView

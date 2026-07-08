@@ -15,6 +15,7 @@ import {
 } from '../../../design-system/accordion/accordion';
 import { Badge } from '../../../design-system/badge/badge';
 import { Input } from '../../../design-system/input/input';
+import { Stack } from '../../../design-system/stack/stack';
 import { cn } from '../../../design-system/cn';
 import { Field } from './plans.form.fields';
 import {
@@ -71,44 +72,46 @@ export const FeaturePicker = (p: {
     g.keys.filter((k) => p.selected.includes(k)).length;
   return (
     <Field label={`Features (${p.selected.length} included)`}>
-      <Input placeholder="Search features…" {...text(q, setQ)} />
-      {groups.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No features match.</p>
-      ) : (
-        <Accordion
-          type="multiple"
-          value={searching ? groups.map((g) => g.name) : [...open]}
-          onValueChange={(v) => (searching ? undefined : setOpen(v))}
-          className="rounded-md border border-border px-2"
-        >
-          {groups.map((g) => (
-            <AccordionItem
-              key={g.name}
-              value={g.name}
-              className="last:border-b-0"
-            >
-              <AccordionTrigger className="py-2 text-sm hover:no-underline">
-                <span className="flex flex-1 items-center justify-between gap-2 pr-2">
-                  {g.name}
-                  <GroupCounter sel={selIn(g)} total={g.keys.length} />
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="grid gap-0.5 pb-2">
-                {g.keys.map((f) => (
-                  <FeatureRow
-                    key={f}
-                    f={f}
-                    on={p.selected.includes(f)}
-                    flip={() =>
-                      p.set(toggle(p.selected, f, !p.selected.includes(f)))
-                    }
-                  />
-                ))}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+      <Stack gap="cozy">
+        <Input placeholder="Search features…" {...text(q, setQ)} />
+        {groups.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No features match.</p>
+        ) : (
+          <Accordion
+            type="multiple"
+            value={searching ? groups.map((g) => g.name) : [...open]}
+            onValueChange={(v) => (searching ? undefined : setOpen(v))}
+            className="rounded-md border border-border px-2"
+          >
+            {groups.map((g) => (
+              <AccordionItem
+                key={g.name}
+                value={g.name}
+                className="last:border-b-0"
+              >
+                <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                  <span className="flex flex-1 items-center justify-between gap-2 pr-2">
+                    {g.name}
+                    <GroupCounter sel={selIn(g)} total={g.keys.length} />
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="grid gap-0.5 pb-2">
+                  {g.keys.map((f) => (
+                    <FeatureRow
+                      key={f}
+                      f={f}
+                      on={p.selected.includes(f)}
+                      flip={() =>
+                        p.set(toggle(p.selected, f, !p.selected.includes(f)))
+                      }
+                    />
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        )}
+      </Stack>
     </Field>
   );
 };

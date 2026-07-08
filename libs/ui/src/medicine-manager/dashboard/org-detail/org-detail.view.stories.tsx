@@ -11,8 +11,10 @@ import {
   loadingVM,
   errorVM,
   changePlanOptions,
+  memberDetailVM,
 } from './org-detail.fixtures';
 import { DashboardShell } from '../dashboard.shell';
+import { demoPayments } from './payments/payments.fixtures';
 
 const meta: Meta<typeof OrgDetailView> = {
   title: 'Medicine Manager/Dashboard/Org Detail',
@@ -34,6 +36,11 @@ const actions = {
   onSubmitChangePlan: () => undefined,
   onSubmitMarkPaid: () => undefined,
   onSubmitExtendTrial: () => undefined,
+  onViewMember: () => undefined,
+  onCloseMember: () => undefined,
+  onBlockMember: () => undefined,
+  onSetMemberAccount: () => undefined,
+  onMarkPaymentPaid: () => undefined,
 };
 
 /** Story host: lever clicks open the dialog; cancel/submit close it. */
@@ -82,5 +89,11 @@ export const TrialExpired: Story = { render: inShell(trialExpiredVM) };
 export const OverLimit: Story = { render: inShell(overLimitVM) };
 export const Loading: Story = { render: inShell(loadingVM) };
 export const LoadError: Story = { render: inShell(errorVM) };
+/** Member detail panel: full info + ids, with the Unblock / Disable levers. */
+export const MemberDetail: Story = { render: inShell(memberDetailVM) };
+/** Payment ledger: one of each status; pending/failed offer "Mark as paid". */
+export const Payments: Story = {
+  render: inShell({ ...populatedVM, payments: demoPayments }),
+};
 /** Interactive: the levers open their dialogs; Cancel/submit close them. */
 export const LeverFlows: Story = { render: () => <LeverHost /> };

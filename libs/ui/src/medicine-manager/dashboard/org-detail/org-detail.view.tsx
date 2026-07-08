@@ -24,7 +24,9 @@ import {
 } from '../../../design-system/alert/alert';
 import { memberColumns } from './org-detail.columns';
 import { BillingDialogs } from './org-detail.billing-dialogs';
+import { MemberSheet } from './org-detail.member-sheet';
 import { SubscriptionCard } from './org-detail.subscription';
+import { PaymentsCard } from './payments/payments';
 import type {
   OrgDetailActions,
   OrgDetailVM,
@@ -88,21 +90,67 @@ const Info = ({ vm }: { readonly vm: OrgDetailVM }) => (
   </div>
 );
 
-const Members = ({ vm }: { readonly vm: OrgDetailVM }) =>
-  vm.canViewMembers ? (
-    <DataTable
-      columns={memberColumns}
-      data={vm.members}
-      searchPlaceholder="Search members…"
-      empty="This organization has no members."
-    />
-  ) : (
-    <EmptyState
-      icon={<Lock />}
-      title="Members hidden"
-      description="Your role can't read this organization's members."
-    />
-  );
+type MemberTableActions = Pick<
+  OrgDetailActions,
+  'onViewMember' | 'onBlockMember' | 'onSetMemberAccount'
+>;
+
+const Members = ({
+  vm,
+  actions,
+}: {
+  readonly vm: OrgDetailVM;
+  readonly actions: MemberTableActions;
+}) => (
+  <div className="flex flex-col gap-2">
+    <h2 className="text-sm font-semibold text-foreground">Users</h2>
+    {vm.canViewMembers ? (
+      <DataTable
+        columns={memberColumns({ canManage: vm.canManageMembers, ...actions })}
+        data={vm.members}
+        searchPlaceholder="Search members…"
+        empty="This organization has no members."
+      />
+    ) : (
+      <EmptyState
+        icon={<Lock />}
+        title="Members hidden"
+        description="Your role can't read this organization's members."
+      />
+    )}
+  </div>
+);
+
+/** Billing block — subscription card + the payment ledger, both optional. */
+const Billing = ({
+  vm,
+  onMarkPaid,
+  onExtendTrial,
+  onChangePlan,
+  onMarkPaymentPaid,
+}: { readonly vm: OrgDetailVM } & Pick<
+  OrgDetailActions,
+  'onMarkPaid' | 'onExtendTrial' | 'onChangePlan' | 'onMarkPaymentPaid'
+>) => (
+  <>
+    {vm.subscription ? (
+      <SubscriptionCard
+        subscription={vm.subscription}
+        canManageBilling={vm.canManageBilling}
+        onMarkPaid={onMarkPaid}
+        onExtendTrial={onExtendTrial}
+        onChangePlan={onChangePlan}
+      />
+    ) : null}
+    {vm.payments ? (
+      <PaymentsCard
+        payments={vm.payments}
+        canManageBilling={vm.canManageBilling}
+        onMarkPaymentPaid={onMarkPaymentPaid}
+      />
+    ) : null}
+  </>
+);
 
 export const OrgDetailView = ({
   vm,
@@ -115,6 +163,11 @@ export const OrgDetailView = ({
   onSubmitChangePlan,
   onSubmitMarkPaid,
   onSubmitExtendTrial,
+  onViewMember,
+  onCloseMember,
+  onBlockMember,
+  onSetMemberAccount,
+  onMarkPaymentPaid,
 }: { readonly vm: OrgDetailVM } & OrgDetailActions) => {
   if (vm.loading) return <Skeleton className="h-96 w-full" />;
   if (vm.error)
@@ -136,19 +189,17 @@ export const OrgDetailView = ({
       </Button>
       <Header vm={vm} onImpersonate={onImpersonate} />
       <Info vm={vm} />
-      {vm.subscription ? (
-        <SubscriptionCard
-          subscription={vm.subscription}
-          canManageBilling={vm.canManageBilling}
-          onMarkPaid={onMarkPaid}
-          onExtendTrial={onExtendTrial}
-          onChangePlan={onChangePlan}
-        />
-      ) : null}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-foreground">Users</h2>
-        <Members vm={vm} />
-      </div>
+      <Billing
+        vm={vm}
+        onMarkPaid={onMarkPaid}
+        onExtendTrial={onExtendTrial}
+        onChangePlan={onChangePlan}
+        onMarkPaymentPaid={onMarkPaymentPaid}
+      />
+      <Members
+        vm={vm}
+        actions={{ onViewMember, onBlockMember, onSetMemberAccount }}
+      />
       {vm.billingDialog ? (
         <BillingDialogs
           dialog={vm.billingDialog}
@@ -158,6 +209,12 @@ export const OrgDetailView = ({
           onSubmitExtendTrial={onSubmitExtendTrial}
         />
       ) : null}
+      <MemberSheet
+        member={vm.openMember}
+        onCloseMember={onCloseMember}
+        onBlockMember={onBlockMember}
+        onSetMemberAccount={onSetMemberAccount}
+      />
     </div>
   );
 };

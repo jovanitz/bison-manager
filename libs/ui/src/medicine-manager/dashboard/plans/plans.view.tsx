@@ -11,7 +11,6 @@
  * retire confirm (`pendingRetire`) are DATA on the VM; only controlled inputs
  * (the reason field here, the form fields in plans.form.tsx) are view-local.
  */
-import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../../../design-system/button/button';
 import { DataTable } from '../../../design-system/data-table/data-table';
@@ -21,90 +20,11 @@ import {
   AlertDescription,
   AlertTitle,
 } from '../../../design-system/alert/alert';
-import { Label } from '../../../design-system/label/label';
-import { Textarea } from '../../../design-system/textarea/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../design-system/dialog/dialog';
 import { planColumns } from './plans.columns';
-import { PlanFormDialog, RetireConfirmDialog } from './plans.form';
-import type { BlastRadiusVM, PlansActions, PlansVM } from './plans.types';
-
-const Impact = ({
-  n,
-  children,
-}: {
-  readonly n: number;
-  readonly children: string;
-}) => (
-  <li className="flex items-baseline gap-2 text-sm">
-    <span
-      className={
-        n > 0
-          ? 'font-semibold tabular-nums text-warning-soft-foreground'
-          : 'font-semibold tabular-nums text-muted-foreground'
-      }
-    >
-      {n}
-    </span>
-    <span className="text-muted-foreground">{children}</span>
-  </li>
-);
-
-const BlastRadiusDialog = ({
-  pending,
-  onConfirmEdit,
-  onCancelEdit,
-}: { readonly pending: BlastRadiusVM } & Pick<
-  PlansActions,
-  'onConfirmEdit' | 'onCancelEdit'
->) => {
-  const [reason, setReason] = useState('');
-  return (
-    <Dialog open onOpenChange={(open) => (open ? undefined : onCancelEdit())}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Apply changes to “{pending.planName}”?</DialogTitle>
-          <DialogDescription>
-            Plan edits propagate live. This change reaches {pending.subscribers}{' '}
-            subscribers.
-          </DialogDescription>
-        </DialogHeader>
-        <ul className="flex flex-col gap-1.5 rounded-md border border-border p-3">
-          <Impact n={pending.wouldGoOverLimit}>orgs would go over-limit</Impact>
-          <Impact n={pending.wouldLoseFeature}>
-            orgs would lose a feature they use
-          </Impact>
-        </ul>
-        <div className="grid gap-1.5">
-          <Label htmlFor="edit-reason">Reason (required)</Label>
-          <Textarea
-            id="edit-reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Audited with the before/after payloads — why this change?"
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancelEdit}>
-            Cancel
-          </Button>
-          <Button
-            disabled={reason.trim() === ''}
-            onClick={() => onConfirmEdit(reason.trim())}
-          >
-            Confirm change
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+import { PlanFormDialog } from './plans.form';
+import { ReviewChangesDialog } from './review/review';
+import { RetireConfirmDialog } from './review/retire';
+import type { PlansActions, PlansVM } from './plans.types';
 
 const Header = ({
   canManage,
@@ -161,7 +81,7 @@ export const PlansView = ({
         empty="No plans in the catalog."
       />
       {vm.pendingEdit ? (
-        <BlastRadiusDialog
+        <ReviewChangesDialog
           pending={vm.pendingEdit}
           onConfirmEdit={onConfirmEdit}
           onCancelEdit={onCancelEdit}
