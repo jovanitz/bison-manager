@@ -14,7 +14,7 @@ import { TemplatesView } from '../roles/templates.view';
 import { InviteView } from '../invite/invite.view';
 import { AuditView } from '../audit/audit.view';
 import { SettingsView } from '../settings/settings.view';
-import { Toaster } from '../../../design-system/toast/toaster';
+import { Toaster, toast } from '../../../design-system/toast/toaster';
 import {
   OrgDetailSection,
   StaffDetailSection,
@@ -23,6 +23,32 @@ import { PlansSection } from './dashboard.prototype.plans';
 import * as fx from './dashboard.prototype.fixtures';
 
 const noop = () => undefined;
+
+const ADMIN_TOAST: Record<'disable' | 'enable' | 'promote', string> = {
+  disable: 'Account disabled',
+  enable: 'Account enabled',
+  promote: 'Promoted to staff',
+};
+
+/** Prototype feedback — every directory mutation confirms with a toast, and the
+ *  reversible ones offer Undo (real undo lands when these wire to the backend). */
+const dirToasts = {
+  onBlock: (_id: string, blocked: boolean) =>
+    toast.success(blocked ? 'Organization blocked' : 'Organization unblocked', {
+      action: { label: 'Undo', onClick: () => toast('Reverted') },
+    }),
+  onAdmin: (_id: string, action: 'disable' | 'enable' | 'promote') =>
+    toast.success(ADMIN_TOAST[action]),
+  onRegenerate: () => toast.success('Invite link regenerated'),
+  onCopyInvite: () => toast.success('Invite link copied'),
+  onResendInvite: () => toast.success('Invitation resent'),
+  onRevokeInvitation: () =>
+    toast.success('Invitation revoked', {
+      action: { label: 'Undo', onClick: () => toast('Invitation restored') },
+    }),
+  onInviteOrphan: () => toast.success('Invitation sent'),
+  onDeleteOrphan: () => toast.success('Identity deleted'),
+};
 
 /** The active section's view, fed with fixtures. Mutating actions are no-ops. */
 const Section = ({
@@ -65,16 +91,9 @@ const Section = ({
       return (
         <DirectoryView
           vm={fx.directoryVM}
-          onBlock={noop}
-          onAdmin={noop}
-          onRegenerate={noop}
+          {...dirToasts}
           onOpenOrg={onOpenOrg}
           onOpenStaff={onOpenStaff}
-          onCopyInvite={noop}
-          onResendInvite={noop}
-          onRevokeInvitation={noop}
-          onInviteOrphan={noop}
-          onDeleteOrphan={noop}
         />
       );
   }
