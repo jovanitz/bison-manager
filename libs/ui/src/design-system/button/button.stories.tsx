@@ -34,3 +34,5 @@ export const Link: Story = { args: { variant: 'link' } };
 export const Small: Story = { args: { size: 'sm' } };
 export const Large: Story = { args: { size: 'lg' } };
 export const Disabled: Story = { args: { disabled: true } };
+/** A backend action in flight: spinner + blocked clicks (`loading`). */
+export const Loading: Story = { args: { loading: true, children: 'Saving…' } };

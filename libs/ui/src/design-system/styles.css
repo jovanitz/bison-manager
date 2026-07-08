@@ -31,6 +31,10 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+  /* Tooltip surface — a softened charcoal, NOT the harsh pure `--foreground`, so
+   * a filled tooltip doesn't vibrate as near-black on white. Same idea in dark. */
+  --tooltip: oklch(0.27 0 0);
+  --tooltip-foreground: oklch(0.97 0 0);
   /* default brand (cyan) — overridden per app by a ./themes/*.css preset */
   --primary: #38ddf8;
   --primary-foreground: #083344;
@@ -66,6 +70,10 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
+  /* Lifted charcoal (above the 0.145 bg + the popover) so the tooltip reads as a
+   * floating surface — never the harsh near-white block bg-foreground gave. */
+  --tooltip: oklch(0.32 0 0);
+  --tooltip-foreground: oklch(0.97 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -93,6 +101,8 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-foreground: var(--tooltip-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);

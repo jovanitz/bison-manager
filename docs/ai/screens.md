@@ -45,6 +45,48 @@ export const DirectoryView = (
 deriving `canX`, choosing a use case — none of that lives in the view (it moves
 to the controller in phase 2).
 
+## Visual quality bar — critique like a designer, before “done”
+
+A view that _works_ is not a view that's _done_. The `screens` sensor checks
+**structure** (phase, stories, no architecture); it cannot see whether the UI
+looks like a professional built it. That judgment is yours, and it is required.
+
+**Process (not optional).** After building or iterating a view, **screenshot it**
+and critique it against the bar below **as a senior product designer would** —
+name the single weakest thing and fix it. Never declare a view done on its first
+render. Ask: _“would a designer who cares about craft ship this, or is it merely
+functional?”_ If it's merely functional, it isn't done.
+
+**The bar:**
+
+- **Hierarchy** — one clear focal point; primary / secondary / tertiary differ in
+  size, weight, or color. No flat wall of same-weight text.
+- **Alignment & rhythm** — everything sits on a grid; labels and values align in
+  columns; spacing uses the `Stack` scale (tight / cozy / field / group /
+  section), never an off-scale gap. Nothing floats.
+- **Mirror reality** — a legend / tooltip / key reuses the **exact** colors, dots
+  and labels of the thing it explains, so it maps at a glance. Reuse DS tokens
+  (status colors, radii, spacing); never re-invent them.
+- **Typography** — a small, deliberate type scale; secondary text is _muted_, not
+  just smaller; comfortable line-height. No cramped blocks.
+- **Restraint** — every element pays rent. Cut redundant labels, double
+  separators (`— … —`), needless parentheticals, and captions that repeat the
+  obvious. White space is a feature.
+- **Color & contrast** — color signals _state_ (success / warning / destructive),
+  not decoration. And contrast matters: **never a pure-black surface on white or
+  a pure-white surface on dark** — they vibrate and read as cheap. Soften filled
+  surfaces (a charcoal tooltip, an off-white text) via tokens, not raw hex.
+- **Every state designed** — loading (skeleton), empty (guidance, not blank),
+  error (recovery), and the one-item vs many-items cases all look intentional.
+- **Breathing room & responsive** — comfortable gutters; content never bleeds to
+  the edge; verified at ~375 / 768 / 1280 with no horizontal page scroll.
+- **Microcopy** — short, specific, human. “Access suspended, reversible.” — not
+  “Blocked — Access suspended — reversible (Unblock org).”
+
+This bar is **inferential**, like [security.md](security.md)'s review: a checklist
+applied with judgment and backed by a screenshot, not a script. When in doubt,
+show the screenshot and say what you'd improve — don't ship the first draft.
+
 ## The two phases
 
 ### Phase 1 — `draft` = **PROTOTYPE** (design) · “arma / diseña la vista X”
@@ -179,7 +221,9 @@ stores + flows + use cases. Its UI is a **skeleton**. The plan is to
 1. Look at the implemented screen in `libs/ui/src/dashboard/<section>` (+ its
    store) to derive the real `ViewModel` + actions.
 2. Build `medicine-manager/dashboard/<section>/<section>.view.tsx` presentational
-   (DS, `@phase draft`) + stories with mock VMs for each state. Verify + stop.
+   (DS, `@phase draft`) + stories with mock VMs for each state. Then run the
+   **visual quality bar** above — screenshot, critique, fix the weakest thing —
+   before you verify + stop.
 3. On approval → wire to the **existing** store/flow (no new backend needed).
 
 ## Navigable prototype — a clickable mockup, still just a prototype

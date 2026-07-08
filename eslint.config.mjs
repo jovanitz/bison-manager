@@ -133,6 +133,18 @@ export default [
           selector: 'Decorator',
           message: 'Decorators are banned by ADR-0002.',
         },
+        {
+          selector:
+            'Literal[value=/\\b(gap(-[xy])?|space-[xy])-(2\\.5|3\\.5|4\\.5|5|7|9|11)\\b/]',
+          message:
+            'Off-scale spacing. Use the named rhythm (Stack: tight/cozy/field/group/section) or an on-scale gap (1.5/2/3/4/6/8). Half-steps like gap-2.5/gap-5 fragment the scale.',
+        },
+        {
+          selector:
+            'TemplateElement[value.raw=/\\b(gap(-[xy])?|space-[xy])-(2\\.5|3\\.5|4\\.5|5|7|9|11)\\b/]',
+          message:
+            'Off-scale spacing. Use the named rhythm (Stack: tight/cozy/field/group/section) or an on-scale gap (1.5/2/3/4/6/8). Half-steps like gap-2.5/gap-5 fragment the scale.',
+        },
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-explicit-any': 'error',

@@ -1,16 +1,17 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import {
   flexRender,
   type Header,
+  type Row as TanstackRow,
   type Table as TanstackTable,
 } from '@tanstack/react-table';
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
   ChevronUp,
 } from 'lucide-react';
+import { cn } from '../cn';
 import {
   Table,
   TableBody,
@@ -19,14 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from '../table/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../select/select';
-import { Button } from '../button/button';
 
 const SortIcon = ({ dir }: { readonly dir: false | 'asc' | 'desc' }) => {
   if (dir === 'asc') return <ChevronUp className="size-3.5" />;
@@ -55,110 +48,102 @@ const HeaderCell = <TData,>({
   );
 };
 
-/** Header + body over the shared Table, with click-to-sort headers. */
+/** A data row plus, when expandable, a full-width detail row below it. */
+const ExpandableRow = <TData,>({
+  row,
+  renderExpanded,
+  totalCols,
+}: {
+  readonly row: TanstackRow<TData>;
+  readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
+  readonly totalCols: number;
+}) => (
+  <Fragment>
+    <TableRow>
+      {renderExpanded ? (
+        <TableCell className="w-8 pr-0">
+          <button
+            type="button"
+            onClick={() => row.toggleExpanded()}
+            aria-label={row.getIsExpanded() ? 'Collapse row' : 'Expand row'}
+            className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight
+              className={cn(
+                'size-4 transition-transform',
+                row.getIsExpanded() && 'rotate-90',
+              )}
+            />
+          </button>
+        </TableCell>
+      ) : null}
+      {row.getVisibleCells().map((cell) => (
+        <TableCell key={cell.id}>
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      ))}
+    </TableRow>
+    {renderExpanded && row.getIsExpanded() ? (
+      <TableRow className="hover:bg-transparent">
+        <TableCell colSpan={totalCols} className="bg-muted/30 px-4 py-3">
+          {renderExpanded(row.original)}
+        </TableCell>
+      </TableRow>
+    ) : null}
+  </Fragment>
+);
+
+/** Header + body over the shared Table, with click-to-sort + optional expansion. */
 export const DataTableGrid = <TData,>({
   table,
   colSpan,
   empty,
+  renderExpanded,
 }: {
   readonly table: TanstackTable<TData>;
   readonly colSpan: number;
   readonly empty: ReactNode;
-}) => (
-  <Table containerClassName="overflow-visible">
-    <TableHeader>
-      {table.getHeaderGroups().map((hg) => (
-        <TableRow key={hg.id}>
-          {hg.headers.map((header) => (
-            <TableHead key={header.id}>
-              <HeaderCell header={header} />
-            </TableHead>
-          ))}
-        </TableRow>
-      ))}
-    </TableHeader>
-    <TableBody>
-      {table.getRowModel().rows.length ? (
-        table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id}>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
+  /** When set, each row gets an expander that reveals this detail content. */
+  readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
+}) => {
+  const totalCols = colSpan + (renderExpanded ? 1 : 0);
+  return (
+    <Table containerClassName="overflow-visible">
+      <TableHeader>
+        {table.getHeaderGroups().map((hg) => (
+          <TableRow key={hg.id}>
+            {renderExpanded ? <TableHead className="w-8" /> : null}
+            {hg.headers.map((header) => (
+              <TableHead key={header.id}>
+                <HeaderCell header={header} />
+              </TableHead>
             ))}
           </TableRow>
-        ))
-      ) : (
-        <TableRow>
-          <TableCell
-            colSpan={colSpan}
-            className="h-24 text-center text-muted-foreground"
-          >
-            {empty}
-          </TableCell>
-        </TableRow>
-      )}
-    </TableBody>
-  </Table>
-);
-
-/** Always-visible footer: row count + rows-per-page selector + page nav. */
-export const DataTablePagination = <TData,>({
-  table,
-  pageSizeOptions,
-}: {
-  readonly table: TanstackTable<TData>;
-  readonly pageSizeOptions: readonly number[];
-}) => (
-  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2 text-sm text-muted-foreground">
-    <span className="tabular-nums">
-      {table.getFilteredRowModel().rows.length} row(s)
-    </span>
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2">
-        <span className="hidden sm:inline">Rows per page</span>
-        <Select
-          value={String(table.getState().pagination.pageSize)}
-          onValueChange={(v) => table.setPageSize(Number(v))}
-        >
-          <SelectTrigger className="h-8 w-[4.5rem]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {pageSizeOptions.map((n) => (
-              <SelectItem key={n} value={String(n)}>
-                {n}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <span className="tabular-nums">
-        Page {table.getState().pagination.pageIndex + 1} of{' '}
-        {table.getPageCount() || 1}
-      </span>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-          aria-label="Previous page"
-        >
-          <ChevronLeft />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-          aria-label="Next page"
-        >
-          <ChevronRight />
-        </Button>
-      </div>
-    </div>
-  </div>
-);
+        ))}
+      </TableHeader>
+      <TableBody>
+        {table.getRowModel().rows.length ? (
+          table
+            .getRowModel()
+            .rows.map((row) => (
+              <ExpandableRow
+                key={row.id}
+                row={row}
+                renderExpanded={renderExpanded}
+                totalCols={totalCols}
+              />
+            ))
+        ) : (
+          <TableRow>
+            <TableCell
+              colSpan={totalCols}
+              className="h-24 text-center text-muted-foreground"
+            >
+              {empty}
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+};

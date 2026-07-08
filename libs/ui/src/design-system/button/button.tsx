@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes } from 'react';
+import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../cn';
@@ -7,6 +8,10 @@ import { cn } from '../cn';
  * Design-system Button (shadcn/ui). Variants + sizes via `cva`; `asChild` renders
  * the styles onto a child element (e.g. an `<a>`) through Radix `Slot`. Colors
  * come from the design tokens (bg-primary, …), never raw palette values.
+ *
+ * Forwards its ref to the underlying element — required when a Radix trigger
+ * (DropdownMenu, Tooltip, …) wraps it with `asChild`: without the ref the
+ * trigger can't anchor its popover, so the menu never opens.
  */
 export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
@@ -37,20 +42,40 @@ export const buttonVariants = cva(
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants> & {
     readonly asChild?: boolean;
+    /** Show a spinner and block clicks while a backend action is in flight. */
+    readonly loading?: boolean | undefined;
   };
 
-export const Button = ({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: ButtonProps) => {
-  const Comp = asChild ? Slot : 'button';
-  return (
-    <Comp
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  );
-};
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      loading = false,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const Comp = asChild ? Slot : 'button';
+    return (
+      <Comp
+        ref={ref}
+        className={cn(buttonVariants({ variant, size, className }))}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        {...props}
+      >
+        {/* asChild renders through Slot (single child only) — no spinner there. */}
+        {!asChild && loading ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : null}
+        {children}
+      </Comp>
+    );
+  },
+);
+Button.displayName = 'Button';

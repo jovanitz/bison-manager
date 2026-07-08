@@ -16,7 +16,9 @@ export const TabsList = forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground',
+      // Scrolls horizontally instead of pushing the page when the tabs are
+      // wider than the viewport (mobile); scrollbar hidden for a clean bar.
+      'inline-flex h-9 max-w-full items-center justify-start overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
       className,
     )}
     {...props}

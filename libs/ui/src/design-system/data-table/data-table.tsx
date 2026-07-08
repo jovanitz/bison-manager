@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import {
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
@@ -10,7 +11,8 @@ import {
 } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { Input } from '../input/input';
-import { DataTableGrid, DataTablePagination } from './data-table.parts';
+import { DataTableGrid } from './data-table.parts';
+import { DataTablePagination } from './data-table.pagination';
 
 export type DataTableProps<TData, TValue> = {
   readonly columns: ColumnDef<TData, TValue>[];
@@ -24,13 +26,15 @@ export type DataTableProps<TData, TValue> = {
   readonly maxHeight?: string;
   /** Shown when there are no (filtered) rows. */
   readonly empty?: ReactNode;
+  /** When set, each row gets an expander that reveals this collapsed detail. */
+  readonly renderExpanded?: ((row: TData) => ReactNode) | undefined;
 };
 
 /**
  * Generic data table over TanStack Table + the shared Table primitives:
- * click-to-sort headers, a global search box, a rows-per-page selector, and a
- * bounded body that scrolls (sticky header) while the footer/pagination stay
- * visible. Pass `columns` + `data`; state is local view state.
+ * click-to-sort headers, a global search box, a rows-per-page selector, a
+ * bounded scrolling body (sticky header), and optional per-row expansion
+ * (`renderExpanded`) to tuck secondary columns behind a click. State is local.
  */
 export function DataTable<TData, TValue>({
   columns,
@@ -40,6 +44,7 @@ export function DataTable<TData, TValue>({
   pageSizeOptions = [10, 20, 50],
   maxHeight = '60vh',
   empty = 'No results.',
+  renderExpanded,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -53,6 +58,8 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => renderExpanded !== undefined,
     initialState: { pagination: { pageSize } },
   });
   // Guarantee the active pageSize is always a selectable option.
@@ -77,7 +84,12 @@ export function DataTable<TData, TValue>({
           className="overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-background"
           style={{ maxHeight }}
         >
-          <DataTableGrid table={table} colSpan={columns.length} empty={empty} />
+          <DataTableGrid
+            table={table}
+            colSpan={columns.length}
+            empty={empty}
+            renderExpanded={renderExpanded}
+          />
         </div>
         <DataTablePagination table={table} pageSizeOptions={options} />
       </div>
