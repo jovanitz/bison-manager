@@ -37,6 +37,7 @@ const inShell = (vm: DirectoryVM) =>
           onRevokeInvitation={() => undefined}
           onInviteOrphan={() => undefined}
           onDeleteOrphan={() => undefined}
+          onInvite={() => undefined}
         />
       </DashboardShell>
     );
@@ -93,6 +94,7 @@ export const OrgDrilldown: Story = {
             onRevokeInvitation={() => undefined}
             onInviteOrphan={() => undefined}
             onDeleteOrphan={() => undefined}
+            onInvite={() => undefined}
           />
         )}
       </DashboardShell>

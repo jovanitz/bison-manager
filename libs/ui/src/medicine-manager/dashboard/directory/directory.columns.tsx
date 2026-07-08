@@ -54,6 +54,8 @@ export type DirectoryActions = {
   /** Orphaned identity (registered, no org). */
   readonly onInviteOrphan: (userId: string) => void;
   readonly onDeleteOrphan: (userId: string) => void;
+  /** Directory-level CTA — invite a new person by email. */
+  readonly onInvite: (email: string) => void;
 };
 
 /** Directory screen ViewModel — lives here (the types hub) so the view and its

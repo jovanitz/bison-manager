@@ -48,6 +48,7 @@ const dirToasts = {
     }),
   onInviteOrphan: () => toast.success('Invitation sent'),
   onDeleteOrphan: () => toast.success('Identity deleted'),
+  onInvite: (email: string) => toast.success(`Invitation sent to ${email}`),
 };
 
 /** The active section's view, fed with fixtures. Mutating actions are no-ops. */
