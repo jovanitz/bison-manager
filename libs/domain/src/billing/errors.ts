@@ -22,6 +22,17 @@ export const defaultPlanProtected = defineError(
 );
 export const planAlreadyRetired = defineError('domain/plan-already-retired');
 export const planNotAssignable = defineError('domain/plan-not-assignable');
+/** Money must be a safe integer of minor units (ADR-0018) — never a float. */
+export const invalidMoney = defineError('domain/invalid-money');
+/** Arithmetic across two currencies — never combined (ADR-0018). */
+export const currencyMismatch = defineError('domain/currency-mismatch');
+/** Tax rate must be a non-negative integer of basis points (ADR-0018). */
+export const invalidTaxRate = defineError('domain/invalid-tax-rate');
+/** Billing policy numbers (grace days, dormant window) must be non-negative
+ *  integers (ADR-0018). */
+export const invalidBillingPolicy = defineError(
+  'domain/invalid-billing-policy',
+);
 
 export type BillingDomainError =
   | TaggedError<'domain/invalid-billing-id'>
@@ -33,4 +44,8 @@ export type BillingDomainError =
   | TaggedError<'domain/invalid-billing-date'>
   | TaggedError<'domain/default-plan-protected'>
   | TaggedError<'domain/plan-already-retired'>
-  | TaggedError<'domain/plan-not-assignable'>;
+  | TaggedError<'domain/plan-not-assignable'>
+  | TaggedError<'domain/invalid-money'>
+  | TaggedError<'domain/currency-mismatch'>
+  | TaggedError<'domain/invalid-tax-rate'>
+  | TaggedError<'domain/invalid-billing-policy'>;

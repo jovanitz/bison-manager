@@ -2,17 +2,23 @@ import type { Clock, IdGenerator } from '@acme/shared';
 import {
   makeBillingPlansUseCases,
   makeBillingSubscriptionsUseCases,
+  makeGetCoverage,
   makeEntitlementGuards,
 } from '@acme/application';
 import type {
   AccessAdminRepository,
   AccessMemberDirectory,
+  BillingLedgerUseCases,
   BillingPlansUseCases,
   BillingSubscriptionsUseCases,
   CreateOrganizationDeps,
   EntitlementGuards,
 } from '@acme/application';
-import { createInMemoryBillingStore } from '@acme/infrastructure';
+import {
+  createInMemoryBillingStore,
+  createInMemoryChargeStore,
+  createInMemoryPaymentStore,
+} from '@acme/infrastructure';
 import type {
   BillingStoreState,
   InMemoryBillingStore,
@@ -30,6 +36,8 @@ export type BillingWiring = {
   readonly plans: BillingPlansUseCases;
   readonly subscriptions: BillingSubscriptionsUseCases;
   readonly guards: EntitlementGuards;
+  /** Derived billing coverage (ADR-0018) for the Directory / org-detail reads. */
+  readonly getCoverage: BillingLedgerUseCases['getCoverage'];
   /**
    * The raw port surface, for the enforcement wiring the use-case bundles do
    * not cover: `plans.findDefaultPlan` + `subscriptions.hasTrialConsumedByUser`
@@ -90,6 +98,23 @@ export const wireBilling = (deps: {
     }),
     subscriptions: makeBillingSubscriptionsUseCases(shared),
     guards: makeEntitlementGuards(shared),
+    // Coverage read over the same in-memory subscriptions; the ledger charge
+    // store is empty until charge generation is wired (Postgres stores slot in
+    // here later). getCoverage reauthorizes billing.read at the API boundary.
+    getCoverage: makeGetCoverage({
+      subscriptions: store.subscriptions,
+      plans: store.plans,
+      charges: createInMemoryChargeStore(),
+      payments: createInMemoryPaymentStore(),
+      clock: deps.clock,
+      ids: deps.ids.next,
+      policy: {
+        dormantDays: 90,
+        graceDays: 10,
+        currency: 'MXN',
+        taxRateBps: 1600,
+      },
+    }),
     store,
   };
 };

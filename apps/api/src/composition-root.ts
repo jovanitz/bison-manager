@@ -201,6 +201,7 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
       }),
       billingPlans: billing.plans,
       billingSubscriptions: billing.subscriptions,
+      getCoverage: billing.getCoverage,
     }),
     // TEST-ONLY seam (see ApiConfig): pipeline contract tests inject probes.
     ...extraProceduresOf(config),

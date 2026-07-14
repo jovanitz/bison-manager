@@ -195,6 +195,7 @@ generated — they are behavior, not documentation:
 | `billing.extendTrial` | `plans.manage` | Staff lever: set an org's trial end to an absolute DATE — the ONLY way a new trial is ever granted (plan changes never regrant one). |
 | `billing.changePlan` | `plans.manage` | Staff lever: move an org to another plan (staff-only in v1). Retired plans are refused; hidden+active is assignable (legacy/custom home). |
 | `billing.setOverride` | `plans.manage` | Staff lever: set (or clear with null) the per-org entitlement exception — "you keep 25 seats" is one override, not a new plan. |
+| `billing.coverage` | `billing.read` | Read one org's derived billing coverage: paid-through, outstanding balance, lifecycle phase (grace/suspended/…) and the dormant flag. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.

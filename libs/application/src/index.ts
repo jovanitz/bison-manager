@@ -76,6 +76,13 @@ export * from './billing-subscriptions/ports';
 export * from './billing-subscriptions/errors';
 export * from './billing-subscriptions/guards';
 export * from './billing-subscriptions/use-cases';
+
+// Billing ledger: append-only charges + payments; coverage/balance/phase are
+// derived (ADR-0018). getCoverage is the shared billing read.
+export * from './billing-ledger/ports';
+export * from './billing-ledger/errors';
+export * from './billing-ledger/use-cases';
+export * from './billing-ledger/coverage-reader';
 export * from './access-roles/expand';
 
 // Access block: soft block of an org or an identity (login yes, operate no)
@@ -111,6 +118,7 @@ export * from './flows/client/home';
 export * from './flows/client/gate';
 export * from './flows/client/registry';
 export * from './flows/dashboard/queries';
+export * from './flows/dashboard/directory/directory';
 export * from './flows/dashboard/org-detail/org-detail';
 export * from './flows/dashboard/plans/plans';
 export * from './flows/dashboard/plans/commands';

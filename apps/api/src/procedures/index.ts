@@ -9,6 +9,7 @@ import type {
   AccessSettingsUseCases,
   AccessUseCases,
   AuditTrailUseCases,
+  BillingLedgerUseCases,
   BillingPlansUseCases,
   BillingSubscriptionsUseCases,
   ImpersonationUseCases,
@@ -17,6 +18,7 @@ import type { ApiProcedure } from '../rpc/procedure';
 import { createAccessProcedures } from './access-procedures';
 import { createAdminProcedures } from './admin-procedures';
 import { createBillingProcedures } from './billing/billing-procedures';
+import { createCoverageProcedures } from './billing/coverage-procedures';
 import { createPlansProcedures } from './billing/plans-procedures';
 import { createBlockProcedures } from './block-procedures';
 import { createDirectoryProcedures } from './directory-procedures';
@@ -43,6 +45,7 @@ export type ApiUseCases = {
   readonly accessOrgDetail: AccessOrgDetailUseCases;
   readonly billingPlans: BillingPlansUseCases;
   readonly billingSubscriptions: BillingSubscriptionsUseCases;
+  readonly getCoverage: BillingLedgerUseCases['getCoverage'];
 };
 
 /**
@@ -68,4 +71,5 @@ export const createApiProcedures = (
   ...createTemplatesProcedures(useCases.accessRoles),
   ...createPlansProcedures(useCases.billingPlans),
   ...createBillingProcedures(useCases.billingSubscriptions),
+  ...createCoverageProcedures(useCases.getCoverage),
 ];

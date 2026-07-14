@@ -84,6 +84,7 @@ describe('the rpc pipeline', () => {
       'account.promote',
       'audit.list',
       'billing.changePlan',
+      'billing.coverage',
       'billing.extendTrial',
       'billing.markPaid',
       'billing.setOverride',

@@ -26,6 +26,11 @@ export * from './billing/in-memory/in-memory-plan-catalog-store';
 export * from './billing/in-memory/in-memory-subscription-store';
 export * from './billing/in-memory/in-memory-billing-store';
 export * from './billing/usage/entitlement-usage-reader';
+// Billing ledger (ADR-0018): in-memory reference. The Postgres ledger stores
+// (./billing-ledger/postgres/*) are contract-tested but NOT exported yet —
+// same Node-only driver rule as the billing store above.
+export * from './billing-ledger/in-memory/in-memory-charge-store';
+export * from './billing-ledger/in-memory/in-memory-payment-store';
 
 // Auth adapters
 export * from './auth/jwt-auth-provider';
@@ -47,6 +52,7 @@ export * from './access-client/gateways/admin/rpc-sessions-gateway';
 export * from './access-client/gateways/admin/rpc-settings-gateway';
 export * from './access-client/gateways/admin/rpc-org-detail-gateway';
 export * from './access-client/gateways/admin/rpc-billing-gateway';
+export * from './access-client/gateways/admin/rpc-coverage-gateway';
 export * from './access-client/gateways/rpc-roles-gateway';
 export * from './access-client/gateways/client/rpc-orgs-gateway';
 

@@ -111,3 +111,42 @@ describe('staff levers', () => {
     expect(await errorTag(res)).toBe('app/access-denied');
   });
 });
+
+type CoverageBody = {
+  readonly data: {
+    readonly phase: string;
+    readonly balanceMinor: number;
+  } | null;
+};
+
+describe('billing.coverage', () => {
+  const coverage = (
+    app: ReturnType<typeof testRuntime>['app'],
+    token: string,
+    accountId: string,
+  ) => callRpc(app, 'billing.coverage', { token, body: { accountId } });
+
+  it('returns derived coverage for staff reading a customer', async () => {
+    const { app } = testRuntime();
+    const res = await coverage(app, 'session-owner', 'acct-customer');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as CoverageBody;
+    expect(body.data).not.toBeNull();
+    expect(typeof body.data?.phase).toBe('string');
+    expect(typeof body.data?.balanceMinor).toBe('number');
+  });
+
+  it('404s an org with no subscription (fail closed, like the summary)', async () => {
+    const { app } = testRuntime();
+    const res = await coverage(app, 'session-owner', 'acct-ghost');
+    expect(res.status).toBe(404);
+    expect(await errorTag(res)).toBe('app/subscription-not-found');
+  });
+
+  it('403s a customer asking about a foreign org', async () => {
+    const { app } = testRuntime();
+    const res = await coverage(app, 'session-customer', 'acct-owner');
+    expect(res.status).toBe(403);
+    expect(await errorTag(res)).toBe('app/access-denied');
+  });
+});
