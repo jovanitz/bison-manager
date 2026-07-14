@@ -1,0 +1,21 @@
+{
+  "name": "medicine-manager",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/medicine-manager/src",
+  "projectType": "application",
+  "tags": ["layer:app"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint {projectRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/medicine-manager/tsconfig.app.json --noEmit"
+      }
+    }
+  }
+}

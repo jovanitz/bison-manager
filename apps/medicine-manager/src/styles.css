@@ -1,0 +1,4 @@
+/* Medicine Manager app stylesheet: pulls in the shared design-system styles
+ * (Tailwind + tokens). Kept as a thin local entry so Vite resolves it within
+ * this app; the real tokens/components live in libs/ui's design system. */
+@import '../../../libs/ui/src/design-system/styles.css';
