@@ -6,6 +6,7 @@ import type {
   SessionsGateway,
   SettingsGateway,
   BlockUseCases,
+  CoverageReader,
   DirectoryUseCases,
   InvitationsUseCases,
   ItemUseCases,
@@ -30,6 +31,8 @@ export type AppUseCases = {
   readonly access?: AccessClientUseCases;
   /** Present in the staff dashboard: the staff/customer directory reads. */
   readonly directory?: DirectoryUseCases;
+  /** Present in the staff dashboard: per-account billing coverage (ADR-0018). */
+  readonly coverage?: CoverageReader;
   /** Present in the staff dashboard: issue invitations + activate them. */
   readonly invitations?: InvitationsUseCases;
   /** Present in the staff dashboard: list members + edit their permissions. */

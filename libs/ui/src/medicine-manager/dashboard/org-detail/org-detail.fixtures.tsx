@@ -3,6 +3,7 @@ import type {
   OrgMemberRow,
   OrgSubscriptionVM,
   PlanOption,
+  RecordPaymentPreview,
 } from './org-detail.types';
 
 const members: readonly OrgMemberRow[] = [
@@ -46,6 +47,7 @@ const activeSubscription: OrgSubscriptionVM = {
   seatsMax: 25,
   overLimit: false,
   priceLabel: '$49 / month',
+  balance: { label: '$0.00', state: 'clear' },
 };
 
 /** Inside the trial window; the plan's price is not decided yet. */
@@ -98,18 +100,57 @@ export const gatedVM: OrgDetailVM = {
   subscription: activeSubscription,
 };
 
-/** Trial over, never paid → phase `past_due`; growth + premium are gated. */
+/** Trial just ended, unpaid → phase `grace`: service still ON, counting down. */
 export const trialExpiredVM: OrgDetailVM = {
   ...base,
   subscription: {
     planName: 'Free',
-    phase: 'past_due',
-    trialEndsAt: '2026-06-14',
+    phase: 'grace',
+    trialEndsAt: '2026-07-05',
     paidThroughAt: null,
+    graceEndsAt: '2026-07-15',
     seatsUsed: 3,
     seatsMax: 3,
     overLimit: false,
     priceLabel: '$15 / month',
+    balance: { label: '$17.40', state: 'owes' },
+  },
+};
+
+/** Grace elapsed, unpaid → phase `suspended`: service OFF, recoverable anytime.
+ *  Org status stays `active` — billing suspension is a separate axis from a
+ *  staff `access.block`; only the Subscription card carries the billing phase. */
+export const suspendedVM: OrgDetailVM = {
+  ...base,
+  subscription: {
+    planName: 'Pro',
+    phase: 'suspended',
+    trialEndsAt: '2026-05-20',
+    paidThroughAt: '2026-06-05',
+    suspendedSince: '2026-06-30',
+    seatsUsed: 8,
+    seatsMax: 25,
+    overLimit: false,
+    priceLabel: '$49 / month',
+    balance: { label: '$56.84', state: 'owes' },
+  },
+};
+
+/** Suspended 3+ months, idle → flagged dormant for manual deletion review. */
+export const dormantVM: OrgDetailVM = {
+  ...base,
+  subscription: {
+    planName: 'Pro',
+    phase: 'suspended',
+    trialEndsAt: '2026-02-20',
+    paidThroughAt: '2026-03-05',
+    suspendedSince: '2026-03-30',
+    dormant: true,
+    seatsUsed: 8,
+    seatsMax: 25,
+    overLimit: false,
+    priceLabel: '$49 / month',
+    balance: { label: '$56.84', state: 'owes' },
   },
 };
 
@@ -125,6 +166,7 @@ export const overLimitVM: OrgDetailVM = {
     seatsMax: 3,
     overLimit: true,
     priceLabel: '$15 / month',
+    balance: { label: '$0.00', state: 'clear' },
   },
 };
 
@@ -173,23 +215,13 @@ export const changePlanOptions: readonly PlanOption[] = [
   },
 ];
 
-/** Change-plan dialog open over the paid Pro org. */
-export const changePlanDialogVM: OrgDetailVM = {
-  ...populatedVM,
-  billingDialog: { kind: 'change-plan', options: changePlanOptions },
-};
-
-/** Mark-paid dialog open over the past-due org (the natural rescue lever). */
-export const markPaidDialogVM: OrgDetailVM = {
-  ...trialExpiredVM,
-  billingDialog: { kind: 'mark-paid' },
-};
-
-/** Extend-trial dialog open over a trialing org. */
-export const extendTrialDialogVM: OrgDetailVM = {
-  ...base,
-  subscription: trialingSubscription,
-  billingDialog: { kind: 'extend-trial' },
+/** Computed reactivation preview — the suspended org's downtime credited
+ *  forward (renewal 5 Jul → 13 Jul). Staff confirm; they never type the date. */
+export const recordPaymentPreview: RecordPaymentPreview = {
+  periodLabel: '5 Jun – 5 Jul 2026',
+  amountLabel: '$49.00',
+  newPaidThrough: '2026-07-13',
+  creditNote: 'Includes 8 days credited for the suspension (5 Jul → 13 Jul).',
 };
 
 /** Member detail panel open on the blocked member (offers Unblock + Disable). */

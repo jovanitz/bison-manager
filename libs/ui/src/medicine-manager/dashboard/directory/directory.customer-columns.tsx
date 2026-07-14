@@ -9,7 +9,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '../../../design-system/badge/badge';
 import { CustomerActions } from './directory.customer-actions';
 import { StatusHeader } from './directory.status-legend';
-import { paymentColumn } from './directory.columns';
+import { NameWithAvatar, paymentColumn } from './directory.columns';
 import type { CustomerRow, DirectoryActions } from './directory.columns';
 
 /** Precedence: a disabled account overrides a soft block for the badge. */
@@ -48,25 +48,30 @@ export const customerColumns = ({
   onBlock,
   onAdmin,
   onOpenOrg,
+  onScheduleDeletion,
+  onCancelDeletion,
+  onExportOrg,
 }: {
   readonly canBlock: boolean;
   readonly canAdminAccounts: boolean;
 } & Pick<
   DirectoryActions,
-  'onBlock' | 'onAdmin' | 'onOpenOrg'
+  | 'onBlock'
+  | 'onAdmin'
+  | 'onOpenOrg'
+  | 'onScheduleDeletion'
+  | 'onCancelDeletion'
+  | 'onExportOrg'
 >): ColumnDef<CustomerRow>[] => {
   const base: ColumnDef<CustomerRow>[] = [
     {
       accessorKey: 'displayName',
       header: 'Name',
       cell: ({ row }) => (
-        <button
-          type="button"
+        <NameWithAvatar
+          name={row.original.displayName}
           onClick={() => onOpenOrg(row.original.accountId)}
-          className="font-medium text-foreground hover:underline"
-        >
-          {row.original.displayName}
-        </button>
+        />
       ),
     },
     {
@@ -90,6 +95,9 @@ export const customerColumns = ({
             canAdminAccounts={canAdminAccounts}
             onBlock={onBlock}
             onAdmin={onAdmin}
+            onScheduleDeletion={onScheduleDeletion}
+            onCancelDeletion={onCancelDeletion}
+            onExportOrg={onExportOrg}
           />
         </div>
       ),

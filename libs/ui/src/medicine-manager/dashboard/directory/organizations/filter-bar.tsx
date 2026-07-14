@@ -4,7 +4,8 @@
  * dropdowns so the bar stays to a few controls that breathe on mobile instead of
  * a wall of wrapping chips. Filtering is local UI state (see organizations.tsx).
  */
-import { AlertTriangle, ChevronDown } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { AlertTriangle, ChevronDown, Moon, Trash2 } from 'lucide-react';
 import { cn } from '../../../../design-system/cn';
 import { Button } from '../../../../design-system/button/button';
 import { Separator } from '../../../../design-system/separator/separator';
@@ -82,29 +83,72 @@ const FacetDropdown = ({
   </DropdownMenu>
 );
 
+/** One filter chip — icon + label + count, pressed-state styled by CHIP. */
+const ChipToggle = ({
+  pressed,
+  onToggle,
+  icon,
+  label,
+  count,
+}: {
+  readonly pressed: boolean;
+  readonly onToggle: (on: boolean) => void;
+  readonly icon: ReactNode;
+  readonly label: string;
+  readonly count: number;
+}) => (
+  <Toggle
+    size="sm"
+    variant="outline"
+    pressed={pressed}
+    onPressedChange={onToggle}
+    className={CHIP}
+  >
+    {icon}
+    {label}
+    <span className="text-muted-foreground">{count}</span>
+  </Toggle>
+);
+
 export const FilterBar = ({
   filters,
   setFilters,
   plans,
   attentionCount,
+  dormantCount,
+  pendingDeletionCount,
 }: {
   readonly filters: OrgFilters;
   readonly setFilters: (f: OrgFilters) => void;
   readonly plans: readonly string[];
   readonly attentionCount: number;
+  readonly dormantCount: number;
+  readonly pendingDeletionCount: number;
 }) => (
   <div className="flex flex-wrap items-center gap-2">
-    <Toggle
-      size="sm"
-      variant="outline"
+    <ChipToggle
       pressed={filters.needsAttention}
-      onPressedChange={(on) => setFilters({ ...filters, needsAttention: on })}
-      className={CHIP}
-    >
-      <AlertTriangle className="text-warning" />
-      Needs attention
-      <span className="text-muted-foreground">{attentionCount}</span>
-    </Toggle>
+      onToggle={(on) => setFilters({ ...filters, needsAttention: on })}
+      icon={<AlertTriangle className="text-warning" />}
+      label="Needs attention"
+      count={attentionCount}
+    />
+    <ChipToggle
+      pressed={filters.dormant}
+      onToggle={(on) => setFilters({ ...filters, dormant: on })}
+      icon={<Moon className="text-muted-foreground" />}
+      label="Dormant"
+      count={dormantCount}
+    />
+    {pendingDeletionCount > 0 ? (
+      <ChipToggle
+        pressed={filters.pendingDeletion}
+        onToggle={(on) => setFilters({ ...filters, pendingDeletion: on })}
+        icon={<Trash2 className="text-destructive" />}
+        label="Pending deletion"
+        count={pendingDeletionCount}
+      />
+    ) : null}
     <Separator orientation="vertical" className="h-6" />
     <FacetDropdown
       label="Status"

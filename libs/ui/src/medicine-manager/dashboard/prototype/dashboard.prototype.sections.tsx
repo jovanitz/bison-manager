@@ -10,12 +10,26 @@ import { StaffDetailView } from '../permissions/permissions.view';
 import type { MemberRow } from '../permissions/permissions.types';
 import type {
   BillingDialogVM,
+  OrgLedgerEntry,
   OrgMemberRow,
-  OrgPaymentRow,
   OrgSubscriptionVM,
+  RecordPaymentPreview,
 } from '../org-detail/org-detail.types';
-import { demoPayments } from '../org-detail/payments/payments.fixtures';
+import {
+  demoLedger,
+  demoLedgerOwing,
+} from '../org-detail/ledger/ledger.fixtures';
 import * as fx from './dashboard.prototype.fixtures';
+
+/** Prototype: fake the policy-computed coverage the record-payment dialog shows. */
+const previewFor = (s?: OrgSubscriptionVM): RecordPaymentPreview => ({
+  periodLabel: 'Current period',
+  amountLabel: s?.priceLabel ?? '—',
+  newPaidThrough: '2026-08-05',
+  ...(s?.phase === 'suspended'
+    ? { creditNote: 'Includes credit for the suspension downtime.' }
+    : {}),
+});
 
 const noop = () => undefined;
 
@@ -72,24 +86,32 @@ export const StaffDetailSection = ({
   );
 };
 
-const markPaid = (
-  ps: readonly OrgPaymentRow[],
-  paymentId: string,
-  paidAt: string,
-): OrgPaymentRow[] =>
-  ps.map((p) =>
-    p.paymentId === paymentId ? { ...p, status: 'paid', paidAt } : p,
+const correct = (
+  ledger: readonly OrgLedgerEntry[],
+  entryId: string,
+  kind: 'void' | 'refund',
+  reason: string,
+): OrgLedgerEntry[] =>
+  ledger.map((e) =>
+    e.id === entryId
+      ? {
+          ...e,
+          kind,
+          description: kind === 'void' ? 'Void · payment' : 'Refund',
+          reason,
+        }
+      : e,
   );
 
-/** Local payment ledger state for the prototype (mark pending/failed as paid). */
-const usePayments = () => {
-  const [payments, setPayments] = useState(demoPayments);
+/** Local ledger state for the prototype — void/refund append a correction. */
+const useLedger = (initial: readonly OrgLedgerEntry[]) => {
+  const [ledger, setLedger] = useState(initial);
   return {
-    payments,
-    onMarkPaymentPaid: (id: string) =>
-      setPayments((ps) =>
-        markPaid(ps, id, new Date().toISOString().slice(0, 10)),
-      ),
+    ledger,
+    onVoidPayment: (id: string, reason: string) =>
+      setLedger((l) => correct(l, id, 'void', reason)),
+    onRefundPayment: (id: string, reason: string) =>
+      setLedger((l) => correct(l, id, 'refund', reason)),
   };
 };
 
@@ -112,16 +134,20 @@ const useMembers = () => {
 export const OrgDetailSection = ({
   accountId,
   name,
+  subscription,
   onBack,
 }: {
   readonly accountId: string;
   readonly name: string;
+  readonly subscription?: OrgSubscriptionVM | undefined;
   readonly onBack: () => void;
 }) => {
-  const [sub, setSub] = useState(fx.orgDetailVM.subscription);
+  const [sub, setSub] = useState(subscription ?? fx.orgDetailVM.subscription);
   const [dialog, setDialog] = useState<BillingDialogVM | undefined>(undefined);
   const mem = useMembers();
-  const pay = usePayments();
+  const led = useLedger(
+    sub?.phase === 'suspended' ? demoLedgerOwing : demoLedger,
+  );
   const close = () => setDialog(undefined);
   const patch = (p: Partial<OrgSubscriptionVM>) =>
     setSub((s) => (s ? { ...s, ...p } : s));
@@ -135,11 +161,13 @@ export const OrgDetailSection = ({
         billingDialog: dialog,
         members: mem.members,
         openMember: mem.openMember,
-        payments: pay.payments,
+        ledger: led.ledger,
       }}
       onBack={onBack}
       onImpersonate={noop}
-      onMarkPaid={() => setDialog({ kind: 'mark-paid' })}
+      onMarkPaid={() =>
+        setDialog({ kind: 'mark-paid', preview: previewFor(sub) })
+      }
       onExtendTrial={() => setDialog({ kind: 'extend-trial' })}
       onChangePlan={() =>
         setDialog({ kind: 'change-plan', options: fx.changePlanOptions })
@@ -163,7 +191,8 @@ export const OrgDetailSection = ({
       onCloseMember={mem.onCloseMember}
       onBlockMember={mem.onBlockMember}
       onSetMemberAccount={mem.onSetMemberAccount}
-      onMarkPaymentPaid={pay.onMarkPaymentPaid}
+      onVoidPayment={led.onVoidPayment}
+      onRefundPayment={led.onRefundPayment}
     />
   );
 };

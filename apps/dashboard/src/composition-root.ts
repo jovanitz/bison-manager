@@ -23,6 +23,7 @@ import {
   createRpcSettingsGateway,
   createRpcActivationGateway,
   createRpcBlockGateway,
+  createRpcCoverageGateway,
   createRpcDirectoryGateway,
   createRpcInvitationsGateway,
   createRpcMembersGateway,
@@ -80,6 +81,8 @@ export const createDashboardRuntime = (config: {
   const directory = makeDirectoryUseCases({
     gateway: createRpcDirectoryGateway({ api }),
   });
+  // Derived billing coverage (ADR-0018) for the Directory's Organizations rows.
+  const coverage = createRpcCoverageGateway({ api });
   // Invitations: authenticated issue (members.invite) + public activation
   // (plain fetch to /invitations/activate; the secret token is the credential).
   const invitations = makeInvitationsUseCases({
@@ -110,6 +113,7 @@ export const createDashboardRuntime = (config: {
       items,
       access,
       directory,
+      coverage,
       invitations,
       members,
       block,

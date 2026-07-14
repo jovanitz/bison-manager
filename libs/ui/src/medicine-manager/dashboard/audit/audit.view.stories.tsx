@@ -5,23 +5,67 @@ import { DashboardShell } from '../dashboard.shell';
 const entries: readonly AuditRow[] = [
   {
     id: '1',
-    type: 'session.revoked',
+    type: 'org.deletion_scheduled',
+    category: 'access',
     actor: 'Ana Torres',
-    occurredAt: '2026-07-01 18:04',
+    target: { label: 'Óptica Vista', kind: 'org', id: 'org_16' },
+    occurredAt: '2026-07-13 18:04',
   },
   {
     id: '2',
-    type: 'role.assigned',
-    actor: 'Beto Ruiz',
-    occurredAt: '2026-07-01 17:52',
+    type: 'payment.voided',
+    category: 'billing',
+    actor: 'Ana Torres',
+    target: { label: 'Salud Total', kind: 'org', id: 'org_15' },
+    occurredAt: '2026-07-13 12:20',
+  },
+  {
+    id: '3',
+    type: 'staff.demoted',
+    category: 'access',
+    actor: 'Ana Torres',
+    target: { label: 'Cami Díaz', kind: 'staff', id: 'acc_03' },
+    occurredAt: '2026-07-12 09:41',
   },
   // system-triggered event → no actor (renders "System")
-  { id: '3', type: 'account.blocked', occurredAt: '2026-07-01 16:30' },
   {
     id: '4',
-    type: 'invitation.sent',
+    type: 'org.blocked',
+    category: 'access',
+    target: { label: 'Hospital Río', kind: 'org', id: 'org_13' },
+    occurredAt: '2026-07-11 16:30',
+  },
+  {
+    id: '5',
+    type: 'payment.recorded',
+    category: 'billing',
+    actor: 'Beto Ruiz',
+    target: { label: 'Clínica Norte', kind: 'org', id: 'org_11' },
+    occurredAt: '2026-07-10 11:05',
+  },
+  {
+    id: '6',
+    type: 'invite.sent',
+    category: 'invites',
     actor: 'ana@acme.com',
-    occurredAt: '2026-07-01 15:10',
+    target: { label: 'nuevo@norte.mx', kind: 'identity' },
+    occurredAt: '2026-07-09 15:10',
+  },
+  {
+    id: '7',
+    type: 'role.assigned',
+    category: 'roles',
+    actor: 'Ana Torres',
+    target: { label: 'Beto Ruiz', kind: 'staff', id: 'acc_02' },
+    occurredAt: '2026-07-08 17:52',
+  },
+  {
+    id: '8',
+    type: 'session.revoked',
+    category: 'sessions',
+    actor: 'Ana Torres',
+    target: { label: 'Ana Torres', kind: 'staff', id: 'acc_01' },
+    occurredAt: '2026-07-08 08:12',
   },
 ];
 
@@ -38,7 +82,7 @@ type Story = StoryObj<typeof AuditView>;
 export const Populated: Story = {
   render: () => (
     <DashboardShell active="Audit">
-      <AuditView vm={{ entries }} />
+      <AuditView vm={{ entries }} onOpenTarget={() => undefined} />
     </DashboardShell>
   ),
 };

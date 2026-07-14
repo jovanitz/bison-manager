@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../../design-system/dropdown-menu/dropdown-menu';
 import { ConfirmDialog, type Copy } from '../directory.confirm';
+import { relativeDate } from '../directory.columns';
 import type {
   DirectoryActions,
   InvitationRow,
@@ -113,7 +114,15 @@ export const invitationColumns = (
     header: 'Status',
     cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
-  { accessorKey: 'expiresAt', header: 'Expires' },
+  {
+    accessorKey: 'expiresAt',
+    header: 'Expires',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {relativeDate(row.original.expiresAt)}
+      </span>
+    ),
+  },
   {
     id: 'actions',
     header: '',

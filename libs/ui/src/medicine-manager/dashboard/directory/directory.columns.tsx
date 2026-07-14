@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Users } from 'lucide-react';
+import { Avatar } from '../../../design-system/avatar/avatar';
 import { Badge } from '../../../design-system/badge/badge';
 
 /** Local row types — decoupled from application DTOs (the container maps to these). */
@@ -7,6 +8,16 @@ export type StaffRow = {
   readonly accountId: string;
   readonly email?: string;
   readonly displayName?: string;
+  /** When the staff member was last seen — recency for "inactive" triage. */
+  readonly lastActiveAt?: string;
+  /** Soft block — dashboard access suspended, reversible. */
+  readonly blocked?: boolean;
+  /** Hard disable — the identity is off across every app. */
+  readonly disabled?: boolean;
+  /** The signed-in staff (you) — self-moderation is blocked. */
+  readonly isSelf?: boolean;
+  /** The protected root account — cannot be blocked/disabled/demoted. */
+  readonly isRoot?: boolean;
 };
 export type CustomerRow = {
   readonly accountId: string;
@@ -16,12 +27,24 @@ export type CustomerRow = {
   readonly memberCount?: number;
   /** The org's current subscription plan (display name). */
   readonly plan?: string;
-  /** True when the org has at least one unpaid (pending/failed) charge. */
-  readonly pendingPayment?: boolean;
+  /** Billing phase — drives the health-header segments (grace/suspended/…). */
+  readonly phase?: 'active' | 'trialing' | 'grace' | 'suspended' | 'canceled';
+  /** When the org was created + last seen — recency for the row detail. */
+  readonly createdAt?: string;
+  readonly lastActiveAt?: string;
+  /** How many charges are overdue (0 / undefined = current). Drives the pill. */
+  readonly overduePayments?: number;
+  /** Date of the last successful payment — shown in the row detail. */
+  readonly lastPaymentAt?: string;
   /** Soft block — org access suspended, reversible (Block/Unblock org). */
   readonly blocked?: boolean;
   /** Hard disable — the whole account is off (Disable/Enable account). */
   readonly disabled?: boolean;
+  /** Billing-suspended ~3+ months, idle → dormant (candidate for deletion review). */
+  readonly dormant?: boolean;
+  /** Scheduled for deletion (ADR-0018): ISO date the purge runs. Presence ⇒
+   *  the org is in the reversible 30-day pending-deletion window. */
+  readonly pendingDeletionUntil?: string;
 };
 export type InvitationStatus = 'pending' | 'expiring' | 'expired';
 export type InvitationRow = {
@@ -54,6 +77,16 @@ export type DirectoryActions = {
   /** Orphaned identity (registered, no org). */
   readonly onInviteOrphan: (userId: string) => void;
   readonly onDeleteOrphan: (userId: string) => void;
+  /** Dormant-org deletion review (ADR-0018) — a staged, reversible soft-delete. */
+  readonly onScheduleDeletion: (accountId: string) => void;
+  readonly onCancelDeletion: (accountId: string) => void;
+  readonly onExportOrg: (accountId: string) => void;
+  /** Staff moderation (root/self are guarded in the menu, not here). */
+  readonly onBlockStaff: (accountId: string, blocked: boolean) => void;
+  readonly onDisableStaff: (accountId: string, disabled: boolean) => void;
+  readonly onDemoteStaff: (accountId: string) => void;
+  /** Export the directory listing (current view or the selected rows) as CSV. */
+  readonly onExportDirectory: (accountIds: readonly string[]) => void;
   /** Directory-level CTA — invite a new person by email. */
   readonly onInvite: (email: string) => void;
 };
@@ -71,7 +104,40 @@ export type DirectoryVM = {
   readonly error?: string;
 };
 
-const dash = (v?: string) => v ?? '—';
+/** Up-to-2 initials for an avatar fallback. */
+export const initials = (name?: string): string => {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  const chars = parts.slice(0, 2).map((w) => w[0] ?? '');
+  return chars.join('').toUpperCase() || '?';
+};
+
+/** Human relative date vs a fixed "today" (prototype fixtures live in 2026-07). */
+export const relativeDate = (iso?: string, now = '2026-07-07'): string => {
+  if (!iso) return '—';
+  const days = Math.round((Date.parse(iso) - Date.parse(now)) / 86_400_000);
+  if (days === 0) return 'today';
+  if (days === -1) return 'yesterday';
+  if (days === 1) return 'tomorrow';
+  return days < 0 ? `${-days} days ago` : `in ${days} days`;
+};
+
+/** A name with its avatar — the standard row identity cell. */
+export const NameWithAvatar = ({
+  name,
+  onClick,
+}: {
+  readonly name: string;
+  readonly onClick?: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex items-center gap-2 text-left font-medium text-foreground"
+  >
+    <Avatar fallback={initials(name)} className="size-7 shrink-0 text-xs" />
+    <span className={onClick ? 'hover:underline' : undefined}>{name}</span>
+  </button>
+);
 
 /** Org size cell — a muted people glyph + the member count (dash if unknown). */
 export const MemberCount = ({ n }: { readonly n?: number | undefined }) =>
@@ -95,70 +161,65 @@ export const PlanTag = ({ name }: { readonly name?: string | undefined }) =>
     </Badge>
   );
 
-/** Billing attention flag — an amber "Pending" pill when a charge is unpaid. */
-const PendingPaymentTag = ({
-  pending,
-}: {
-  readonly pending?: boolean | undefined;
-}) =>
-  pending ? (
-    <Badge variant="warning" appearance="soft" dot>
-      Pending
-    </Badge>
-  ) : (
-    <span className="text-muted-foreground">—</span>
-  );
+/** Payment health: Current (green) / 1 overdue (amber) / 2+ overdue (red). */
+const PAYMENT: Record<
+  'current' | 'one' | 'many',
+  {
+    readonly variant: 'success' | 'warning' | 'destructive';
+    readonly label: string;
+  }
+> = {
+  current: { variant: 'success', label: 'Current' },
+  one: { variant: 'warning', label: '1 overdue' },
+  many: { variant: 'destructive', label: '2+ overdue' },
+};
 
-/** "Payment" column — flags orgs with an unpaid charge (amber pill). */
+const paymentLevel = (n = 0): 'current' | 'one' | 'many' => {
+  if (n <= 0) return 'current';
+  if (n === 1) return 'one';
+  return 'many';
+};
+
+const PaymentTag = ({
+  overdue,
+  dormant,
+  pendingDeletion,
+}: {
+  readonly overdue?: number | undefined;
+  readonly dormant?: boolean | undefined;
+  readonly pendingDeletion?: boolean | undefined;
+}) => {
+  if (pendingDeletion)
+    return (
+      <Badge variant="destructive" appearance="soft" dot>
+        Pending deletion
+      </Badge>
+    );
+  if (dormant)
+    return (
+      <Badge variant="secondary" appearance="soft" dot>
+        Dormant
+      </Badge>
+    );
+  const p = PAYMENT[paymentLevel(overdue)];
+  return (
+    <Badge variant={p.variant} appearance="soft" dot>
+      {p.label}
+    </Badge>
+  );
+};
+
+/** "Payment" column — billing health at a glance (Current / N overdue / Dormant). */
 export const paymentColumn: ColumnDef<CustomerRow> = {
   id: 'payment',
   header: 'Payment',
   cell: ({ row }) => (
-    <PendingPaymentTag pending={row.original.pendingPayment} />
+    <PaymentTag
+      overdue={row.original.overduePayments}
+      dormant={row.original.dormant}
+      pendingDeletion={Boolean(row.original.pendingDeletionUntil)}
+    />
   ),
 };
 
-/** The clickable "Members" column — the count opens the org's roster. */
-export const membersColumn = (
-  onOpenOrg: (accountId: string) => void,
-): ColumnDef<CustomerRow> => ({
-  id: 'members',
-  header: 'Members',
-  cell: ({ row }) => (
-    <button
-      type="button"
-      onClick={() => onOpenOrg(row.original.accountId)}
-      aria-label="View members"
-      className="rounded-sm hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-    >
-      <MemberCount n={row.original.memberCount} />
-    </button>
-  ),
-});
-
-/** Clickable staff rows — the name opens the member's access detail. */
-export const staffColumns = (
-  onOpenStaff: (accountId: string) => void,
-): ColumnDef<StaffRow>[] => [
-  {
-    accessorKey: 'displayName',
-    header: 'Name',
-    cell: ({ row }) => (
-      <button
-        type="button"
-        onClick={() => onOpenStaff(row.original.accountId)}
-        className="font-medium text-foreground hover:underline"
-      >
-        {dash(row.original.displayName)}
-      </button>
-    ),
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => dash(row.original.email),
-  },
-  { accessorKey: 'accountId', header: 'Account' },
-];
-
-// invitationColumns + orphanColumns now live in ./lists (with ⋯ actions).
+// staffColumns lives in ./staff; invitationColumns + orphanColumns in ./lists.

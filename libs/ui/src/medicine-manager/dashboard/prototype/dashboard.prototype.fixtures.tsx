@@ -14,10 +14,29 @@ import type { AuditVM } from '../audit/audit.view';
 import type { InviteVM } from '../invite/invite.view';
 import type { SettingsVM } from '../settings/settings.view';
 
+import {
+  populatedVM as orgDetailVM,
+  trialExpiredVM,
+  suspendedVM,
+  dormantVM,
+  withImpersonationVM,
+} from '../org-detail/org-detail.fixtures';
+import type { OrgSubscriptionVM } from '../org-detail/org-detail.types';
+
 export { populatedVM as directoryVM } from '../directory/directory.fixtures';
-export { populatedVM as orgDetailVM } from '../org-detail/org-detail.fixtures';
 export { plansVM } from '../plans/plans.fixtures';
 export { changePlanOptions } from '../org-detail/org-detail.fixtures';
+export { orgDetailVM };
+
+/** Each directory org opens a distinct billing scenario in its detail — so the
+ *  navigable prototype shows every phase by clicking a different account. */
+export const orgSubscriptions: Record<string, OrgSubscriptionVM | undefined> = {
+  org_11: orgDetailVM.subscription, // active
+  org_12: trialExpiredVM.subscription, // grace
+  org_13: dormantVM.subscription, // dormant
+  org_14: withImpersonationVM.subscription, // trialing
+  org_15: suspendedVM.subscription, // suspended
+};
 
 const members: readonly MemberRow[] = [
   {
@@ -111,17 +130,51 @@ export const auditVM: AuditVM = {
   entries: [
     {
       id: '1',
-      type: 'session.revoked',
+      type: 'org.deletion_scheduled',
+      category: 'access',
       actor: 'Ana Torres',
-      occurredAt: '2026-07-01 18:04',
+      target: { label: 'Óptica Vista', kind: 'org', id: 'org_16' },
+      occurredAt: '2026-07-13 18:04',
     },
     {
       id: '2',
-      type: 'role.assigned',
-      actor: 'Beto Ruiz',
-      occurredAt: '2026-07-01 17:52',
+      type: 'payment.voided',
+      category: 'billing',
+      actor: 'Ana Torres',
+      target: { label: 'Salud Total', kind: 'org', id: 'org_15' },
+      occurredAt: '2026-07-13 12:20',
     },
-    { id: '3', type: 'account.blocked', occurredAt: '2026-07-01 16:30' },
+    {
+      id: '3',
+      type: 'org.blocked',
+      category: 'access',
+      target: { label: 'Hospital Río', kind: 'org', id: 'org_13' },
+      occurredAt: '2026-07-11 16:30',
+    },
+    {
+      id: '4',
+      type: 'invite.sent',
+      category: 'invites',
+      actor: 'ana@acme.com',
+      target: { label: 'nuevo@norte.mx', kind: 'identity' },
+      occurredAt: '2026-07-09 15:10',
+    },
+    {
+      id: '5',
+      type: 'role.assigned',
+      category: 'roles',
+      actor: 'Beto Ruiz',
+      target: { label: 'Ana Torres', kind: 'staff', id: 'acc_01' },
+      occurredAt: '2026-07-08 17:52',
+    },
+    {
+      id: '6',
+      type: 'session.revoked',
+      category: 'sessions',
+      actor: 'Ana Torres',
+      target: { label: 'Ana Torres', kind: 'staff', id: 'acc_01' },
+      occurredAt: '2026-07-08 08:12',
+    },
   ],
 };
 

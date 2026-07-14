@@ -1,7 +1,9 @@
 /**
  * Orphans tab columns — identities registered but attached to no org. A ⋯ menu
- * makes them actionable: Invite to an org, or Delete the identity (destructive →
- * confirmation). Non-modal dropdown so the confirm dialog doesn't freeze the page.
+ * makes them actionable: Invite as staff, or Delete the identity (destructive →
+ * confirmation). Dashboard invites are staff-only, so an orphan is brought onto
+ * the staff team (not into a customer org). Non-modal dropdown so the confirm
+ * dialog doesn't freeze the page.
  */
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -47,7 +49,7 @@ const OrphanMenu = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => actions.onInviteOrphan(row.userId)}>
-            Invite to an org
+            Invite as staff
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setConfirming(true)}>

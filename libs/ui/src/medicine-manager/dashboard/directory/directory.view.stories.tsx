@@ -38,6 +38,13 @@ const inShell = (vm: DirectoryVM) =>
           onInviteOrphan={() => undefined}
           onDeleteOrphan={() => undefined}
           onInvite={() => undefined}
+          onScheduleDeletion={() => undefined}
+          onCancelDeletion={() => undefined}
+          onExportOrg={() => undefined}
+          onBlockStaff={() => undefined}
+          onDisableStaff={() => undefined}
+          onDemoteStaff={() => undefined}
+          onExportDirectory={() => undefined}
         />
       </DashboardShell>
     );
@@ -79,7 +86,8 @@ export const OrgDrilldown: Story = {
             onCloseMember={() => undefined}
             onBlockMember={() => undefined}
             onSetMemberAccount={() => undefined}
-            onMarkPaymentPaid={() => undefined}
+            onVoidPayment={() => undefined}
+            onRefundPayment={() => undefined}
           />
         ) : (
           <DirectoryView
@@ -95,6 +103,13 @@ export const OrgDrilldown: Story = {
             onInviteOrphan={() => undefined}
             onDeleteOrphan={() => undefined}
             onInvite={() => undefined}
+            onScheduleDeletion={() => undefined}
+            onCancelDeletion={() => undefined}
+            onExportOrg={() => undefined}
+            onBlockStaff={() => undefined}
+            onDisableStaff={() => undefined}
+            onDemoteStaff={() => undefined}
+            onExportDirectory={() => undefined}
           />
         )}
       </DashboardShell>

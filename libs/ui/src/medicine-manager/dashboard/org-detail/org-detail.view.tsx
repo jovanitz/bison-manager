@@ -25,8 +25,7 @@ import {
 import { memberColumns } from './org-detail.columns';
 import { BillingDialogs } from './org-detail.billing-dialogs';
 import { MemberSheet } from './org-detail.member-sheet';
-import { SubscriptionCard } from './org-detail.subscription';
-import { PaymentsCard } from './payments/payments';
+import { BillingBlock } from './billing/billing-block';
 import type {
   OrgDetailActions,
   OrgDetailVM,
@@ -121,37 +120,6 @@ const Members = ({
   </div>
 );
 
-/** Billing block — subscription card + the payment ledger, both optional. */
-const Billing = ({
-  vm,
-  onMarkPaid,
-  onExtendTrial,
-  onChangePlan,
-  onMarkPaymentPaid,
-}: { readonly vm: OrgDetailVM } & Pick<
-  OrgDetailActions,
-  'onMarkPaid' | 'onExtendTrial' | 'onChangePlan' | 'onMarkPaymentPaid'
->) => (
-  <>
-    {vm.subscription ? (
-      <SubscriptionCard
-        subscription={vm.subscription}
-        canManageBilling={vm.canManageBilling}
-        onMarkPaid={onMarkPaid}
-        onExtendTrial={onExtendTrial}
-        onChangePlan={onChangePlan}
-      />
-    ) : null}
-    {vm.payments ? (
-      <PaymentsCard
-        payments={vm.payments}
-        canManageBilling={vm.canManageBilling}
-        onMarkPaymentPaid={onMarkPaymentPaid}
-      />
-    ) : null}
-  </>
-);
-
 export const OrgDetailView = ({
   vm,
   onBack,
@@ -167,7 +135,8 @@ export const OrgDetailView = ({
   onCloseMember,
   onBlockMember,
   onSetMemberAccount,
-  onMarkPaymentPaid,
+  onVoidPayment,
+  onRefundPayment,
 }: { readonly vm: OrgDetailVM } & OrgDetailActions) => {
   if (vm.loading) return <Skeleton className="h-96 w-full" />;
   if (vm.error)
@@ -189,12 +158,13 @@ export const OrgDetailView = ({
       </Button>
       <Header vm={vm} onImpersonate={onImpersonate} />
       <Info vm={vm} />
-      <Billing
+      <BillingBlock
         vm={vm}
         onMarkPaid={onMarkPaid}
         onExtendTrial={onExtendTrial}
         onChangePlan={onChangePlan}
-        onMarkPaymentPaid={onMarkPaymentPaid}
+        onVoidPayment={onVoidPayment}
+        onRefundPayment={onRefundPayment}
       />
       <Members
         vm={vm}

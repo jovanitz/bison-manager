@@ -10,8 +10,26 @@
 export type OrgStatus = 'active' | 'disabled' | 'blocked';
 export type OrgMemberStatus = 'active' | 'blocked' | 'disabled' | 'root';
 
-/** Derived subscription phase (ADR-0016, Stripe vocabulary) — never stored. */
-export type SubscriptionPhase = 'trialing' | 'active' | 'past_due' | 'canceled';
+/**
+ * Product-visible subscription phase (draft). Maps from the domain's derived
+ * phase at wiring time: `grace` = trial/period ended, unpaid, service STILL ON
+ * (countdown to suspend); `suspended` = grace elapsed, service OFF, recoverable
+ * anytime by paying — there is NO auto-cancel. `canceled` = explicit cancel only.
+ */
+export type SubscriptionPhase =
+  | 'trialing'
+  | 'active'
+  | 'grace'
+  | 'suspended'
+  | 'canceled';
+
+/** The org's outstanding balance, derived from the ledger (ADR-0018). */
+export type OrgBalance = {
+  /** Absolute amount, formatted (e.g. "$56.84"). */
+  readonly label: string;
+  /** owes = customer owes us; clear = paid up; credit = prepaid (we owe them). */
+  readonly state: 'owes' | 'clear' | 'credit';
+};
 
 /** Billing block for one org — all fields precomputed (incl. `overLimit`). */
 export type OrgSubscriptionVM = {
@@ -20,6 +38,12 @@ export type OrgSubscriptionVM = {
   readonly phase: SubscriptionPhase;
   readonly trialEndsAt: string | null;
   readonly paidThroughAt: string | null;
+  /** `grace` only — when service is cut if still unpaid (drives the countdown). */
+  readonly graceEndsAt?: string | null;
+  /** `suspended` only — when service was cut (drives "off for N days"). */
+  readonly suspendedSince?: string | null;
+  /** Suspended ~3+ months, idle → flagged for manual deletion review (not auto). */
+  readonly dormant?: boolean;
   readonly seatsUsed: number;
   /** `maxMembersPerOrg`; null = unlimited. */
   readonly seatsMax: number | null;
@@ -27,6 +51,8 @@ export type OrgSubscriptionVM = {
   readonly overLimit: boolean;
   /** Formatted price, or null = the plan's price is not decided yet. */
   readonly priceLabel: string | null;
+  /** Outstanding balance derived from the ledger — absent with no charges yet. */
+  readonly balance?: OrgBalance | undefined;
 };
 
 /** One selectable plan in the change-plan dialog (an ADR-0016 catalog row). */
@@ -42,24 +68,61 @@ export type PlanOption = {
   readonly current: boolean;
 };
 
+/**
+ * Computed preview for the record-payment dialog. The resulting coverage is
+ * DERIVED by policy (renewal anchored to the due day ± credit for downtime),
+ * never a free date typed by staff — so the dialog shows it read-only.
+ */
+export type RecordPaymentPreview = {
+  /** The period this payment covers, e.g. "5 Jul – 5 Aug 2026". */
+  readonly periodLabel: string;
+  readonly amountLabel: string;
+  /** Resulting paid-through (ISO) — computed, shown read-only. */
+  readonly newPaidThrough: string;
+  /** Set when reactivating from suspension — the downtime credited forward. */
+  readonly creditNote?: string;
+};
+
 /** Which billing lever dialog is open — DATA on the VM, never view state. */
 export type BillingDialogVM =
   | { readonly kind: 'change-plan'; readonly options: readonly PlanOption[] }
-  | { readonly kind: 'mark-paid' }
+  | { readonly kind: 'mark-paid'; readonly preview: RecordPaymentPreview }
   | { readonly kind: 'extend-trial' };
 
-export type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded';
+/** A charge's settlement state (ADR-0018). */
+export type ChargeStatus = 'open' | 'paid' | 'void';
 
-/** One entry in the org's payment ledger (manual reconciliation, no Stripe). */
-export type OrgPaymentRow = {
-  readonly paymentId: string;
-  /** Billing period the charge covers (e.g. "Jul 2026"). */
-  readonly period: string;
-  /** Preformatted amount (e.g. "$49.00"). */
+/** What a ledger movement is: a `charge` bills a period; `payment`/`credit` add
+ *  funds; `refund` returns money; `void` reverses a mistaken movement. */
+export type LedgerEntryKind =
+  | 'charge'
+  | 'payment'
+  | 'refund'
+  | 'void'
+  | 'credit';
+
+/**
+ * One movement in the org's billing ledger (ADR-0018 — the source of truth;
+ * coverage and balance are derived from these, never stored). All display
+ * fields are precomputed at wiring time.
+ */
+export type OrgLedgerEntry = {
+  readonly id: string;
+  /** A charge's due date, or the movement's date. */
+  readonly date: string;
+  readonly kind: LedgerEntryKind;
+  /** e.g. "Jul 2026" (charge), "Payment received", "Refund", "Void". */
+  readonly description: string;
+  /** Signed + formatted, e.g. "+$56.84" (billed) / "−$56.84" (paid). */
   readonly amountLabel: string;
-  readonly status: PaymentStatus;
-  /** When it settled — null until paid. */
-  readonly paidAt: string | null;
+  /** Running account balance right after this movement, formatted. */
+  readonly balanceLabel: string;
+  /** Charges only — open / paid / void. */
+  readonly chargeStatus?: ChargeStatus | undefined;
+  /** Charges only — the tax split, e.g. "$49.00 + $7.84 IVA". */
+  readonly taxNote?: string | undefined;
+  /** Corrections (void / refund) carry the mandatory reason. */
+  readonly reason?: string | undefined;
 };
 
 export type OrgMemberRow = {
@@ -104,8 +167,8 @@ export type OrgDetailVM = {
   /** The open billing lever dialog, if any — dialog state is VM data. */
   readonly billingDialog?: BillingDialogVM | undefined;
   readonly members: readonly OrgMemberRow[];
-  /** The org's payment ledger — absent hides the Payments card. */
-  readonly payments?: readonly OrgPaymentRow[] | undefined;
+  /** The org's billing ledger — absent hides the Ledger card. */
+  readonly ledger?: readonly OrgLedgerEntry[] | undefined;
   readonly loading: boolean;
   readonly error?: string;
 };
@@ -136,6 +199,8 @@ export type OrgDetailActions = {
     userId: string,
     action: 'disable' | 'enable',
   ) => void;
-  /** Reconcile a ledger entry — mark a pending/failed payment as paid. */
-  readonly onMarkPaymentPaid: (paymentId: string) => void;
+  /** Reverse a mistaken payment — it never really happened (ADR-0018 void). */
+  readonly onVoidPayment: (entryId: string, reason: string) => void;
+  /** Return money actually paid back to the customer (ADR-0018 refund). */
+  readonly onRefundPayment: (entryId: string, reason: string) => void;
 };

@@ -10,13 +10,19 @@ export type OrgStatus = 'active' | 'blocked' | 'disabled';
 export type OrgFilters = {
   readonly status: ReadonlySet<string>;
   readonly plans: ReadonlySet<string>;
+  readonly phases: ReadonlySet<string>;
   readonly needsAttention: boolean;
+  readonly dormant: boolean;
+  readonly pendingDeletion: boolean;
 };
 
 export const emptyFilters: OrgFilters = {
   status: new Set(),
   plans: new Set(),
+  phases: new Set(),
   needsAttention: false,
+  dormant: false,
+  pendingDeletion: false,
 };
 
 /** Same precedence as the Status badge — a disabled account outranks a block. */
@@ -28,16 +34,28 @@ export const orgStatusOf = (r: CustomerRow): OrgStatus => {
 
 /** The "Needs attention" preset — an org with a payment problem to act on
  *  (pending / overdue charge). Deliberate states (blocked, disabled) don't count. */
-export const flagged = (r: CustomerRow): boolean => r.pendingPayment === true;
+export const flagged = (r: CustomerRow): boolean =>
+  (r.overduePayments ?? 0) > 0;
 
 export const filtersActive = (f: OrgFilters): boolean =>
-  f.status.size > 0 || f.plans.size > 0 || f.needsAttention;
+  f.status.size > 0 ||
+  f.plans.size > 0 ||
+  f.phases.size > 0 ||
+  f.needsAttention ||
+  f.dormant ||
+  f.pendingDeletion;
+
+/** The multi-value facets (Status / Plan / Phase) — AND across kinds, OR within. */
+const matchesFacets = (r: CustomerRow, f: OrgFilters): boolean =>
+  (f.status.size === 0 || f.status.has(orgStatusOf(r))) &&
+  (f.plans.size === 0 || (r.plan !== undefined && f.plans.has(r.plan))) &&
+  (f.phases.size === 0 || (r.phase !== undefined && f.phases.has(r.phase)));
 
 export const matchesFilters = (r: CustomerRow, f: OrgFilters): boolean => {
-  if (f.status.size > 0 && !f.status.has(orgStatusOf(r))) return false;
-  if (f.plans.size > 0 && (r.plan === undefined || !f.plans.has(r.plan)))
-    return false;
+  if (!matchesFacets(r, f)) return false;
   if (f.needsAttention && !flagged(r)) return false;
+  if (f.dormant && !r.dormant) return false;
+  if (f.pendingDeletion && !r.pendingDeletionUntil) return false;
   return true;
 };
 

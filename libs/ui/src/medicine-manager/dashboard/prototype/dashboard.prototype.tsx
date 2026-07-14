@@ -46,9 +46,24 @@ const dirToasts = {
     toast.success('Invitation revoked', {
       action: { label: 'Undo', onClick: () => toast('Invitation restored') },
     }),
-  onInviteOrphan: () => toast.success('Invitation sent'),
+  onInviteOrphan: () => toast.success('Staff invitation sent'),
   onDeleteOrphan: () => toast.success('Identity deleted'),
   onInvite: (email: string) => toast.success(`Invitation sent to ${email}`),
+  onScheduleDeletion: () =>
+    toast.success('Deletion scheduled — reversible for 30 days', {
+      action: { label: 'Undo', onClick: () => toast('Deletion canceled') },
+    }),
+  onCancelDeletion: () => toast.success('Deletion canceled'),
+  onExportOrg: () => toast.success('Preparing data export…'),
+  onBlockStaff: (_id: string, blocked: boolean) =>
+    toast.success(blocked ? 'Staff member blocked' : 'Staff member unblocked', {
+      action: { label: 'Undo', onClick: () => toast('Reverted') },
+    }),
+  onDisableStaff: (_id: string, disabled: boolean) =>
+    toast.success(disabled ? 'Account disabled' : 'Account enabled'),
+  onDemoteStaff: () => toast.success('Demoted from staff'),
+  onExportDirectory: (ids: readonly string[]) =>
+    toast.success(`Exporting ${ids.length} organizations…`),
 };
 
 /** The active section's view, fed with fixtures. Mutating actions are no-ops. */
@@ -85,7 +100,14 @@ const Section = ({
     case 'Invite':
       return <InviteView vm={fx.inviteVM} onInvite={noop} />;
     case 'Audit':
-      return <AuditView vm={fx.auditVM} />;
+      return (
+        <AuditView
+          vm={fx.auditVM}
+          onOpenTarget={(row) =>
+            toast(`Opening ${row.target?.label ?? 'target'}…`)
+          }
+        />
+      );
     case 'Settings':
       return <SettingsView vm={fx.settingsVM} onSave={noop} />;
     default:
@@ -124,6 +146,7 @@ const DashboardBody = ({
       <OrgDetailSection
         accountId={orgId}
         name={org?.displayName ?? fx.orgDetailVM.name}
+        subscription={fx.orgSubscriptions[orgId]}
         onBack={onBackOrg}
       />
     );

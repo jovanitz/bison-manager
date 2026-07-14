@@ -67,6 +67,14 @@ const copyFor = (p: PendingAction, orgName: string): Copy => {
   };
 };
 
+/** Copy for undoing a scheduled deletion (ADR-0018) — reversible, non-destructive. */
+export const cancelDeletionCopy = (orgName: string): Copy => ({
+  title: 'Cancel scheduled deletion?',
+  description: `${orgName} keeps its data and returns to its suspended state — nothing has been removed yet.`,
+  confirmLabel: 'Keep organization',
+  destructive: false,
+});
+
 const Body = ({
   copy,
   onConfirm,
