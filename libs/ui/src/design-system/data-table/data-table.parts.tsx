@@ -25,7 +25,9 @@ import {
 const SortIcon = ({ dir }: { readonly dir: false | 'asc' | 'desc' }) => {
   if (dir === 'asc') return <ChevronUp className="size-3.5" />;
   if (dir === 'desc') return <ChevronDown className="size-3.5" />;
-  return <ChevronsUpDown className="size-3.5 opacity-50" />;
+  return (
+    <ChevronsUpDown className="size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
+  );
 };
 
 /** A header cell — a click-to-sort button when the column is sortable. */
@@ -41,7 +43,7 @@ const HeaderCell = <TData,>({
     <button
       type="button"
       onClick={header.column.getToggleSortingHandler()}
-      className="inline-flex items-center gap-1 hover:text-foreground"
+      className="group inline-flex items-center gap-1 hover:text-foreground"
     >
       {label}
       <SortIcon dir={header.column.getIsSorted()} />
@@ -62,7 +64,7 @@ const ExpandableRow = <TData,>({
   readonly selectable?: boolean | undefined;
 }) => (
   <Fragment>
-    <TableRow>
+    <TableRow data-state={row.getIsSelected() ? 'selected' : undefined}>
       {selectable ? (
         <TableCell className="w-8">
           <Checkbox
