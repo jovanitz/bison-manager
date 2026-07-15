@@ -1,6 +1,11 @@
 import { type Clock, type Result, err, ok } from '@acme/shared';
-import { isCustomerDelegableAction, makeAccessPermission } from '@acme/domain';
+import {
+  isCustomerDelegableAction,
+  makeAccessPermission,
+  makeAccountId,
+} from '@acme/domain';
 import type {
+  AccessAction,
   AccessActor,
   AccessPermission,
   AccountId,
@@ -8,10 +13,15 @@ import type {
   MembershipId,
 } from '@acme/domain';
 import { accessDenied } from '../access/errors';
+import { authorizeAccessAction } from '../access/authorize';
 import type { AccessSessionPolicyStore } from '../access-settings/ports';
-import { notDelegableToCustomer, requiresStaffAccount } from './errors';
+import {
+  accountNotFound,
+  notDelegableToCustomer,
+  requiresStaffAccount,
+} from './errors';
 import type { AccessAdminUseCaseError } from './errors';
-import type { AccessAdminRepository } from './ports';
+import type { AccessAdminRepository, AdminAccountSnapshot } from './ports';
 
 /**
  * Shared dependency set of the access-admin use cases. Lives apart from the
@@ -143,4 +153,39 @@ export const parseGrantedPermissions = (
     permissions.push(permission.value);
   }
   return ok(permissions);
+};
+
+/** Shared head of every account mutation: parse, authorize, load (404). */
+export const loadAuthorizedAccount = async (
+  deps: AccessAdminDeps,
+  input: { readonly actor: AccessActor; readonly accountId: string },
+  action: AccessAction,
+): Promise<
+  Result<
+    { readonly account: AdminAccountSnapshot; readonly now: string },
+    AccessAdminUseCaseError
+  >
+> => {
+  const accountId = makeAccountId(input.accountId);
+  if (!accountId.ok) return err(accountId.error);
+  const now = deps.clock.now().toISOString();
+
+  const authorized = authorizeAccessAction({
+    actor: input.actor,
+    action,
+    resource: { accountId: accountId.value },
+    now,
+  });
+  if (!authorized.ok) return err(authorized.error);
+
+  const account = await deps.admin.findAccount(accountId.value);
+  if (!account) return err(accountNotFound(`No account ${input.accountId}.`));
+
+  // Super-admin protection: no one but the root may touch the root's account.
+  const rootGuard = guardRootTarget({
+    targetIsRoot: account.hostsRoot,
+    actor: input.actor,
+  });
+  if (!rootGuard.ok) return err(rootGuard.error);
+  return ok({ account, now });
 };

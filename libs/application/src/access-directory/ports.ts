@@ -73,6 +73,8 @@ export type CustomerDirectoryEntry = {
   readonly disabled: boolean;
   /** Members in the org — the roster size, not a permission concept. */
   readonly memberCount: number;
+  /** When a scheduled deletion purges this org, or null when not scheduled. */
+  readonly pendingDeletionUntil: string | null;
 };
 
 export type StaffDirectory = {

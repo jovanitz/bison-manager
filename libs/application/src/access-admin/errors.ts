@@ -15,6 +15,12 @@ export const accountAlreadyCustomer = defineError(
 );
 /** The root's account may never be demoted (super-admin protection). */
 export const cannotDemoteRoot = defineError('app/cannot-demote-root');
+export const deletionAlreadyScheduled = defineError(
+  'app/deletion-already-scheduled',
+);
+export const deletionNotScheduled = defineError('app/deletion-not-scheduled');
+/** The root's account may never be scheduled for deletion. */
+export const cannotDeleteRoot = defineError('app/cannot-delete-root');
 export const accountNotDisabled = defineError('app/account-not-disabled');
 export const notDelegableToCustomer = defineError(
   'app/not-delegable-to-customer',
@@ -33,6 +39,9 @@ export type AccessAdminUseCaseError =
   | TaggedError<'app/account-already-staff'>
   | TaggedError<'app/account-already-customer'>
   | TaggedError<'app/cannot-demote-root'>
+  | TaggedError<'app/deletion-already-scheduled'>
+  | TaggedError<'app/deletion-not-scheduled'>
+  | TaggedError<'app/cannot-delete-root'>
   | TaggedError<'app/requires-staff-account'>
   | TaggedError<'app/account-not-disabled'>
   | TaggedError<'app/not-delegable-to-customer'>

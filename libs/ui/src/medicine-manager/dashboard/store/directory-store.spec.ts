@@ -57,6 +57,8 @@ const makeDeps = (over: Record<string, unknown> = {}) =>
       enable: async () => ok(undefined),
       promote: async () => ok(undefined),
       demote: async () => ok(undefined),
+      scheduleDeletion: async () => ok(undefined),
+      cancelDeletion: async () => ok(undefined),
     },
     ...over,
   }) as unknown as DirectoryStoreDeps;

@@ -116,6 +116,7 @@ export const makeInMemoryStaffDirectory = (
         blocked: account?.blocked ?? false,
         disabled: account?.status === 'disabled',
         memberCount: memberCountOf(state, customer.accountId),
+        pendingDeletionUntil: account?.pendingDeletionUntil ?? null,
       };
     }),
 });

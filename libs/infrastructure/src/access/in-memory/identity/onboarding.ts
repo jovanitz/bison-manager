@@ -61,7 +61,12 @@ const storeMembership = (
   const existing = state.accounts.get(membership.accountId);
   state.accounts.set(
     membership.accountId,
-    existing ?? { status: 'active', blocked: false, kind: opts.kind },
+    existing ?? {
+      status: 'active',
+      blocked: false,
+      kind: opts.kind,
+      pendingDeletionUntil: null,
+    },
   );
   state.memberships.set(membership.membershipId, {
     userId: membership.userId,

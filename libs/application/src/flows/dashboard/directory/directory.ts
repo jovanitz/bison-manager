@@ -49,6 +49,8 @@ export type DirectoryCustomer = {
   readonly blocked: boolean;
   readonly disabled: boolean;
   readonly memberCount: number;
+  /** ISO purge date when scheduled for deletion, else null (ADR-0018 policy). */
+  readonly pendingDeletionUntil: string | null;
   readonly coverage: CoverageDto | null;
 };
 
@@ -97,6 +99,7 @@ export const loadDirectory = async (
       blocked: c.blocked,
       disabled: c.disabled,
       memberCount: c.memberCount,
+      pendingDeletionUntil: c.pendingDeletionUntil,
       coverage: await deps.billing.coverageFor(c.accountId),
     })),
   );

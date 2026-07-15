@@ -49,11 +49,12 @@ const toCustomerRow = (c: CustomerIn): CustomerRow => ({
   disabled: c.disabled,
   memberCount: c.memberCount,
   dormant: c.coverage?.dormant ?? false,
-  // No per-charge count in coverage yet: any outstanding balance = "1 overdue".
-  overduePayments: c.coverage && c.coverage.balanceMinor > 0 ? 1 : 0,
   ...(c.email ? { email: c.email } : {}),
   ...(c.coverage ? { phase: c.coverage.phase } : {}),
   ...(c.coverage?.plan ? { plan: c.coverage.plan } : {}),
+  ...(c.pendingDeletionUntil
+    ? { pendingDeletionUntil: c.pendingDeletionUntil }
+    : {}),
 });
 
 const toInvitationRow = (i: InviteIn, now: string): InvitationRow => ({

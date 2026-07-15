@@ -64,15 +64,15 @@ describe('toDirectoryVM', () => {
     expect(other && 'email' in other).toBe(false);
   });
 
-  it('maps customer coverage to phase / dormant / overdue', () => {
+  it('maps customer coverage to phase / dormant — no fabricated overdue count', () => {
     const vm = toDirectoryVM(readModel, NOW);
     const org1 = vm.customers.find((c) => c.accountId === 'org-1');
     expect(org1?.phase).toBe('suspended');
     expect(org1?.dormant).toBe(true);
-    expect(org1?.overduePayments).toBe(1);
+    // Payment health is derived downstream from `phase`; the VM invents nothing.
+    expect(org1 && 'overduePayments' in org1).toBe(false);
     const org2 = vm.customers.find((c) => c.accountId === 'org-2');
     expect(org2 && 'phase' in org2).toBe(false); // no coverage → no phase
-    expect(org2?.overduePayments).toBe(0);
     expect(org2?.dormant).toBe(false);
   });
 

@@ -38,8 +38,6 @@ export type CustomerRow = {
   /** When the org was created + last seen — recency for the row detail. */
   readonly createdAt?: string;
   readonly lastActiveAt?: string;
-  /** How many charges are overdue (0 / undefined = current). Drives the pill. */
-  readonly overduePayments?: number;
   /** Date of the last successful payment — shown in the row detail. */
   readonly lastPaymentAt?: string;
   /** Soft block — org access suspended, reversible (Block/Unblock org). */
@@ -168,65 +166,53 @@ export const PlanTag = ({ name }: { readonly name?: string | undefined }) =>
     </Badge>
   );
 
-/** Payment health: Current (green) / 1 overdue (amber) / 2+ overdue (red). */
-const PAYMENT: Record<
-  'current' | 'one' | 'many',
+/**
+ * Payment health, derived HONESTLY from the billing phase (ADR-0018 coverage).
+ * There is no per-charge invoice data wired yet, so the subscription phase IS
+ * the signal — `grace` is a real past-due state, `suspended` a real cut-off. We
+ * do NOT invent an "N overdue" count.
+ */
+const PHASE_BADGE: Record<
+  NonNullable<CustomerRow['phase']>,
   {
-    readonly variant: 'success' | 'warning' | 'destructive';
+    readonly variant: 'success' | 'warning' | 'destructive' | 'secondary';
     readonly label: string;
   }
 > = {
-  current: { variant: 'success', label: 'Current' },
-  one: { variant: 'warning', label: '1 overdue' },
-  many: { variant: 'destructive', label: '2+ overdue' },
+  active: { variant: 'success', label: 'Current' },
+  trialing: { variant: 'secondary', label: 'Trial' },
+  grace: { variant: 'warning', label: 'Past due' },
+  suspended: { variant: 'destructive', label: 'Suspended' },
+  canceled: { variant: 'secondary', label: 'Canceled' },
 };
 
-const paymentLevel = (n = 0): 'current' | 'one' | 'many' => {
-  if (n <= 0) return 'current';
-  if (n === 1) return 'one';
-  return 'many';
-};
-
-const PaymentTag = ({
-  overdue,
-  dormant,
-  pendingDeletion,
-}: {
-  readonly overdue?: number | undefined;
-  readonly dormant?: boolean | undefined;
-  readonly pendingDeletion?: boolean | undefined;
-}) => {
-  if (pendingDeletion)
+const PaymentTag = ({ row }: { readonly row: CustomerRow }) => {
+  if (row.pendingDeletionUntil)
     return (
       <Badge variant="destructive" appearance="soft" dot>
         Pending deletion
       </Badge>
     );
-  if (dormant)
+  if (row.dormant)
     return (
       <Badge variant="secondary" appearance="soft" dot>
         Dormant
       </Badge>
     );
-  const p = PAYMENT[paymentLevel(overdue)];
+  if (!row.phase) return <span className="text-muted-foreground">—</span>;
+  const badge = PHASE_BADGE[row.phase];
   return (
-    <Badge variant={p.variant} appearance="soft" dot>
-      {p.label}
+    <Badge variant={badge.variant} appearance="soft" dot>
+      {badge.label}
     </Badge>
   );
 };
 
-/** "Payment" column — billing health at a glance (Current / N overdue / Dormant). */
+/** "Payment" column — billing health at a glance, straight from the phase. */
 export const paymentColumn: ColumnDef<CustomerRow> = {
   id: 'payment',
   header: 'Payment',
-  cell: ({ row }) => (
-    <PaymentTag
-      overdue={row.original.overduePayments}
-      dormant={row.original.dormant}
-      pendingDeletion={Boolean(row.original.pendingDeletionUntil)}
-    />
-  ),
+  cell: ({ row }) => <PaymentTag row={row.original} />,
 };
 
 // staffColumns lives in ./staff; invitationColumns + orphanColumns in ./lists.

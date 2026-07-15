@@ -1,6 +1,6 @@
 /**
  * Health header for the Organizations tab — a strip of billing-lifecycle counts
- * (Active · In grace · Suspended · Dormant · Overdue). Each stat is a segment
+ * (Active · In grace · Suspended · Dormant · Needs attention). Each stat is a segment
  * button: clicking it isolates that slice via the filters (and clicking again
  * clears). Counts are derived from the VM upstream; this stays presentational.
  */
@@ -12,7 +12,8 @@ export type HealthCounts = {
   readonly grace: number;
   readonly suspended: number;
   readonly dormant: number;
-  readonly overdue: number;
+  /** Payment problem to act on = past-due (grace) or suspended. */
+  readonly attention: number;
 };
 
 type Tone = 'success' | 'warning' | 'destructive' | 'muted';
@@ -67,8 +68,8 @@ const SEGMENTS: readonly Seg[] = [
     apply: () => isolate({ dormant: true }),
   },
   {
-    key: 'overdue',
-    label: 'Overdue',
+    key: 'attention',
+    label: 'Needs attention',
     tone: 'destructive',
     isOn: (f) => f.needsAttention,
     apply: () => isolate({ needsAttention: true }),

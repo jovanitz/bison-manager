@@ -80,6 +80,35 @@ export const createPostgresCustomerDirectory = (
  * exactly the accounts the customer directory hides (`kind='staff'`). Read-only
  * and account-spanning; the `staff.read` policy check happens in the use case.
  */
+const listCustomerAccounts = async (sql: Sql) => {
+  const rows = await sql`
+    select
+      a.id,
+      a.display_name,
+      a.email,
+      a.status,
+      a.blocked,
+      a.pending_deletion_until,
+      (
+        select count(*) from public.memberships m where m.account_id = a.id
+      )::int as member_count
+    from public.accounts a
+    where a.kind = 'customer'
+    order by a.display_name asc
+  `;
+  return rows.map((row) => ({
+    accountId: row['id'] as AccountId,
+    displayName: row['display_name'] as string,
+    email: row['email'] as string | null,
+    blocked: row['blocked'] as boolean,
+    disabled: (row['status'] as string) === 'disabled',
+    memberCount: row['member_count'] as number,
+    pendingDeletionUntil: row['pending_deletion_until']
+      ? new Date(row['pending_deletion_until'] as Date).toISOString()
+      : null,
+  }));
+};
+
 export const createPostgresStaffDirectory = (sql: Sql): StaffDirectory => ({
   // LEFT JOIN, not INNER: an account with no membership yet must still be
   // listed (it would silently vanish from the staff table otherwise). `blocked`
@@ -114,30 +143,7 @@ export const createPostgresStaffDirectory = (sql: Sql): StaffDirectory => ({
     }));
   },
 
-  listCustomerAccounts: async () => {
-    const rows = await sql`
-      select
-        a.id,
-        a.display_name,
-        a.email,
-        a.status,
-        a.blocked,
-        (
-          select count(*) from public.memberships m where m.account_id = a.id
-        )::int as member_count
-      from public.accounts a
-      where a.kind = 'customer'
-      order by a.display_name asc
-    `;
-    return rows.map((row) => ({
-      accountId: row['id'] as AccountId,
-      displayName: row['display_name'] as string,
-      email: row['email'] as string | null,
-      blocked: row['blocked'] as boolean,
-      disabled: (row['status'] as string) === 'disabled',
-      memberCount: row['member_count'] as number,
-    }));
-  },
+  listCustomerAccounts: async () => listCustomerAccounts(sql),
   // Org-less "zombies": auth identities with no membership in any account.
   // Cross-schema (auth.users ⋈ public.memberships) — only the real DB can answer.
   listOrphanIdentities: async () => {

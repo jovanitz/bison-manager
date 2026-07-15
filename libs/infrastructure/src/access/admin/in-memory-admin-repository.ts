@@ -2,18 +2,23 @@ import type {
   AccessAdminRepository,
   AdminSessionDetail,
 } from '@acme/application';
-import { accessSessionExpiryFrom } from '@acme/domain';
 import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
-  AccessAccountDemoted,
-  AccessAccountPromoted,
-  AccessSessionPolicy,
   AccountId,
   MembershipId,
   SessionId,
 } from '@acme/domain';
+import type {
+  AdminAccountSnapshot,
+  AdminMembershipSnapshot,
+} from '@acme/application';
 import { appendInMemoryAuditRecord } from '../in-memory/audit-trail';
+import {
+  demoteAccountToCustomer,
+  promoteAccountToStaff,
+  setPendingDeletion,
+} from './in-memory-account-lifecycle';
 import { accountKindOf } from '../in-memory/seed/access-seed';
 import type { AccessStoreState } from '../in-memory/seed/access-seed';
 import {
@@ -39,59 +44,6 @@ const accountHostsRoot = (
   [...state.memberships.values()].some(
     (m) => m.accountId === accountId && m.isRoot,
   );
-
-const promoteAccountToStaff = (
-  state: AccessStoreState,
-  id: AccountId,
-  event: AccessAccountPromoted,
-  staffPolicy: AccessSessionPolicy,
-): void => {
-  const account = state.accounts.get(id);
-  if (account) state.accounts.set(id, { ...account, kind: 'staff' });
-  tightenAccountSessions(state, id, staffPolicy);
-  appendInMemoryAuditRecord(state, event);
-};
-
-/** Re-bound every active session of an account under a (new) session policy. */
-const tightenAccountSessions = (
-  state: AccessStoreState,
-  id: AccountId,
-  policy: AccessSessionPolicy,
-): void => {
-  for (const [sessionId, session] of state.sessions) {
-    const membership = state.memberships.get(session.membershipId);
-    if (membership?.accountId !== id || session.status !== 'active') continue;
-    const bounded = accessSessionExpiryFrom(
-      policy,
-      session.createdAt,
-      session.lastSeenAt,
-    );
-    if (new Date(bounded).getTime() < new Date(session.expiresAt).getTime()) {
-      state.sessions.set(sessionId, { ...session, expiresAt: bounded });
-    }
-  }
-};
-
-/**
- * Demote: flip kind back to customer, STRIP every membership's roles (staff-grade
- * permissions must not survive on a customer account — that is the whole security
- * point), and re-bind sessions under the customer policy.
- */
-const demoteAccountToCustomer = (
-  state: AccessStoreState,
-  id: AccountId,
-  event: AccessAccountDemoted,
-  customerPolicy: AccessSessionPolicy,
-): void => {
-  const account = state.accounts.get(id);
-  if (account) state.accounts.set(id, { ...account, kind: 'customer' });
-  for (const [mid, membership] of state.memberships) {
-    if (membership.accountId !== id) continue;
-    state.memberships.set(mid, { ...membership, roleIds: [] });
-  }
-  tightenAccountSessions(state, id, customerPolicy);
-  appendInMemoryAuditRecord(state, event);
-};
 
 const listSessions = (
   state: AccessStoreState,
@@ -144,44 +96,60 @@ const setAccountStatus = (
     status,
     blocked: prev?.blocked ?? false,
     kind: prev?.kind ?? 'staff',
+    pendingDeletionUntil: prev?.pendingDeletionUntil ?? null,
   });
   appendInMemoryAuditRecord(state, event);
+};
+
+const findAccount = (
+  state: AccessStoreState,
+  id: AccountId,
+): AdminAccountSnapshot | null => {
+  const account = state.accounts.get(id);
+  return account
+    ? {
+        id,
+        status: account.status,
+        kind: accountKindOf(state, id),
+        hostsRoot: accountHostsRoot(state, id),
+        pendingDeletionUntil: account.pendingDeletionUntil,
+      }
+    : null;
+};
+
+const findMembership = (
+  state: AccessStoreState,
+  id: MembershipId,
+): AdminMembershipSnapshot | null => {
+  const membership = state.memberships.get(id);
+  if (!membership) return null;
+  return {
+    id,
+    accountId: membership.accountId as AccountId,
+    accountKind: accountKindOf(state, membership.accountId),
+    permissions: oneOffPermissions(state, membership),
+    isRoot: membership.isRoot,
+    isAccountOwner: membership.isAccountOwner,
+  };
 };
 
 export const makeInMemoryAdminRepository = (
   state: AccessStoreState,
 ): AccessAdminRepository => ({
-  findAccount: async (id) => {
-    const account = state.accounts.get(id);
-    return account
-      ? {
-          id,
-          status: account.status,
-          kind: accountKindOf(state, id),
-          hostsRoot: accountHostsRoot(state, id),
-        }
-      : null;
-  },
+  findAccount: async (id) => findAccount(state, id),
   disableAccount: async (id, event) =>
     setAccountStatus(state, id, 'disabled', event),
   enableAccount: async (id, event) =>
     setAccountStatus(state, id, 'active', event),
-  findMembership: async (id) => {
-    const membership = state.memberships.get(id);
-    if (!membership) return null;
-    return {
-      id,
-      accountId: membership.accountId as AccountId,
-      accountKind: accountKindOf(state, membership.accountId),
-      permissions: oneOffPermissions(state, membership),
-      isRoot: membership.isRoot,
-      isAccountOwner: membership.isAccountOwner,
-    };
-  },
+  findMembership: async (id) => findMembership(state, id),
   promoteAccountToStaff: async (id, event, staffPolicy) =>
     promoteAccountToStaff(state, id, event, staffPolicy),
   demoteAccountToCustomer: async (id, event, customerPolicy) =>
     demoteAccountToCustomer(state, id, event, customerPolicy),
+  scheduleAccountDeletion: async (id, purgeAt, event) =>
+    setPendingDeletion(state, id, purgeAt, event),
+  cancelAccountDeletion: async (id, event) =>
+    setPendingDeletion(state, id, null, event),
   updatePermissions: async (id, permissions, event, requireCoAdmin) => {
     const membership = state.memberships.get(id);
     if (!membership) return { orphaned: false };

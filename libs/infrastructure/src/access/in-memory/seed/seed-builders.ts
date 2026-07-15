@@ -104,6 +104,7 @@ export const accountsOf = (seed: InMemoryAccessSeed): AccessStoreState['accounts
         status: a.status ?? 'active',
         blocked: a.blocked ?? false,
         kind: customerIds.has(a.id) ? ('customer' as const) : ('staff' as const),
+        pendingDeletionUntil: null,
       },
     ]),
   );

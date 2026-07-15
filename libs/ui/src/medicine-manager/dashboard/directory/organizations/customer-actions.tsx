@@ -6,22 +6,22 @@
  */
 import { useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import { Button } from '../../../design-system/button/button';
+import { Button } from '../../../../design-system/button/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../../../design-system/dropdown-menu/dropdown-menu';
+} from '../../../../design-system/dropdown-menu/dropdown-menu';
 import {
   cancelDeletionCopy,
   ConfirmActionDialog,
   ConfirmDialog,
   type PendingAction,
-} from './directory.confirm';
-import { DeleteOrgDialog } from './organizations/delete-org-dialog';
-import type { CustomerRow, DirectoryActions } from './directory.columns';
+} from '../directory.confirm';
+import { DeleteOrgDialog } from './delete-org-dialog';
+import type { CustomerRow, DirectoryActions } from '../directory.columns';
 
 /** Deletion actions on the ⋯ menu — split out so the trigger's Pick stays tidy. */
 type DeletionActions = Pick<

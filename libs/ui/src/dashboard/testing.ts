@@ -50,6 +50,7 @@ export const testCustomers: ReadonlyArray<CustomerDirectoryEntry> = [
     blocked: false,
     disabled: false,
     memberCount: 3,
+    pendingDeletionUntil: null,
   },
 ];
 

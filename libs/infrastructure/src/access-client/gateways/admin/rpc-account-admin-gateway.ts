@@ -39,4 +39,8 @@ export const createRpcAccountAdminGateway = (deps: {
   enable: (accountId) => call(deps.api, 'account.enable', { accountId }),
   promote: (accountId) => call(deps.api, 'account.promote', { accountId }),
   demote: (accountId) => call(deps.api, 'account.demote', { accountId }),
+  scheduleDeletion: (accountId) =>
+    call(deps.api, 'account.schedule-deletion', { accountId }),
+  cancelDeletion: (accountId) =>
+    call(deps.api, 'account.cancel-deletion', { accountId }),
 });

@@ -4,10 +4,12 @@ import type {
   AdminMembershipSnapshot,
 } from '@acme/application';
 import type {
+  AccessMemberRolesAssigned,
   AccountId,
   AccountKind,
   AccountStatus,
   MembershipId,
+  RoleId,
 } from '@acme/domain';
 import type { Sql } from 'postgres';
 import {
@@ -19,8 +21,10 @@ import {
 import { assignWouldOrphanLocked, hasOtherAdminLocked } from './anti-orphan';
 import { oneOffFromRow, upsertPersonalRole } from './personal-role';
 import {
+  cancelAccountDeletion,
   demoteAccountToCustomer,
   promoteAccountToStaff,
+  scheduleAccountDeletion,
   setAccountStatus,
 } from './account-lifecycle';
 import { insertAuditEvent, isUuid } from '../rows';
@@ -36,7 +40,7 @@ const findAccount = async (
 ): Promise<AdminAccountSnapshot | null> => {
   if (!isUuid(id)) return null;
   const rows = await sql`
-    select a.id, a.status, a.kind,
+    select a.id, a.status, a.kind, a.pending_deletion_until,
       exists (
         select 1 from public.memberships m
         where m.account_id = a.id and m.is_root
@@ -50,6 +54,9 @@ const findAccount = async (
     status: row['status'] as AccountStatus,
     kind: row['kind'] as AccountKind,
     hostsRoot: row['hosts_root'] as boolean,
+    pendingDeletionUntil: row['pending_deletion_until']
+      ? new Date(row['pending_deletion_until'] as Date).toISOString()
+      : null,
   };
 };
 
@@ -81,6 +88,33 @@ const findMembership = async (
   };
 };
 
+const assignRoles = (
+  sql: Sql,
+  id: MembershipId,
+  roleIds: ReadonlyArray<RoleId>,
+  event: AccessMemberRolesAssigned,
+): Promise<{ readonly orphaned: boolean }> =>
+  sql.begin(async (tx) => {
+    // keep the membership's personal role (the one-off slot, never assignable)
+    const personal = await tx`
+      select r.id from public.roles r
+      join public.memberships m on r.id = any(m.role_ids)
+      where m.id = ${id} and r.is_personal limit 1
+    `;
+    const personalId = personal[0]?.['id'] as string | undefined;
+    const next = personalId ? [...roleIds, personalId] : [...roleIds];
+    if (await assignWouldOrphanLocked(tx, id, next)) {
+      return { orphaned: true };
+    }
+    await tx`
+      update public.memberships
+      set role_ids = ${next as unknown as string[]}::uuid[]
+      where id = ${id}
+    `;
+    await insertAuditEvent(tx, event);
+    return { orphaned: false };
+  }) as Promise<{ readonly orphaned: boolean }>;
+
 export const createPostgresAdminRepository = (
   sql: Sql,
 ): AccessAdminRepository => ({
@@ -106,6 +140,12 @@ export const createPostgresAdminRepository = (
   demoteAccountToCustomer: (id, event, customerPolicy) =>
     demoteAccountToCustomer(sql, id, event, customerPolicy),
 
+  scheduleAccountDeletion: (id, purgeAt, event) =>
+    scheduleAccountDeletion(sql, id, purgeAt, event),
+
+  cancelAccountDeletion: (id, event) =>
+    cancelAccountDeletion(sql, id, event),
+
   updatePermissions: (id, permissions, event, requireCoAdmin) =>
     sql.begin(async (tx) => {
       if (requireCoAdmin && !(await hasOtherAdminLocked(tx, id))) {
@@ -130,30 +170,8 @@ export const createPostgresAdminRepository = (
       return { orphaned: false };
     }) as Promise<{ readonly orphaned: boolean }>,
 
-  assignRoles: (id, roleIds, event) =>
-    sql.begin(async (tx) => {
-      // keep the membership's personal role (the one-off slot, never assignable)
-      const personal = await tx`
-        select r.id from public.roles r
-        join public.memberships m on r.id = any(m.role_ids)
-        where m.id = ${id} and r.is_personal limit 1
-      `;
-      const personalId = personal[0]?.['id'] as string | undefined;
-      const next = personalId ? [...roleIds, personalId] : [...roleIds];
-      if (await assignWouldOrphanLocked(tx, id, next)) {
-        return { orphaned: true };
-      }
-      await tx`
-        update public.memberships
-        set role_ids = ${next as unknown as string[]}::uuid[]
-        where id = ${id}
-      `;
-      await insertAuditEvent(tx, event);
-      return { orphaned: false };
-    }) as Promise<{ readonly orphaned: boolean }>,
-
+  assignRoles: (id, roleIds, event) => assignRoles(sql, id, roleIds, event),
   revokeSession: (id, event) => revokeSession(sql, id, event),
-
   revokeAllSessions: (membershipId, template) =>
     revokeAllSessions(sql, membershipId, template),
 });

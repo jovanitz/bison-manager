@@ -106,6 +106,7 @@ export const accessStoreContract = (
         status: 'active',
         kind: 'staff',
         hostsRoot: false,
+        pendingDeletionUntil: null,
       });
       expect(await store.admin.findMembership(ids.membershipSupport)).toEqual({
         id: ids.membershipSupport,

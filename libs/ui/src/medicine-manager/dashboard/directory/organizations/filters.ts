@@ -32,10 +32,12 @@ export const orgStatusOf = (r: CustomerRow): OrgStatus => {
   return 'active';
 };
 
-/** The "Needs attention" preset — an org with a payment problem to act on
- *  (pending / overdue charge). Deliberate states (blocked, disabled) don't count. */
+/** The "Needs attention" preset — an org with a live payment problem to act on:
+ *  its subscription is past due (`grace`) or suspended for non-payment. Derived
+ *  from the real billing phase, not a fabricated overdue count. Deliberate
+ *  states (blocked, disabled) and neutral ones (trialing, canceled) don't count. */
 export const flagged = (r: CustomerRow): boolean =>
-  (r.overduePayments ?? 0) > 0;
+  r.phase === 'grace' || r.phase === 'suspended';
 
 export const filtersActive = (f: OrgFilters): boolean =>
   f.status.size > 0 ||

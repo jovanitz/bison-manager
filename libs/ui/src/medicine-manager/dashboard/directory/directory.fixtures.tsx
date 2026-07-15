@@ -52,7 +52,6 @@ const customers: readonly CustomerRow[] = [
     createdAt: '2026-05-02',
     lastActiveAt: '2026-07-06',
     lastPaymentAt: '2026-05-15',
-    overduePayments: 1,
   },
   {
     accountId: 'org_13',
@@ -64,7 +63,6 @@ const customers: readonly CustomerRow[] = [
     createdAt: '2026-01-20',
     lastActiveAt: '2026-06-30',
     lastPaymentAt: '2026-03-10',
-    overduePayments: 2,
     dormant: true,
   },
   {
@@ -88,7 +86,6 @@ const customers: readonly CustomerRow[] = [
     createdAt: '2025-11-05',
     lastActiveAt: '2026-05-15',
     lastPaymentAt: '2026-06-05',
-    overduePayments: 2,
   },
   {
     accountId: 'org_16',
@@ -100,7 +97,6 @@ const customers: readonly CustomerRow[] = [
     createdAt: '2025-09-18',
     lastActiveAt: '2026-04-02',
     lastPaymentAt: '2026-02-20',
-    overduePayments: 2,
     dormant: true,
     // Already in the reversible 30-day pending-deletion window.
     pendingDeletionUntil: '2026-08-05',

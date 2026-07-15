@@ -3,11 +3,13 @@
  * orphaned identities (the implemented dashboard-screen tables, re-skinned).
  *
  * @screen Medicine Manager / Dashboard / Directory
- * @phase draft
+ * @phase approved
  *
- * Presentational: a pure function of (ViewModel + actions) over the design
- * system. Row types are local (decoupled from application DTOs) so wiring maps
- * to them. Capabilities (canBlock/canAdminAccounts) are DATA on the VM.
+ * Signed off and wired: the seam is `directory.container.tsx`, which feeds this
+ * view its ViewModel (store selector) + backed actions. Presentational still —
+ * a pure function of (ViewModel + actions) over the design system. Row types are
+ * local (decoupled from application DTOs) so wiring maps to them. Capabilities
+ * (canBlock/canAdminAccounts) are DATA on the VM.
  */
 import { type ReactNode } from 'react';
 import { Mail, UserRoundX } from 'lucide-react';

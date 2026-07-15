@@ -35,6 +35,8 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
     'Promote a customer account to staff (strict sessions, not impersonable)',
   'account.demote':
     'Demote a staff account back to customer, stripping its staff-grade permissions',
+  'account.delete':
+    'Schedule or cancel an org deletion (staged soft-delete, reversible grace window)',
   'permissions.update': 'Replace the persistent permissions of a membership',
   'sessions.revoke': 'Revoke a session immediately (kills refresh tokens too)',
   'sessions.read':
@@ -73,6 +75,10 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
   'account.promoted': 'A customer account became staff, by whom',
   'account.demoted':
     'A staff account was returned to customer (staff permissions stripped), by whom',
+  'account.deletion-scheduled':
+    'An org was marked for deletion (reversible until the purge date), by whom',
+  'account.deletion-canceled':
+    'A scheduled org deletion was withdrawn, by whom',
   'permissions.updated': 'Permissions replaced (records before and after)',
   'member.roles-assigned':
     "A membership's role assignment was replaced (records the new role set)",

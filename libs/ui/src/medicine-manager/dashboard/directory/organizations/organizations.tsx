@@ -8,7 +8,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '../../../../design-system/button/button';
 import { DataTable } from '../../../../design-system/data-table/data-table';
-import { customerColumns } from '../directory.customer-columns';
+import { customerColumns } from './customer-columns';
 import { MemberCount, PlanTag, relativeDate } from '../directory.columns';
 import type {
   CustomerRow,
@@ -112,7 +112,7 @@ const useOrgFilterState = (customers: readonly CustomerRow[]) => {
       grace: customers.filter((c) => c.phase === 'grace').length,
       suspended: customers.filter((c) => c.phase === 'suspended').length,
       dormant: customers.filter((c) => c.dormant).length,
-      overdue: customers.filter(flagged).length,
+      attention: customers.filter(flagged).length,
     }),
     [customers],
   );

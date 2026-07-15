@@ -24,6 +24,13 @@ export type AccountAdminGateway = {
   readonly demote: (
     accountId: string,
   ) => Promise<Result<void, DirectoryGatewayError>>;
+  /** Mark an org for deletion (staged, reversible). */
+  readonly scheduleDeletion: (
+    accountId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  readonly cancelDeletion: (
+    accountId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
 };
 
 /** One audit-trail row as the dashboard renders it (`audit.list`). */

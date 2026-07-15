@@ -58,6 +58,32 @@ const accountDemote = (accessAdmin: AccessAdminUseCases): ApiProcedure =>
       accessAdmin.demoteAccountToCustomer({ actor, accountId: input.accountId }),
   });
 
+const accountScheduleDeletion = (
+  accessAdmin: AccessAdminUseCases,
+): ApiProcedure =>
+  defineApiProcedure({
+    name: 'account.schedule-deletion',
+    summary:
+      'Mark an org for deletion (staged soft-delete, reversible until the ' +
+      'purge date). Staff-only; refused for the root account.',
+    action: 'account.delete',
+    input: z.object({ accountId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessAdmin.scheduleAccountDeletion({ actor, accountId: input.accountId }),
+  });
+
+const accountCancelDeletion = (
+  accessAdmin: AccessAdminUseCases,
+): ApiProcedure =>
+  defineApiProcedure({
+    name: 'account.cancel-deletion',
+    summary: 'Withdraw a scheduled org deletion; the org is fully active again.',
+    action: 'account.delete',
+    input: z.object({ accountId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessAdmin.cancelAccountDeletion({ actor, accountId: input.accountId }),
+  });
+
 const permissionsUpdate = (accessAdmin: AccessAdminUseCases): ApiProcedure =>
   defineApiProcedure({
     name: 'permissions.update',
@@ -130,6 +156,8 @@ export const createAdminProcedures = (
   accountEnable(accessAdmin),
   accountPromote(accessAdmin),
   accountDemote(accessAdmin),
+  accountScheduleDeletion(accessAdmin),
+  accountCancelDeletion(accessAdmin),
   permissionsUpdate(accessAdmin),
   sessionsRevoke(accessAdmin),
   sessionsRevokeAll(accessAdmin),

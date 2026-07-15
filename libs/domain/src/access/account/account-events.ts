@@ -40,3 +40,24 @@ export type AccessAccountDemoted = {
   readonly actorMembershipId: MembershipId;
   readonly occurredAt: string;
 };
+
+/**
+ * An org was marked for deletion (billing-lifecycle policy). `purgeAt` is when
+ * the reversible grace window elapses and operational data is purged (the LEDGER
+ * is retained — MX fiscal law). Fully cancellable until then.
+ */
+export type AccessAccountDeletionScheduled = {
+  readonly type: 'account.deletion-scheduled';
+  readonly accountId: AccountId;
+  readonly purgeAt: string;
+  readonly actorMembershipId: MembershipId;
+  readonly occurredAt: string;
+};
+
+/** A scheduled deletion was withdrawn — the org is fully active again. */
+export type AccessAccountDeletionCanceled = {
+  readonly type: 'account.deletion-canceled';
+  readonly accountId: AccountId;
+  readonly actorMembershipId: MembershipId;
+  readonly occurredAt: string;
+};

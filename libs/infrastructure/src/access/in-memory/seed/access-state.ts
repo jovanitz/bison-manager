@@ -139,7 +139,12 @@ export type AccessStoreState = {
   settings: { policies: AccessSessionPolicies; version: number } | null;
   readonly accounts: Map<
     string,
-    { status: AccountStatus; blocked: boolean; kind: AccountKind }
+    {
+      status: AccountStatus;
+      blocked: boolean;
+      kind: AccountKind;
+      pendingDeletionUntil: string | null;
+    }
   >;
   readonly blockedIdentities: Set<string>;
   readonly blockedMemberships: Set<string>;

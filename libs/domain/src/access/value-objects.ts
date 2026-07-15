@@ -65,6 +65,7 @@ export const ACCESS_ACTIONS = [
   'account.enable',
   'account.promote',
   'account.demote',
+  'account.delete',
   'permissions.update',
   'sessions.revoke',
   'sessions.read',
@@ -123,6 +124,9 @@ export const OWNER_UNBYPASSABLE_ACTIONS = [
   'account.demote',
   'account.disable',
   'account.enable',
+  // Scheduling/cancelling an org's deletion is staff moderation, never a
+  // self-service action an org owner performs on their own account.
+  'account.delete',
 ] as const satisfies ReadonlyArray<AccessAction>;
 
 export const isOwnerUnbypassableAction = (action: AccessAction): boolean =>

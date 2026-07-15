@@ -14,6 +14,8 @@ export const mockAccountAdmin = (
   enable: async () => ok(undefined),
   promote: async () => ok(undefined),
   demote: async () => ok(undefined),
+  scheduleDeletion: async () => ok(undefined),
+  cancelDeletion: async () => ok(undefined),
   ...overrides,
 });
 

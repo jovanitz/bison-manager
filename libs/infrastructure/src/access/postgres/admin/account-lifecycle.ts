@@ -7,6 +7,10 @@ import type {
   AccessSessionPolicy,
   AccountId,
 } from '@acme/domain';
+import type {
+  AccessAccountDeletionCanceled,
+  AccessAccountDeletionScheduled,
+} from '@acme/domain';
 import { insertAuditEvent } from '../rows';
 
 /** Account-lifecycle mutations: promote/demote across the customer↔staff line,
@@ -96,3 +100,31 @@ export const setAccountStatus = async (
     await insertAuditEvent(tx, event);
   });
 };
+
+/** Mark an org for deletion at `purgeAt`, audited (reversible until then). */
+export const scheduleAccountDeletion = (
+  sql: Sql,
+  id: AccountId,
+  purgeAt: string,
+  event: AccessAccountDeletionScheduled,
+): Promise<void> =>
+  sql.begin(async (tx) => {
+    await tx`
+      update public.accounts set pending_deletion_until = ${purgeAt}
+      where id = ${id}
+    `;
+    await insertAuditEvent(tx, event);
+  }) as Promise<void>;
+
+/** Withdraw a scheduled deletion, audited. */
+export const cancelAccountDeletion = (
+  sql: Sql,
+  id: AccountId,
+  event: AccessAccountDeletionCanceled,
+): Promise<void> =>
+  sql.begin(async (tx) => {
+    await tx`
+      update public.accounts set pending_deletion_until = null where id = ${id}
+    `;
+    await insertAuditEvent(tx, event);
+  }) as Promise<void>;

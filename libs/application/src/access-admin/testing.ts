@@ -24,6 +24,7 @@ export const testAdminAccount = (
   status: status as AdminAccountSnapshot['status'],
   kind: 'customer',
   hostsRoot,
+  pendingDeletionUntil: null,
 });
 
 export const testAdminSession = (
@@ -103,14 +104,81 @@ const sessionMethods = (
     })),
 });
 
+type AccountMap = Map<AccountId, AdminAccountSnapshot>;
+type MembershipMap = Map<MembershipId, AdminMembershipSnapshot>;
+
+/** Patch an account in place + record the event (closes over accounts+audit). */
+const accountPatcher =
+  (accounts: AccountMap, audit: AccessAuditEvent[]) =>
+  (
+    id: AccountId,
+    fields: Partial<AdminAccountSnapshot>,
+    event: AccessAuditEvent,
+  ): void => {
+    const account = accounts.get(id);
+    if (account) accounts.set(id, { ...account, ...fields });
+    audit.push(event);
+  };
+
+/** Account half of the fake port (split to stay within function limits). */
+const accountMethods = (
+  accounts: AccountMap,
+  memberships: MembershipMap,
+  audit: AccessAuditEvent[],
+) => {
+  const patch = accountPatcher(accounts, audit);
+  return {
+    findAccount: async (id: AccountId) => accounts.get(id) ?? null,
+    findMembership: async (id: MembershipId) => memberships.get(id) ?? null,
+    disableAccount: async (id: AccountId, event: AccessAuditEvent) =>
+      patch(id, { status: 'disabled' }, event),
+    enableAccount: async (id: AccountId, event: AccessAuditEvent) =>
+      patch(id, { status: 'active' }, event),
+    promoteAccountToStaff: async (id: AccountId, event: AccessAuditEvent) =>
+      patch(id, { kind: 'staff' }, event),
+    demoteAccountToCustomer: async (id: AccountId, event: AccessAuditEvent) => {
+      for (const [mid, m] of memberships) {
+        if (m.accountId === id) memberships.set(mid, { ...m, permissions: [] });
+      }
+      patch(id, { kind: 'customer' }, event);
+    },
+    scheduleAccountDeletion: async (
+      id: AccountId,
+      purgeAt: string,
+      event: AccessAuditEvent,
+    ) => patch(id, { pendingDeletionUntil: purgeAt }, event),
+    cancelAccountDeletion: async (id: AccountId, event: AccessAuditEvent) =>
+      patch(id, { pendingDeletionUntil: null }, event),
+    updatePermissions: async (
+      id: MembershipId,
+      permissions: ReadonlyArray<AccessPermission>,
+      event: AccessAuditEvent,
+      requireCoAdmin: boolean,
+    ) => {
+      const membership = memberships.get(id);
+      if (!membership) return { orphaned: false };
+      if (
+        requireCoAdmin &&
+        !hasOtherAdmin(memberships, membership.accountId, id)
+      )
+        return { orphaned: true };
+      memberships.set(id, { ...membership, permissions });
+      audit.push(event);
+      return { orphaned: false };
+    },
+  };
+};
+
 /** Spec double for the AccessAdminRepository (test-only by convention). */
 export const inMemoryAdmin = (seed: {
   accounts?: AdminAccountSnapshot[];
   memberships?: AdminMembershipSnapshot[];
   sessions?: AdminSessionSnapshot[];
 }) => {
-  const accounts = new Map(seed.accounts?.map((a) => [a.id, a]));
-  const memberships = new Map(seed.memberships?.map((m) => [m.id, m]));
+  const accounts: AccountMap = new Map(seed.accounts?.map((a) => [a.id, a]));
+  const memberships: MembershipMap = new Map(
+    seed.memberships?.map((m) => [m.id, m]),
+  );
   const sessions = new Map(seed.sessions?.map((s) => [s.id, s]));
   const audit: AccessAuditEvent[] = [];
   return {
@@ -119,53 +187,7 @@ export const inMemoryAdmin = (seed: {
     sessions,
     memberships,
     port: {
-      findAccount: async (id: AccountId) => accounts.get(id) ?? null,
-      disableAccount: async (id: AccountId, event: AccessAuditEvent) => {
-        const account = accounts.get(id);
-        if (account) accounts.set(id, { ...account, status: 'disabled' });
-        audit.push(event);
-      },
-      enableAccount: async (id: AccountId, event: AccessAuditEvent) => {
-        const account = accounts.get(id);
-        if (account) accounts.set(id, { ...account, status: 'active' });
-        audit.push(event);
-      },
-      findMembership: async (id: MembershipId) => memberships.get(id) ?? null,
-      promoteAccountToStaff: async (id: AccountId, event: AccessAuditEvent) => {
-        const account = accounts.get(id);
-        if (account) accounts.set(id, { ...account, kind: 'staff' });
-        audit.push(event);
-      },
-      demoteAccountToCustomer: async (
-        id: AccountId,
-        event: AccessAuditEvent,
-      ) => {
-        const account = accounts.get(id);
-        if (account) accounts.set(id, { ...account, kind: 'customer' });
-        for (const [mid, m] of memberships) {
-          if (m.accountId === id)
-            memberships.set(mid, { ...m, permissions: [] });
-        }
-        audit.push(event);
-      },
-      updatePermissions: async (
-        id: MembershipId,
-        permissions: ReadonlyArray<AccessPermission>,
-        event: AccessAuditEvent,
-        requireCoAdmin: boolean,
-      ) => {
-        const membership = memberships.get(id);
-        if (!membership) return { orphaned: false };
-        if (
-          requireCoAdmin &&
-          !hasOtherAdmin(memberships, membership.accountId, id)
-        ) {
-          return { orphaned: true };
-        }
-        memberships.set(id, { ...membership, permissions });
-        audit.push(event);
-        return { orphaned: false };
-      },
+      ...accountMethods(accounts, memberships, audit),
       ...sessionMethods(sessions, audit),
     },
   };

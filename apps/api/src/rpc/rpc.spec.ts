@@ -79,10 +79,12 @@ describe('the rpc pipeline', () => {
         .sort(),
     ).toEqual([
       'access.current',
+      'account.cancel-deletion',
       'account.demote',
       'account.disable',
       'account.enable',
       'account.promote',
+      'account.schedule-deletion',
       'audit.list',
       'billing.changePlan',
       'billing.coverage',

@@ -1,8 +1,6 @@
 import { type Result, err, ok } from '@acme/shared';
-import { makeAccountId } from '@acme/domain';
-import type { AccessAction, AccessActor } from '@acme/domain';
-import { authorizeAccessAction } from '../access/authorize';
-import { guardRootTarget } from './deps';
+import type { AccessActor } from '@acme/domain';
+import { loadAuthorizedAccount } from './deps';
 import type { AccessAdminDeps } from './deps';
 import { makeUpdateUserPermissions } from './mutations/permissions-use-cases';
 import {
@@ -11,54 +9,22 @@ import {
   makeRevokeSession,
 } from './mutations/session-use-cases';
 import {
+  makeCancelAccountDeletion,
+  makeScheduleAccountDeletion,
+} from './mutations/deletion-use-cases';
+import {
   accountAlreadyDisabled,
   accountAlreadyCustomer,
   accountAlreadyStaff,
   cannotDemoteRoot,
   accountNotDisabled,
-  accountNotFound,
 } from './errors';
 import type { AccessAdminUseCaseError } from './errors';
-import type { AdminAccountSnapshot } from './ports';
 
 export type { AccessAdminDeps } from './deps';
 
 type AdminResult = Promise<Result<void, AccessAdminUseCaseError>>;
 
-/** Shared head of every account mutation: parse, authorize, load (404). */
-const loadAuthorizedAccount = async (
-  deps: AccessAdminDeps,
-  input: { readonly actor: AccessActor; readonly accountId: string },
-  action: AccessAction,
-): Promise<
-  Result<
-    { readonly account: AdminAccountSnapshot; readonly now: string },
-    AccessAdminUseCaseError
-  >
-> => {
-  const accountId = makeAccountId(input.accountId);
-  if (!accountId.ok) return err(accountId.error);
-  const now = deps.clock.now().toISOString();
-
-  const authorized = authorizeAccessAction({
-    actor: input.actor,
-    action,
-    resource: { accountId: accountId.value },
-    now,
-  });
-  if (!authorized.ok) return err(authorized.error);
-
-  const account = await deps.admin.findAccount(accountId.value);
-  if (!account) return err(accountNotFound(`No account ${input.accountId}.`));
-
-  // Super-admin protection: no one but the root may touch the root's account.
-  const rootGuard = guardRootTarget({
-    targetIsRoot: account.hostsRoot,
-    actor: input.actor,
-  });
-  if (!rootGuard.ok) return err(rootGuard.error);
-  return ok({ account, now });
-};
 
 export const makeDisableAccount =
   (deps: AccessAdminDeps) =>
@@ -181,6 +147,10 @@ export type AccessAdminUseCases = {
   readonly demoteAccountToCustomer: ReturnType<
     typeof makeDemoteAccountToCustomer
   >;
+  readonly scheduleAccountDeletion: ReturnType<
+    typeof makeScheduleAccountDeletion
+  >;
+  readonly cancelAccountDeletion: ReturnType<typeof makeCancelAccountDeletion>;
   readonly updateUserPermissions: ReturnType<typeof makeUpdateUserPermissions>;
   readonly revokeSession: ReturnType<typeof makeRevokeSession>;
   readonly revokeAllSessions: ReturnType<typeof makeRevokeAllSessions>;
@@ -200,6 +170,8 @@ export const makeAccessAdminUseCases = (
   enableAccount: makeEnableAccount(deps),
   promoteAccountToStaff: makePromoteAccountToStaff(deps),
   demoteAccountToCustomer: makeDemoteAccountToCustomer(deps),
+  scheduleAccountDeletion: makeScheduleAccountDeletion(deps),
+  cancelAccountDeletion: makeCancelAccountDeletion(deps),
   updateUserPermissions: makeUpdateUserPermissions(deps),
   revokeSession: makeRevokeSession(deps),
   revokeAllSessions: makeRevokeAllSessions(deps),

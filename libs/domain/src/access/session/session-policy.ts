@@ -58,6 +58,15 @@ export const ACCESS_SESSION_PURGE_AFTER_DAYS = 30;
 /** Pending invitations expire after this many days. */
 export const ACCESS_INVITATION_TTL_DAYS = 7;
 
+/**
+ * The reversible grace window before a scheduled org deletion purges its
+ * operational data (billing-lifecycle policy, 2026-07-08). Staff mark an org for
+ * deletion; it stays fully recoverable for this long, then a separate purge
+ * step removes PII/content while the financial LEDGER is retained (MX fiscal
+ * law). Global for now; per-jurisdiction later.
+ */
+export const ACCOUNT_DELETION_WINDOW_DAYS = 30;
+
 const validatePolicy = (
   kind: AccountKind,
   policy: AccessSessionPolicy,

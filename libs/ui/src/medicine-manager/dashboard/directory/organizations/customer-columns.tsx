@@ -6,11 +6,11 @@
  * shared DirectoryActions live in directory.columns.
  */
 import type { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '../../../design-system/badge/badge';
-import { CustomerActions } from './directory.customer-actions';
-import { StatusHeader } from './directory.status-legend';
-import { NameWithAvatar, paymentColumn } from './directory.columns';
-import type { CustomerRow, DirectoryActions } from './directory.columns';
+import { Badge } from '../../../../design-system/badge/badge';
+import { CustomerActions } from './customer-actions';
+import { StatusHeader } from '../directory.status-legend';
+import { NameWithAvatar, paymentColumn } from '../directory.columns';
+import type { CustomerRow, DirectoryActions } from '../directory.columns';
 
 /** Precedence: a disabled account overrides a soft block for the badge. */
 type OrgStatus = 'active' | 'blocked' | 'disabled';

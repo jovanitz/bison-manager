@@ -78,7 +78,7 @@ export * from './dashboard/dashboard-screen';
 // Medicine-manager giro: the app shell + the wired Directory container
 // (ADR-0017 giro isolation, ADR-0018 billing coverage).
 export * from './medicine-manager/dashboard/dashboard.shell';
-export * from './medicine-manager/dashboard/directory/section/directory-section';
+export * from './medicine-manager/dashboard/directory/directory.container';
 export * from './dashboard/invitations/invite-member-form';
 export * from './dashboard/invitations/activate-invitation-screen';
 export * from './dashboard/permissions/manage-permissions-form';

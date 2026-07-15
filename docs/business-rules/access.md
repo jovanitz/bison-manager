@@ -59,6 +59,7 @@ gained through later activity.
 | `account.enable` | Re-enable a disabled account (the undo; unexpired sessions resume) | ✅ any account | — | — | — |
 | `account.promote` | Promote a customer account to staff (strict sessions, not impersonable) | ✅ any account | — | — | — |
 | `account.demote` | Demote a staff account back to customer, stripping its staff-grade permissions | ✅ any account | — | — | — |
+| `account.delete` | Schedule or cancel an org deletion (staged soft-delete, reversible grace window) | ✅ any account | — | — | — |
 | `permissions.update` | Replace the persistent permissions of a membership | ✅ any account | — | — | ✅ own account |
 | `sessions.revoke` | Revoke a session immediately (kills refresh tokens too) | ✅ any account | — | ✅ own account | ✅ own account |
 | `sessions.read` | List a membership's sessions with device/IP context (active-sessions view) | ✅ any account | — | ✅ own account | ✅ own account |
@@ -147,6 +148,8 @@ generated — they are behavior, not documentation:
 | `account.enable` | `account.enable` | Re-enable a disabled account (old sessions stay dead). |
 | `account.promote` | `account.promote` | Promote a customer account to staff: strict session policy and out of the customer directory (never impersonable again). |
 | `account.demote` | `account.demote` | Demote a staff account back to customer: strips its staff-grade permissions, re-binds sessions to the customer policy, and returns it to the customer directory. Refused for the root account. |
+| `account.schedule-deletion` | `account.delete` | Mark an org for deletion (staged soft-delete, reversible until the purge date). Staff-only; refused for the root account. |
+| `account.cancel-deletion` | `account.delete` | Withdraw a scheduled org deletion; the org is fully active again. |
 | `permissions.update` | `permissions.update` | Replace a membership's permission list (the source of truth). |
 | `sessions.revoke` | `sessions.revoke` | Revoke a session; it stops authorizing immediately. |
 | `sessions.revoke-all` | `sessions.revoke` | Log a membership out everywhere: revokes all of that membership's active sessions (audited one by one). |
@@ -216,6 +219,8 @@ re-authorizes itself with the concrete resource in hand.
 | `account.enabled` | A disabled account was re-enabled, by whom |
 | `account.promoted` | A customer account became staff, by whom |
 | `account.demoted` | A staff account was returned to customer (staff permissions stripped), by whom |
+| `account.deletion-scheduled` | An org was marked for deletion (reversible until the purge date), by whom |
+| `account.deletion-canceled` | A scheduled org deletion was withdrawn, by whom |
 | `permissions.updated` | Permissions replaced (records before and after) |
 | `member.roles-assigned` | A membership's role assignment was replaced (records the new role set) |
 | `session.revoked` | A session was revoked, by whom |

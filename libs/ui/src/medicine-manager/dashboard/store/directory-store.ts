@@ -31,7 +31,13 @@ export type DirectoryStoreState = {
     blocked: boolean,
   ) => Promise<void>;
   readonly admin: (
-    action: 'disable' | 'enable' | 'promote' | 'demote',
+    action:
+      | 'disable'
+      | 'enable'
+      | 'promote'
+      | 'demote'
+      | 'scheduleDeletion'
+      | 'cancelDeletion',
     accountId: string,
   ) => Promise<void>;
   /**

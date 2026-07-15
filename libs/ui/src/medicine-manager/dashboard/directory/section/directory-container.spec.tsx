@@ -5,7 +5,7 @@ import {
   UseCasesProvider,
   type AppUseCases,
 } from '../../../../di/use-cases-context';
-import { DirectorySection } from './directory-section';
+import { DirectorySection } from '../directory.container';
 
 const snapshot = {
   membershipId: 'mem',

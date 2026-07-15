@@ -1,21 +1,21 @@
 import { useEffect } from 'react';
-import { useDirectoryStore, useStore } from '../../store/hooks';
-import type { DirectoryStore } from '../../store/directory-store';
-import { DirectoryView } from '../directory.view';
-import type { DirectoryActions, DirectoryVM } from '../directory.columns';
-import { toast } from '../../../../design-system/toast/toaster';
-import { copyFreshLink } from './invite-link';
+import { useDirectoryStore, useStore } from '../store/hooks';
+import type { DirectoryStore } from '../store/directory-store';
+import { DirectoryView } from './directory.view';
+import type { DirectoryActions, DirectoryVM } from './directory.columns';
+import { toast } from '../../../design-system/toast/toaster';
+import { copyFreshLink } from './section/invite-link';
+import { directoryCsv, downloadCsv, orgCsv } from './section/csv-export';
 
 /**
  * The DI-bound Directory container (ADR-0017 giro-owned). Reads the ViewModel
- * from the store and dispatches the backed actions (block / admin / invite /
- * regenerate) to it; navigation (open org / staff) comes from the parent, and
- * the not-yet-backed actions (demote, deletion, export, void/refund, invite/
- * revoke) are inert until their use cases land. Presentational logic stays in
- * `DirectoryView` — this only wires.
+ * from the store and dispatches every action to it: block / admin (disable,
+ * enable, promote, demote, schedule/cancel deletion) / invite / regenerate /
+ * revoke / resend / orphan purge, plus the client-side CSV export. Navigation
+ * (open org / staff) comes from the parent. The only remaining inert actions
+ * are billing void/refund — the ledger has no charges wired yet. Presentational
+ * logic stays in `DirectoryView` — this only wires.
  */
-const noop = () => undefined;
-
 const LOADING_VM: DirectoryVM = {
   staff: [],
   customers: [],
@@ -76,11 +76,23 @@ const buildActions = (store: DirectoryStore, nav: Nav): DirectoryActions => ({
       .invite(email)
       .then((r) => copyFreshLink(r, 'Invitation created — link copied.')),
   onDeleteOrphan: (userId) => void store.getState().purgeOrphan(userId),
-  onScheduleDeletion: noop,
-  onCancelDeletion: noop,
-  onExportOrg: noop,
-  onExportDirectory: noop,
-  onDemoteStaff: (accountId) => void store.getState().admin('demote', accountId),
+  onScheduleDeletion: (accountId) =>
+    void store.getState().admin('scheduleDeletion', accountId),
+  onCancelDeletion: (accountId) =>
+    void store.getState().admin('cancelDeletion', accountId),
+  // Client-side CSV of the current view / selection — the data already lives in
+  // the VM, so there is no backend call, just a projection + a browser download.
+  onExportOrg: (accountId) => {
+    const csv = orgCsv(store.getState().vm?.customers ?? [], accountId);
+    if (csv) downloadCsv(`organization-${accountId}.csv`, csv);
+  },
+  onExportDirectory: (accountIds) =>
+    downloadCsv(
+      'organizations.csv',
+      directoryCsv(store.getState().vm?.customers ?? [], accountIds),
+    ),
+  onDemoteStaff: (accountId) =>
+    void store.getState().admin('demote', accountId),
 });
 
 const DirectoryBound = ({

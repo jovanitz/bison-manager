@@ -13,6 +13,8 @@ import type {
   AccessImpersonationStarted,
 } from './grant/grant-events';
 import type {
+  AccessAccountDeletionCanceled,
+  AccessAccountDeletionScheduled,
   AccessAccountDemoted,
   AccessAccountDisabled,
   AccessAccountEnabled,
@@ -32,6 +34,8 @@ export type {
 } from './grant/grant-events';
 
 export type {
+  AccessAccountDeletionCanceled,
+  AccessAccountDeletionScheduled,
   AccessAccountDemoted,
   AccessAccountDisabled,
   AccessAccountEnabled,
@@ -170,6 +174,8 @@ export type AccessAuditEvent =
   | AccessAccountEnabled
   | AccessAccountPromoted
   | AccessAccountDemoted
+  | AccessAccountDeletionScheduled
+  | AccessAccountDeletionCanceled
   | AccessPermissionsUpdated
   | AccessMemberRolesAssigned
   | AccessSessionRevoked
@@ -197,6 +203,8 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'account.enabled',
   'account.promoted',
   'account.demoted',
+  'account.deletion-scheduled',
+  'account.deletion-canceled',
   'permissions.updated',
   'member.roles-assigned',
   'session.revoked',

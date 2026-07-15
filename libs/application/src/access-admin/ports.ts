@@ -1,6 +1,8 @@
 import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
+  AccessAccountDeletionCanceled,
+  AccessAccountDeletionScheduled,
   AccessAccountDemoted,
   AccessAccountPromoted,
   AccessMemberRolesAssigned,
@@ -28,6 +30,8 @@ export type AdminAccountSnapshot = {
   readonly kind: AccountKind;
   /** True if the account hosts the protected super-admin (root) membership. */
   readonly hostsRoot: boolean;
+  /** When a scheduled deletion purges this org, or null when not scheduled. */
+  readonly pendingDeletionUntil: string | null;
 };
 
 export type AdminMembershipSnapshot = {
@@ -123,6 +127,17 @@ export type AccessAdminRepository = {
     id: AccountId,
     event: AccessAccountDemoted,
     customerPolicy: AccessSessionPolicy,
+  ) => Promise<void>;
+  /** Marks an org for deletion (purge at `purgeAt`), reversible until then. */
+  readonly scheduleAccountDeletion: (
+    id: AccountId,
+    purgeAt: string,
+    event: AccessAccountDeletionScheduled,
+  ) => Promise<void>;
+  /** Withdraws a scheduled deletion; the org is fully active again. */
+  readonly cancelAccountDeletion: (
+    id: AccountId,
+    event: AccessAccountDeletionCanceled,
   ) => Promise<void>;
   readonly findSession: (id: SessionId) => Promise<AdminSessionSnapshot | null>;
   readonly revokeSession: (
