@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@acme/shared';
 import type { AccountId } from '@acme/domain';
-import type { CustomerDirectory } from '../impersonation/ports';
 import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
 import { makeAccessDirectoryUseCases } from './use-cases';
 import type {
+  CustomerDirectoryEntry,
   OrphanIdentitySummary,
   StaffAccountSummary,
   StaffDirectory,
@@ -13,13 +13,32 @@ import type {
 const STAFF: ReadonlyArray<StaffAccountSummary> = [
   {
     accountId: 'acct-owner' as AccountId,
+    userId: 'user-owner',
     email: 'owner@acme.test',
     displayName: 'Owner',
+    blocked: false,
+    disabled: false,
+    isRoot: true,
   },
   {
     accountId: 'acct-support' as AccountId,
+    userId: 'user-support',
     email: 'support@acme.test',
     displayName: null,
+    blocked: true,
+    disabled: false,
+    isRoot: false,
+  },
+];
+
+const CUSTOMERS: ReadonlyArray<CustomerDirectoryEntry> = [
+  {
+    accountId: 'acct-cust' as AccountId,
+    displayName: 'Casa',
+    email: null,
+    blocked: false,
+    disabled: false,
+    memberCount: 4,
   },
 ];
 
@@ -28,35 +47,25 @@ const makeWorld = (input?: {
   orphans?: ReadonlyArray<OrphanIdentitySummary>;
 }) => {
   let staffCalls = 0;
-  const customerQueries: string[] = [];
+  let customerCalls = 0;
   const staffDirectory: StaffDirectory = {
     listStaff: async () => {
       staffCalls += 1;
       return input?.staff ?? STAFF;
     },
     listOrphanIdentities: async () => input?.orphans ?? [],
-  };
-  const customers: CustomerDirectory = {
-    search: async (query) => {
-      customerQueries.push(query);
-      return [
-        {
-          accountId: 'acct-cust' as AccountId,
-          displayName: 'Casa',
-          email: null,
-        },
-      ];
+    listCustomerAccounts: async () => {
+      customerCalls += 1;
+      return CUSTOMERS;
     },
-    read: async () => null,
   };
   return {
     useCases: makeAccessDirectoryUseCases({
       staffDirectory,
-      customers,
       clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     }),
     calls: () => staffCalls,
-    customerQueries: () => customerQueries,
+    customerCalls: () => customerCalls,
   };
 };
 
@@ -109,13 +118,22 @@ describe('listOrphanIdentities', () => {
 });
 
 describe('listCustomers', () => {
-  it('lists every customer (empty query) for a customer.search holder', async () => {
+  it('lists every customer with its ADMIN state for a customer.search holder', async () => {
     const world = makeWorld();
     const result = await world.useCases.listCustomers({
       actor: testAccessActor({ preset: 'owner' }),
     });
     expect(result.ok).toBe(true);
-    expect(world.customerQueries()).toEqual(['']);
+    expect(world.customerCalls()).toBe(1);
+    // The directory row carries moderation state + roster size — not the lean
+    // impersonation-search shape.
+    if (result.ok)
+      expect(result.value[0]).toMatchObject({
+        displayName: 'Casa',
+        blocked: false,
+        disabled: false,
+        memberCount: 4,
+      });
   });
 
   it('denies a plain customer without touching the directory', async () => {
@@ -125,6 +143,6 @@ describe('listCustomers', () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.tag).toBe('app/access-denied');
-    expect(world.customerQueries()).toEqual([]);
+    expect(world.customerCalls()).toBe(0);
   });
 });

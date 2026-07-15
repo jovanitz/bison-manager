@@ -1,11 +1,11 @@
 import type { Result, TaggedError } from '@acme/shared';
 import type { CurrentAccessDto } from '../access/dto';
 import type {
+  CustomerDirectoryEntry,
   OrphanIdentitySummary,
   StaffAccountSummary,
 } from '../access-directory/ports';
 import type { PendingInvitationSummary } from '../access-invitations/ports';
-import type { CustomerAccountSummary } from '../impersonation/ports';
 
 /** The two failure modes any read through the API can collapse into. */
 export type DirectoryGatewayError = TaggedError<
@@ -59,7 +59,7 @@ export type DirectoryGateway = {
     Result<ReadonlyArray<StaffAccountSummary>, DirectoryGatewayError>
   >;
   readonly listCustomers: () => Promise<
-    Result<ReadonlyArray<CustomerAccountSummary>, DirectoryGatewayError>
+    Result<ReadonlyArray<CustomerDirectoryEntry>, DirectoryGatewayError>
   >;
   /** Org-less "zombie" identities, for the platform-cleanup view. */
   readonly listOrphans: () => Promise<
@@ -96,6 +96,14 @@ export type InvitationsGateway = {
   readonly regenerate: (
     invitationId: string,
   ) => Promise<Result<{ readonly token: string }, DirectoryGatewayError>>;
+  /** Withdraw a pending invitation — its link stops activating. */
+  readonly revoke: (
+    invitationId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  /** Email a FRESH link (resending necessarily rotates the token). */
+  readonly resend: (
+    invitationId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
 };
 
 /** The failure modes the public activation endpoint can surface to the client. */

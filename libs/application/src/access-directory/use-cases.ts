@@ -3,10 +3,7 @@ import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
 import type { AccessUseCaseError } from '../access/errors';
 import type {
-  CustomerAccountSummary,
-  CustomerDirectory,
-} from '../impersonation/ports';
-import type {
+  CustomerDirectoryEntry,
   OrphanIdentitySummary,
   StaffAccountSummary,
   StaffDirectory,
@@ -14,7 +11,6 @@ import type {
 
 export type AccessDirectoryDeps = {
   readonly staffDirectory: StaffDirectory;
-  readonly customers: CustomerDirectory;
   readonly clock: Clock;
 };
 
@@ -42,17 +38,19 @@ export const makeListStaff =
   };
 
 /**
- * The customer half of the dashboard directory. Reuses the customer directory
- * (an empty query lists every customer) but is its own LISTING capability,
- * distinct from support's `customer.search` UX which requires a search term —
- * same `customer.search` permission, no term required.
+ * The customer half of the dashboard directory. Its own LISTING capability,
+ * distinct from support's `customer.search` UX (which requires a search term
+ * and answers a lean impersonation-lookup shape) — same `customer.search`
+ * permission, no term required, but an ADMINISTRATIVE row: moderation state +
+ * roster size. The billing plan is not read here; the directory's coverage
+ * call (ADR-0018) already resolves it per org.
  */
 export const makeListCustomers =
   (deps: AccessDirectoryDeps) =>
   async (input: {
     readonly actor: AccessActor;
   }): Promise<
-    Result<ReadonlyArray<CustomerAccountSummary>, AccessUseCaseError>
+    Result<ReadonlyArray<CustomerDirectoryEntry>, AccessUseCaseError>
   > => {
     const authorized = authorizeAccessAction({
       actor: input.actor,
@@ -61,7 +59,7 @@ export const makeListCustomers =
       now: deps.clock.now().toISOString(),
     });
     if (!authorized.ok) return err(authorized.error);
-    return ok(await deps.customers.search(''));
+    return ok(await deps.staffDirectory.listCustomerAccounts());
   };
 
 /**

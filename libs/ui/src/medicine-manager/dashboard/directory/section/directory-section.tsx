@@ -3,6 +3,8 @@ import { useDirectoryStore, useStore } from '../../store/hooks';
 import type { DirectoryStore } from '../../store/directory-store';
 import { DirectoryView } from '../directory.view';
 import type { DirectoryActions, DirectoryVM } from '../directory.columns';
+import { toast } from '../../../../design-system/toast/toaster';
+import { copyFreshLink } from './invite-link';
 
 /**
  * The DI-bound Directory container (ADR-0017 giro-owned). Reads the ViewModel
@@ -32,18 +34,39 @@ type Nav = {
 const buildActions = (store: DirectoryStore, nav: Nav): DirectoryActions => ({
   onBlock: (id, blocked) => void store.getState().block('org', id, blocked),
   onAdmin: (id, action) => void store.getState().admin(action, id),
-  onRegenerate: (id) => void store.getState().regenerate(id),
-  onInvite: (email) => void store.getState().invite(email),
-  onBlockStaff: (id, blocked) =>
-    void store.getState().block('identity', id, blocked),
+  // Both MINT a one-time token. It is shown exactly once (only its hash is
+  // stored), so the container puts it straight on the clipboard — there is no
+  // second chance to fetch it, and no mailer to send it (see onResendInvite).
+  onRegenerate: (id) =>
+    void store
+      .getState()
+      .regenerate(id)
+      .then((r) =>
+        copyFreshLink(r, 'New link copied — the previous one no longer works.'),
+      ),
+  onInvite: (email) =>
+    void store
+      .getState()
+      .invite(email)
+      .then((r) => copyFreshLink(r, 'Invitation created — link copied.')),
+  // `id` here is the staff row's userId (identity space), NOT its accountId —
+  // `identity.block` moderates the IDENTITY across every org.
+  onBlockStaff: (userId, blocked) =>
+    void store.getState().block('identity', userId, blocked),
   onDisableStaff: (id, disabled) =>
     void store.getState().admin(disabled ? 'disable' : 'enable', id),
   onOpenOrg: nav.onOpenOrg,
   onOpenStaff: nav.onOpenStaff,
-  // Not yet backed by a use case — inert until their slices land.
-  onCopyInvite: noop,
-  onResendInvite: noop,
-  onRevokeInvitation: noop,
+  onRevokeInvitation: (id) => void store.getState().revoke(id),
+  onResendInvite: (id) =>
+    void store
+      .getState()
+      .resend(id)
+      .then((error) =>
+        error
+          ? toast.error(error)
+          : toast.success('A fresh link is on its way — the old one is dead.'),
+      ),
   onInviteOrphan: noop,
   onDeleteOrphan: noop,
   onScheduleDeletion: noop,

@@ -4,6 +4,7 @@ import type { DirectoryVM } from './directory.view';
 const staff = [
   {
     accountId: 'acc_01',
+    userId: 'usr_01',
     email: 'ana@acme.com',
     displayName: 'Ana Torres',
     lastActiveAt: '2026-07-07',
@@ -12,6 +13,7 @@ const staff = [
   },
   {
     accountId: 'acc_02',
+    userId: 'usr_02',
     email: 'beto@acme.com',
     displayName: 'Beto Ruiz',
     lastActiveAt: '2026-06-28',
@@ -19,6 +21,7 @@ const staff = [
   },
   {
     accountId: 'acc_03',
+    userId: 'usr_03',
     email: 'cami@acme.com',
     displayName: 'Cami Díaz',
     lastActiveAt: '2026-07-05',

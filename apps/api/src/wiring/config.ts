@@ -1,4 +1,5 @@
 import type { Clock, IdGenerator } from '@acme/shared';
+import type { NotificationSender } from '@acme/application';
 import type {
   InMemoryAccessSeed,
   InMemoryBillingSeed,
@@ -40,6 +41,16 @@ export type ApiConfig = {
   readonly devConsole?: () => string;
   /** standard-webhooks secret for the GoTrue password-verification hook. */
   readonly authHookSecret?: string;
+  /**
+   * Public origin of the APP the invitee opens (the dashboard), used to build
+   * activation links. The API cannot infer it — it may sit behind any host.
+   */
+  readonly appBaseUrl?: string;
+  /**
+   * Outbound email. Omit and nothing is delivered: the fail-closed sender says
+   * so out loud rather than reporting a phantom success.
+   */
+  readonly notifications?: NotificationSender;
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
 };

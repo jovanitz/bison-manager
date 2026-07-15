@@ -1,9 +1,9 @@
 import type { Result } from '@acme/shared';
 import type {
+  CustomerDirectoryEntry,
   OrphanIdentitySummary,
   StaffAccountSummary,
 } from '../../access-directory/ports';
-import type { CustomerAccountSummary } from '../../impersonation/ports';
 import type { DirectoryGateway, DirectoryGatewayError } from '../ports';
 
 /**
@@ -16,7 +16,7 @@ export type DirectoryUseCases = {
     Result<ReadonlyArray<StaffAccountSummary>, DirectoryGatewayError>
   >;
   readonly listCustomers: () => Promise<
-    Result<ReadonlyArray<CustomerAccountSummary>, DirectoryGatewayError>
+    Result<ReadonlyArray<CustomerDirectoryEntry>, DirectoryGatewayError>
   >;
   readonly listOrphans: () => Promise<
     Result<ReadonlyArray<OrphanIdentitySummary>, DirectoryGatewayError>

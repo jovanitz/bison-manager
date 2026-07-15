@@ -1,7 +1,7 @@
 import { ok } from '@acme/shared';
 import type {
   CurrentAccessDto,
-  CustomerAccountSummary,
+  CustomerDirectoryEntry,
   DirectoryUseCases,
   BlockUseCases,
   InvitationsUseCases,
@@ -24,21 +24,32 @@ const id = (raw: string): AccountId => raw as AccountId;
 export const testStaff: ReadonlyArray<StaffAccountSummary> = [
   {
     accountId: id('acct-owner'),
+    userId: 'user-owner',
     email: 'owner@acme.test',
     displayName: 'Owner',
+    blocked: false,
+    disabled: false,
+    isRoot: true,
   },
   {
     accountId: id('acct-support'),
+    userId: 'user-support',
     email: 'support@acme.test',
     displayName: null,
+    blocked: false,
+    disabled: false,
+    isRoot: false,
   },
 ];
 
-export const testCustomers: ReadonlyArray<CustomerAccountSummary> = [
+export const testCustomers: ReadonlyArray<CustomerDirectoryEntry> = [
   {
     accountId: id('acct-customer'),
     displayName: 'Casa Pampa',
     email: 'ops@casapampa.example',
+    blocked: false,
+    disabled: false,
+    memberCount: 3,
   },
 ];
 
@@ -77,6 +88,8 @@ export const mockInvitations = (
   activate: async () => ok({ email: 'new@acme.test' }),
   listPending: async () => ok(testPendingInvitations),
   regenerate: async () => ok({ token: 'fresh-tok-1' }),
+  revoke: async () => ok(undefined),
+  resend: async () => ok(undefined),
   ...overrides,
 });
 

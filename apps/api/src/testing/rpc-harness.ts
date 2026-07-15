@@ -1,5 +1,9 @@
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
-import type { InMemoryBillingSeed } from '@acme/infrastructure';
+import {
+  createInMemoryNotificationSender,
+  type InMemoryBillingSeed,
+  type InMemoryNotificationSender,
+} from '@acme/infrastructure';
 import { createApiRuntime } from '../composition-root';
 import type { ApiProcedure } from '../rpc/procedure';
 import { seedBillingWorld, seedWorld } from '../seed';
@@ -21,9 +25,13 @@ export const testRuntime = (
     readonly billingSeed?: InMemoryBillingSeed;
     /** Probe procedures appended to the registry (pipeline contracts). */
     readonly extraProcedures?: ReadonlyArray<ApiProcedure>;
+    /** Capture outbound email so specs can assert on what was actually sent. */
+    readonly notifications?: InMemoryNotificationSender;
   } = {},
 ) =>
   createApiRuntime({
+    notifications: options.notifications ?? createInMemoryNotificationSender(),
+    appBaseUrl: 'https://app.test',
     seed: seedWorld({
       sessionExpiresAt: TEST_SESSION_EXPIRES,
       sessionCreatedAt: TEST_SESSION_CREATED,

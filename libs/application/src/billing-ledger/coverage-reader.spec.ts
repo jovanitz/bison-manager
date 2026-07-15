@@ -4,7 +4,7 @@ import type { Charge, Subscription } from '@acme/domain';
 import { TEST_ACCESS_NOW } from '../access/testing';
 import { subscription } from '../billing-subscriptions/testing';
 import { makeCoverageReader } from './coverage-reader';
-import { ORG, openCharge, paidCharge } from './testing';
+import { ORG, openCharge, paidCharge, proPlan } from './testing';
 
 const reader = (sub: Subscription | null, charges: readonly Charge[]) =>
   makeCoverageReader({
@@ -14,6 +14,7 @@ const reader = (sub: Subscription | null, charges: readonly Charge[]) =>
     charges: {
       listByAccount: async (id) => charges.filter((c) => c.accountId === id),
     },
+    plans: { findPlanById: async () => proPlan() },
     clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     policy: { currency: 'MXN', dormantDays: 90 },
   });

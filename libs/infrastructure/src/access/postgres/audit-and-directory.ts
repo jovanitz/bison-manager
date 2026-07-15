@@ -81,16 +81,61 @@ export const createPostgresCustomerDirectory = (
  * and account-spanning; the `staff.read` policy check happens in the use case.
  */
 export const createPostgresStaffDirectory = (sql: Sql): StaffDirectory => ({
+  // LEFT JOIN, not INNER: an account with no membership yet must still be
+  // listed (it would silently vanish from the staff table otherwise). `blocked`
+  // is the IDENTITY block (keyed by user_id) — the org-level `accounts.blocked`
+  // is a different axis and belongs to the customer rows.
   listStaff: async () => {
     const rows = await sql`
-      select id, display_name, email from public.accounts
-      where kind = 'staff'
-      order by email asc nulls last, id asc
+      select
+        a.id,
+        a.display_name,
+        a.email,
+        a.status,
+        m.user_id,
+        coalesce(m.is_root, false) as is_root,
+        exists (
+          select 1 from public.blocked_identities bi
+          where bi.user_id = m.user_id
+        ) as blocked
+      from public.accounts a
+      left join public.memberships m on m.account_id = a.id
+      where a.kind = 'staff'
+      order by a.email asc nulls last, a.id asc
     `;
     return rows.map((row) => ({
       accountId: row['id'] as AccountId,
+      userId: (row['user_id'] as string | null) ?? '',
       email: row['email'] as string | null,
       displayName: row['display_name'] as string | null,
+      blocked: row['blocked'] as boolean,
+      disabled: (row['status'] as string) === 'disabled',
+      isRoot: row['is_root'] as boolean,
+    }));
+  },
+
+  listCustomerAccounts: async () => {
+    const rows = await sql`
+      select
+        a.id,
+        a.display_name,
+        a.email,
+        a.status,
+        a.blocked,
+        (
+          select count(*) from public.memberships m where m.account_id = a.id
+        )::int as member_count
+      from public.accounts a
+      where a.kind = 'customer'
+      order by a.display_name asc
+    `;
+    return rows.map((row) => ({
+      accountId: row['id'] as AccountId,
+      displayName: row['display_name'] as string,
+      email: row['email'] as string | null,
+      blocked: row['blocked'] as boolean,
+      disabled: (row['status'] as string) === 'disabled',
+      memberCount: row['member_count'] as number,
     }));
   },
   // Org-less "zombies": auth identities with no membership in any account.

@@ -4,6 +4,7 @@ import type {
   PendingInvitationSummary,
 } from '@acme/application';
 import type {
+  AccessInvitationRevoked,
   AccessPermission,
   AccountId,
   AccountKind,
@@ -28,6 +29,7 @@ const pendingByEmail = async (
     join public.accounts a on a.id = i.account_id
     where lower(i.email) = lower(${email})
       and i.accepted_at is null
+      and i.revoked_at is null
       and i.expires_at > ${now}
     order by i.created_at desc
     limit 1
@@ -51,7 +53,7 @@ const listPendingInvitations = async (
   const rows = await sql`
     select id, account_id, email, created_at, expires_at, seat_blocked_at
     from public.invitations
-    where accepted_at is null and expires_at > ${now}
+    where accepted_at is null and revoked_at is null and expires_at > ${now}
     order by created_at asc
   `;
   return rows.map((row) => ({
@@ -63,6 +65,55 @@ const listPendingInvitations = async (
     seatBlockedAt: isoOrNull(row['seat_blocked_at'] as Date | null),
   }));
 };
+
+const findPendingById = async (
+  sql: Sql,
+  invitationId: string,
+  now: string,
+): Promise<PendingInvitationSummary | null> => {
+  const rows = await sql`
+    select id, account_id, email, created_at, expires_at, seat_blocked_at
+    from public.invitations
+    where id = ${invitationId}
+      and accepted_at is null
+      and revoked_at is null
+      and expires_at > ${now}
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    invitationId: row['id'] as InvitationId,
+    accountId: row['account_id'] as AccountId,
+    email: row['email'] as string,
+    createdAt: new Date(row['created_at'] as string | Date).toISOString(),
+    expiresAt: new Date(row['expires_at'] as string | Date).toISOString(),
+    seatBlockedAt: isoOrNull(row['seat_blocked_at'] as Date | null),
+  };
+};
+
+/**
+ * Revocation + audit in ONE transaction. The token hash is burned in the same
+ * statement, so a link already sitting in an inbox stops activating.
+ */
+const revoke = async (
+  sql: Sql,
+  invitationId: string,
+  event: AccessInvitationRevoked,
+): Promise<boolean> =>
+  sql.begin(async (tx) => {
+    const rows = await tx`
+      update public.invitations
+      set revoked_at = ${event.occurredAt}, token_hash = null
+      where id = ${invitationId}
+        and accepted_at is null
+        and revoked_at is null
+        and expires_at > ${event.occurredAt}
+      returning id
+    `;
+    if (rows.length === 0) return false;
+    await insertAuditEvent(tx, event);
+    return true;
+  });
 
 /** Postgres invitations: create + the pending lookup the onboarding uses. */
 export const createPostgresInvitationStore = (
@@ -90,6 +141,7 @@ export const createPostgresInvitationStore = (
       from public.invitations
       where token_hash = ${tokenHash}
         and accepted_at is null
+        and revoked_at is null
         and expires_at > ${now}
       limit 1
     `;
@@ -121,11 +173,20 @@ export const createPostgresInvitationStore = (
 
   listPending: (now) => listPendingInvitations(sql, now),
 
-  regenerateToken: async (invitationId, next) => {
+  findPendingById: (invitationId, now) =>
+    findPendingById(sql, invitationId, now),
+
+  revokeInvitation: (invitationId, event) => revoke(sql, invitationId, event),
+
+  // A revoked (or expired) invitation must not be resurrected by a rotate.
+  regenerateToken: async (invitationId, next, now) => {
     const rows = await sql`
       update public.invitations
       set token_hash = ${next.tokenHash}, expires_at = ${next.expiresAt}
-      where id = ${invitationId} and accepted_at is null
+      where id = ${invitationId}
+        and accepted_at is null
+        and revoked_at is null
+        and expires_at > ${now}
       returning id
     `;
     return rows.length > 0;

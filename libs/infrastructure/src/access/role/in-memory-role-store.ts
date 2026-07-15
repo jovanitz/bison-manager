@@ -1,6 +1,6 @@
 import type { RoleStore } from '@acme/application';
 import type { AccountId, Role, RoleId } from '@acme/domain';
-import type { AccessStoreState } from '../in-memory-access-seed';
+import type { AccessStoreState } from '../in-memory/access-seed';
 
 /**
  * In-memory {@link RoleStore} over the shared {@link AccessStoreState} — the

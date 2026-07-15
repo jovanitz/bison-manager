@@ -26,7 +26,7 @@ import type {
 
 type InviteActions = Pick<
   DirectoryActions,
-  'onCopyInvite' | 'onResendInvite' | 'onRegenerate' | 'onRevokeInvitation'
+  'onResendInvite' | 'onRegenerate' | 'onRevokeInvitation'
 >;
 
 const STATUS: Record<
@@ -71,20 +71,18 @@ const InvitationActions = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {/* There is no "copy the existing link": only the token's HASH is
+              stored, so the plaintext exists once, at issue time. Copying =
+              minting a fresh link, which retires the previous one. */}
           <DropdownMenuItem
-            onSelect={() => actions.onCopyInvite(row.invitationId)}
+            onSelect={() => actions.onRegenerate(row.invitationId)}
           >
-            Copy link
+            Copy new link
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => actions.onResendInvite(row.invitationId)}
           >
             Resend email
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => actions.onRegenerate(row.invitationId)}
-          >
-            Regenerate link
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setConfirming(true)}>

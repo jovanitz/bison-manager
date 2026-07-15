@@ -1,6 +1,6 @@
 import type { AccessBlockStore } from '@acme/application';
-import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
-import type { AccessStoreState } from './in-memory-access-seed';
+import { appendInMemoryAuditRecord } from './audit-trail';
+import type { AccessStoreState } from './access-seed';
 
 /** In-memory soft-block store, sharing the store state (same rules as Postgres). */
 export const makeInMemoryBlockStore = (

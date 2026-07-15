@@ -33,7 +33,11 @@ const invitationStatus = (
 
 const toStaffRow = (s: StaffIn): StaffRow => ({
   accountId: s.accountId,
+  userId: s.userId,
   isSelf: s.isSelf,
+  blocked: s.blocked,
+  disabled: s.disabled,
+  isRoot: s.isRoot,
   ...(s.email ? { email: s.email } : {}),
   ...(s.displayName ? { displayName: s.displayName } : {}),
 });
@@ -41,11 +45,15 @@ const toStaffRow = (s: StaffIn): StaffRow => ({
 const toCustomerRow = (c: CustomerIn): CustomerRow => ({
   accountId: c.accountId,
   displayName: c.displayName,
+  blocked: c.blocked,
+  disabled: c.disabled,
+  memberCount: c.memberCount,
   dormant: c.coverage?.dormant ?? false,
   // No per-charge count in coverage yet: any outstanding balance = "1 overdue".
   overduePayments: c.coverage && c.coverage.balanceMinor > 0 ? 1 : 0,
   ...(c.email ? { email: c.email } : {}),
   ...(c.coverage ? { phase: c.coverage.phase } : {}),
+  ...(c.coverage?.plan ? { plan: c.coverage.plan } : {}),
 });
 
 const toInvitationRow = (i: InviteIn, now: string): InvitationRow => ({

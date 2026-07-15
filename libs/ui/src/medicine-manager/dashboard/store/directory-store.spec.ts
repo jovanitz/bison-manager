@@ -41,6 +41,8 @@ const makeDeps = (over: Record<string, unknown> = {}) =>
       listPending: async () => ok([]),
       invite: async () => ok({ invitationId: 'i', token: 'tok' }),
       regenerate: async () => ok({ token: 'rot' }),
+      revoke: async () => ok(undefined),
+      resend: async () => ok(undefined),
     },
     billing: { coverageFor: async () => coverage },
     block: {
@@ -88,9 +90,30 @@ describe('createDirectoryStore', () => {
     expect(store.getState().vm).not.toBeNull();
   });
 
-  it('invite returns the fresh activation token', async () => {
+  it('invite returns the fresh activation token, discriminated from failure', async () => {
     const store = createDirectoryStore(makeDeps());
-    const token = await store.getState().invite('new@x.mx');
-    expect(token).toBe('tok');
+    const result = await store.getState().invite('new@x.mx');
+    // Discriminated on purpose: a bare string could not tell a token from an
+    // error message, and the caller would put the error on the clipboard.
+    expect(result).toEqual({ ok: true, token: 'tok' });
+  });
+
+  it('revoke withdraws the invitation and reloads the list', async () => {
+    const revoke = vi.fn(async () => ok(undefined));
+    const store = createDirectoryStore(
+      makeDeps({
+        invitations: {
+          listPending: async () => ok([]),
+          invite: async () => ok({ invitationId: 'i', token: 'tok' }),
+          regenerate: async () => ok({ token: 'rot' }),
+          revoke,
+          resend: async () => ok(undefined),
+        },
+      }),
+    );
+    await store.getState().revoke('inv-1');
+    expect(revoke).toHaveBeenCalledWith('inv-1');
+    // Reloaded: the withdrawn row must leave the list without a manual refresh.
+    expect(store.getState().vm).not.toBeNull();
   });
 });

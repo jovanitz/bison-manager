@@ -168,6 +168,8 @@ generated — they are behavior, not documentation:
 | `members.invite` | `members.invite` | Invite an email into an existing account with explicit permissions and/or roles; the invited identity joins on its first login (7-day expiry). |
 | `invitations.pending` | `staff.read` | List unexpired, unactivated invitations — the dashboard pending list. Never returns tokens (only the hash is stored); regenerate for a link. |
 | `invitations.regenerate` | `members.invite` | Rotate a pending invitation’s one-time link (new token + expiry); returns the fresh token once, like creation. |
+| `invitations.revoke` | `members.invite` | Withdraw a pending invitation before it is accepted — the undo of an invite. Its link stops activating; 404 if nothing pending matched. |
+| `invitations.resend` | `members.invite` | Email the invitee a fresh activation link. Resending necessarily ROTATES the token (only its hash is stored), so the previous link dies. |
 | `memberships.mine` | — (any authenticated actor) | The caller's own organizations — feeds the organization switcher. |
 | `session.switch-account` | — (any authenticated actor) | Re-bind the current session to ANOTHER of your own memberships; expiry is recomputed under the target account's policy. |
 | `org.summary` | `customer.search` | Read a customer org's admin metadata (name, status, created). Same permission as the customer directory (customer.search) — no grant, administrative, never impersonation. |
@@ -217,6 +219,7 @@ re-authorizes itself with the concrete resource in hand.
 | `grant.expired` | An expired grant was recorded (lazy or pg_cron) |
 | `invitation.created` | An email was invited into an account (with which permissions, by whom) |
 | `invitation.accepted` | The invited identity logged in and joined the account |
+| `invitation.revoked` | Staff withdrew a pending invitation before acceptance (its link stops activating) |
 | `member.removed` | A membership was removed from its account, by whom (sessions included) |
 | `session.switched` | A user re-bound their session to another of their own memberships |
 | `settings.updated` | The session policy was reconfigured (records before and after) |

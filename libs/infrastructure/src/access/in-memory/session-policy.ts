@@ -7,8 +7,8 @@ import {
   accessSessionExpiryFrom,
 } from '@acme/domain';
 import type { AccessSessionPolicies, AccountKind } from '@acme/domain';
-import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
-import type { AccessStoreState } from './in-memory-access-seed';
+import { appendInMemoryAuditRecord } from './audit-trail';
+import type { AccessStoreState } from './access-seed';
 
 /**
  * In-memory session-policy store + activity recorder, sharing the store

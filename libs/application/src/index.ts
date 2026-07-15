@@ -2,6 +2,7 @@
 export * from './ports/event-publisher';
 export * from './ports/auth';
 export * from './ports/api';
+export * from './ports/notifications';
 export * from './ports/sync';
 export * from './ports/list-options';
 
@@ -43,6 +44,7 @@ export * from './identity/create-organization';
 export * from './access-invitations/ports';
 export * from './access-invitations/errors';
 export * from './access-invitations/use-cases';
+export * from './access-invitations/pending/resend';
 
 // Access members: managing the memberships of one account (organization)
 export * from './access-members/ports';

@@ -1,6 +1,7 @@
 import type { Result, TaggedError } from '@acme/shared';
 import type {
   AccessInvitationCreated,
+  AccessInvitationRevoked,
   AccessPermission,
   AccountId,
   AccountKind,
@@ -94,10 +95,25 @@ export type AccessInvitationStore = {
     invitationId: InvitationId,
     occurredAt: string,
   ) => Promise<void>;
-  /** Every unexpired, unaccepted invitation — the dashboard's pending list. */
+  /** Every unexpired, unaccepted, unrevoked invitation — the dashboard's list. */
   readonly listPending: (
     now: string,
   ) => Promise<ReadonlyArray<PendingInvitationSummary>>;
+  /** The still-pending invitation with this id — the revoke flow's lookup. */
+  readonly findPendingById: (
+    invitationId: InvitationId,
+    now: string,
+  ) => Promise<PendingInvitationSummary | null>;
+  /**
+   * Withdraws a pending invitation: marks it revoked AND appends
+   * `invitation.revoked` in ONE transaction, so an unaudited revoke is
+   * unrepresentable. Its token stops activating. Returns false when nothing
+   * pending matched (unknown / already accepted / already revoked).
+   */
+  readonly revokeInvitation: (
+    invitationId: InvitationId,
+    event: AccessInvitationRevoked,
+  ) => Promise<boolean>;
   /**
    * Rotate a pending invitation's token (new hash + expiry), so the inviter can
    * re-issue a fresh link. Returns false if no pending invitation matched.

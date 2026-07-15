@@ -17,6 +17,13 @@ export const identityAlreadyExists = defineError('app/identity-already-exists');
 export const identityProvisionFailed = defineError(
   'app/identity-provision-failed',
 );
+/**
+ * No PENDING invitation with that id — unknown, already accepted, already
+ * revoked, or expired. Staff-facing (they are looking at a list they own), so
+ * unlike `invitation-token-invalid` there is nothing to hide here. `-not-found`
+ * maps to 404 at the API boundary.
+ */
+export const invitationNotFound = defineError('app/invitation-not-found');
 
 export type AccessInvitationUseCaseError =
   | AccessAdminUseCaseError

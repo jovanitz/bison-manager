@@ -12,8 +12,8 @@ import type {
   MembershipId,
   SessionId,
 } from '@acme/domain';
-import { appendInMemoryAuditRecord } from '../in-memory-audit-trail';
-import type { AccessStoreState } from '../in-memory-access-seed';
+import { appendInMemoryAuditRecord } from '../in-memory/audit-trail';
+import type { AccessStoreState } from '../in-memory/access-seed';
 import {
   assignMembershipRoles,
   hasOtherAdmin,

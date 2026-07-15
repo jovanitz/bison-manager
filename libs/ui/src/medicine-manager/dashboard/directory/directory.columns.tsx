@@ -6,6 +6,12 @@ import { Badge } from '../../../design-system/badge/badge';
 /** Local row types — decoupled from application DTOs (the container maps to these). */
 export type StaffRow = {
   readonly accountId: string;
+  /**
+   * The IDENTITY behind the account. Identity-scoped actions (block/unblock)
+   * MUST key off this — `accountId` is a different id space and passing it
+   * would moderate the wrong subject.
+   */
+  readonly userId: string;
   readonly email?: string;
   readonly displayName?: string;
   /** When the staff member was last seen — recency for "inactive" triage. */
@@ -71,7 +77,6 @@ export type DirectoryActions = {
   /** Open a staff member's access detail (permissions, roles, sessions). */
   readonly onOpenStaff: (accountId: string) => void;
   /** Invitation lifecycle. */
-  readonly onCopyInvite: (invitationId: string) => void;
   readonly onResendInvite: (invitationId: string) => void;
   readonly onRevokeInvitation: (invitationId: string) => void;
   /** Orphaned identity (registered, no org). */

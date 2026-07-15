@@ -3,6 +3,7 @@ import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { productionBootErrors } from './boot-safety';
+import { createConsoleNotificationSender } from '@acme/infrastructure';
 import { createApiRuntime } from './composition-root';
 import { seedBillingWorld, seedWorld } from './seed';
 
@@ -36,6 +37,8 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   /** 'true' serves the static test console at GET /dev (local only). */
   DEV_CONSOLE: z.string().optional(),
+  /** Public origin of the APP the invitee opens — used to build activation links. */
+  APP_BASE_URL: z.string().url().optional(),
   /** standard-webhooks secret of the GoTrue password-verification hook. */
   AUTH_HOOK_SECRET: z.string().min(8).optional(),
 });
@@ -96,6 +99,13 @@ const runtime = createApiRuntime({
     ? { supabaseSecretKey: env.data.SUPABASE_SECRET_KEY }
     : {}),
   bootstrapOwnerEmail: env.data.BOOTSTRAP_OWNER_EMAIL ?? null,
+  ...(env.data.APP_BASE_URL ? { appBaseUrl: env.data.APP_BASE_URL } : {}),
+  // No mail provider adapter exists yet. In dev we print the message (link
+  // included) so the invitation arc is exercisable; anywhere else the
+  // composition root's fail-closed sender refuses instead of pretending.
+  ...(process.env['NODE_ENV'] === 'production'
+    ? {}
+    : { notifications: createConsoleNotificationSender() }),
   ...(env.data.AUTH_HOOK_SECRET
     ? { authHookSecret: env.data.AUTH_HOOK_SECRET }
     : {}),

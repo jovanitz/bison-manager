@@ -99,6 +99,8 @@ describe('the rpc pipeline', () => {
       'impersonation.start',
       'invitations.pending',
       'invitations.regenerate',
+      'invitations.resend',
+      'invitations.revoke',
       'members.block',
       'members.invite',
       'members.list',

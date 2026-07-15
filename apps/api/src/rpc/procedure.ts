@@ -61,7 +61,7 @@ export const defineApiProcedure = <Schema extends z.ZodTypeAny>(procedure: {
     }),
 });
 
-export type ApiErrorStatus = 400 | 401 | 402 | 403 | 404 | 409;
+export type ApiErrorStatus = 400 | 401 | 402 | 403 | 404 | 409 | 502;
 
 /**
  * Exact-tag mappings that beat the family rules below. Billing-phase denials
@@ -78,6 +78,10 @@ const EXACT_TAG_STATUS: Readonly<Record<string, ApiErrorStatus>> = {
   'app/feature-not-in-plan': 402,
   'app/reason-required': 400,
   'app/plan-seed-missing': 404,
+  // An email provider outage is not a state conflict — it is an UPSTREAM
+  // failure. 502 says "our dependency broke", so the client can offer a retry
+  // instead of showing the user a nonsensical 409.
+  'app/notification-failed': 502,
 };
 
 /**
@@ -85,6 +89,7 @@ const EXACT_TAG_STATUS: Readonly<Record<string, ApiErrorStatus>> = {
  * - exact mappings above (403 authorization, 401 dead session, 402 billing)
  * - `*-not-found` → 404
  * - `domain/*` → 400 (input that passed zod but violated a domain rule)
+ * - upstream provider failures (email) → 502
  * - anything else → 409: expected state conflicts (already-disabled,
  *   plan-key-taken, plan-concurrently-modified, plan-limit-exceeded,
  *   plan-retired, and default-plan-missing — an operator-config failure kept

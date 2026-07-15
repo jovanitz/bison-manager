@@ -81,6 +81,8 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
     'An email was invited into an account (with which permissions, by whom)',
   'invitation.accepted':
     'The invited identity logged in and joined the account',
+  'invitation.revoked':
+    'Staff withdrew a pending invitation before acceptance (its link stops activating)',
   'member.removed':
     'A membership was removed from its account, by whom (sessions included)',
   'session.switched':

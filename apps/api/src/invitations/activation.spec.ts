@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { callRpc, testRuntime } from './testing/rpc-harness';
+import { callRpc, testRuntime } from '../testing/rpc-harness';
 
 /**
  * The invitation → activation arc through the real HTTP app: an owner issues an

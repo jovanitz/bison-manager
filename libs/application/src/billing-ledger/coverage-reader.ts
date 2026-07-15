@@ -5,16 +5,25 @@ import type {
   CoverageDto,
   CoverageReader,
 } from '../flows/dashboard/directory/directory';
+import type { PlanCatalogStore } from '../billing-plans/ports';
 import type { SubscriptionStore } from '../billing-subscriptions/ports';
 import type { BillingLedgerPolicy, ChargeStore } from './ports';
 
-/** Flatten the domain `Coverage` read model to the UI-facing `CoverageDto`. */
-export const coverageToDto = (coverage: Coverage): CoverageDto => ({
+/**
+ * Flatten the domain `Coverage` read model to the UI-facing `CoverageDto`. The
+ * plan rides alongside (it is not billing math, so the domain does not carry
+ * it) — see `AccountCoverage`.
+ */
+export const coverageToDto = (
+  coverage: Coverage,
+  planName: string | null,
+): CoverageDto => ({
   phase: coverage.phase,
   dormant: coverage.dormant,
   balanceMinor: coverage.balance.minor,
   currency: coverage.balance.currency,
   paidThroughAt: coverage.paidThroughAt,
+  plan: planName,
 });
 
 /**
@@ -28,6 +37,7 @@ export const coverageToDto = (coverage: Coverage): CoverageDto => ({
 export type CoverageReaderDeps = {
   readonly subscriptions: Pick<SubscriptionStore, 'findByAccount'>;
   readonly charges: Pick<ChargeStore, 'listByAccount'>;
+  readonly plans: Pick<PlanCatalogStore, 'findPlanById'>;
   readonly clock: Clock;
   readonly policy: Pick<BillingLedgerPolicy, 'currency' | 'dormantDays'>;
 };
@@ -39,6 +49,7 @@ export const makeCoverageReader = (
     const sub = await deps.subscriptions.findByAccount(accountId);
     if (!sub) return null;
     const charges = await deps.charges.listByAccount(accountId);
+    const plan = await deps.plans.findPlanById(sub.planId);
     return coverageToDto(
       deriveCoverage({
         subscription: sub,
@@ -47,6 +58,7 @@ export const makeCoverageReader = (
         now: deps.clock.now().toISOString(),
         policy: { dormantDays: deps.policy.dormantDays },
       }),
+      plan?.displayName ?? null,
     );
   },
 });

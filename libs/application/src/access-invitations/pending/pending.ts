@@ -7,14 +7,14 @@ import {
 } from '@acme/shared';
 import { ACCESS_INVITATION_TTL_DAYS } from '@acme/domain';
 import type { AccessActor, InvitationId } from '@acme/domain';
-import { authorizeAccessAction } from '../access/authorize';
-import { invitationTokenInvalid } from './errors';
-import type { AccessInvitationUseCaseError } from './errors';
+import { authorizeAccessAction } from '../../access/authorize';
+import { invitationNotFound, invitationTokenInvalid } from '../errors';
+import type { AccessInvitationUseCaseError } from '../errors';
 import type {
   AccessInvitationStore,
   PendingInvitationSummary,
   SecretTokenService,
-} from './ports';
+} from '../ports';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -22,11 +22,59 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 type PendingDeps = {
   readonly invitations: Pick<
     AccessInvitationStore,
-    'listPending' | 'regenerateToken'
+    'listPending' | 'regenerateToken' | 'findPendingById' | 'revokeInvitation'
   >;
   readonly tokens: Pick<SecretTokenService, 'issue'>;
   readonly clock: Clock;
 };
+
+/**
+ * Withdraw a pending invitation before it is accepted — the undo of an invite.
+ * Gated by `members.invite` (the permission that could create it) scoped to the
+ * invitation's OWN account, so an org admin can only revoke invitations into
+ * their org. The store writes the revocation and its audit event together.
+ */
+export const makeRevokeInvitation =
+  (deps: PendingDeps) =>
+  async (input: {
+    readonly actor: AccessActor;
+    readonly invitationId: string;
+  }): Promise<
+    Result<
+      void,
+      AccessInvitationUseCaseError | TaggedError<'app/invitation-not-found'>
+    >
+  > => {
+    const now = deps.clock.now().toISOString();
+    const invitationId = input.invitationId as InvitationId;
+
+    const pending = await deps.invitations.findPendingById(invitationId, now);
+    if (!pending) {
+      return err(invitationNotFound('No pending invitation to revoke.'));
+    }
+
+    const authorized = authorizeAccessAction({
+      actor: input.actor,
+      action: 'members.invite',
+      resource: { accountId: pending.accountId },
+      now,
+    });
+    if (!authorized.ok) return err(authorized.error);
+
+    const revoked = await deps.invitations.revokeInvitation(invitationId, {
+      type: 'invitation.revoked',
+      invitationId,
+      accountId: pending.accountId,
+      email: pending.email,
+      actorMembershipId: input.actor.membership.id,
+      occurredAt: now,
+    });
+    // Lost a race with an acceptance/another revoke between lookup and write.
+    if (!revoked) {
+      return err(invitationNotFound('No pending invitation to revoke.'));
+    }
+    return ok(undefined);
+  };
 
 /** The dashboard's pending-invitations list. Platform read, gated by staff.read. */
 export const makeListPendingInvitations =

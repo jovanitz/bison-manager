@@ -25,7 +25,9 @@ export const createCoverageProcedures = (
     input: z.object({ accountId: z.string().min(1) }).strict(),
     handler: async ({ actor, input }) => {
       const result = await getCoverage({ actor, accountId: input.accountId });
-      return result.ok ? ok(coverageToDto(result.value)) : result;
+      if (!result.ok) return result;
+      const { coverage, planName } = result.value;
+      return ok(coverageToDto(coverage, planName));
     },
   }),
 ];

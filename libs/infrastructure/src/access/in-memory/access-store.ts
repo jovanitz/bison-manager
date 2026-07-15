@@ -26,24 +26,28 @@ import type {
 import {
   appendInMemoryAuditRecord,
   makeInMemoryAuditTrail,
-} from './in-memory-audit-trail';
-import { makeInMemoryAdminRepository } from './admin/in-memory-admin-repository';
-import { makeInMemoryMemberDirectory } from './admin/in-memory-member-directory';
-import { makeInMemoryBlockStore } from './in-memory-block-store';
-import { createInMemoryRoleStore } from './role/in-memory-role-store';
-import { createInMemoryRoleTemplateStore } from './role/in-memory-role-template-store';
-import { makeInMemoryIdentityOnboarding } from './in-memory-identity-onboarding';
-import type { InMemoryIdentityBillingSink } from './in-memory-identity-onboarding';
-import { makeInMemoryInvitationStore } from './in-memory-invitations';
+} from './audit-trail';
+import {
+  makeInMemoryCustomerDirectory,
+  makeInMemoryStaffDirectory,
+} from './directory';
+import { makeInMemoryAdminRepository } from '../admin/in-memory-admin-repository';
+import { makeInMemoryMemberDirectory } from '../admin/in-memory-member-directory';
+import { makeInMemoryBlockStore } from './block-store';
+import { createInMemoryRoleStore } from '../role/in-memory-role-store';
+import { createInMemoryRoleTemplateStore } from '../role/in-memory-role-template-store';
+import { makeInMemoryIdentityOnboarding } from './identity/onboarding';
+import type { InMemoryIdentityBillingSink } from './identity/onboarding';
+import { makeInMemoryInvitationStore } from './identity/invitations';
 import {
   makeInMemorySessionActivityRecorder,
   makeInMemorySessionPolicyStore,
-} from './in-memory-session-policy';
-import { toAccessStoreState } from './in-memory-access-seed';
+} from './session-policy';
+import { toAccessStoreState } from './access-seed';
 import type {
   AccessStoreState,
   InMemoryAccessSeed,
-} from './in-memory-access-seed';
+} from './access-seed';
 
 /**
  * In-memory implementation of every access port — the reference the Postgres
@@ -125,24 +129,6 @@ const makeGrantRepository = (
   };
 };
 
-const makeCustomerDirectory = (state: AccessStoreState): CustomerDirectory => ({
-  search: async (query) => {
-    const needle = query.toLowerCase();
-    return [...state.customers.values()]
-      .filter(
-        (c) =>
-          c.displayName.toLowerCase().includes(needle) ||
-          (c.email ?? '').toLowerCase().includes(needle),
-      )
-      .map(({ accountId, displayName, email }) => ({
-        accountId,
-        displayName,
-        email,
-      }));
-  },
-  read: async (accountId) => state.customers.get(accountId) ?? null,
-});
-
 export const createInMemoryAccessStore = (
   seed: InMemoryAccessSeed,
   /**
@@ -167,22 +153,8 @@ export const createInMemoryAccessStore = (
     auditTrail: makeInMemoryAuditTrail(state),
     admin: makeInMemoryAdminRepository(state),
     grants: makeGrantRepository(state),
-    customers: makeCustomerDirectory(state),
-    // Staff = every account that is NOT in the customer directory. In-memory
-    // accounts carry no name/email columns, so both surface as null here; the
-    // Postgres adapter reads the real values.
-    staffDirectory: {
-      listStaff: async () =>
-        [...state.accounts.keys()]
-          .filter((id) => !state.customers.has(id))
-          .map((id) => ({
-            accountId: id as AccountId,
-            email: null,
-            displayName: null,
-          })),
-      // No auth layer in memory, so nothing can be orphaned from it.
-      listOrphanIdentities: async () => [],
-    },
+    customers: makeInMemoryCustomerDirectory(state),
+    staffDirectory: makeInMemoryStaffDirectory(state),
     onboarding: makeInMemoryIdentityOnboarding(state, billing),
     sessionPolicies: makeInMemorySessionPolicyStore(state),
     sessionActivity: makeInMemorySessionActivityRecorder(state),

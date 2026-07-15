@@ -2,7 +2,6 @@ import type { AccessPermission } from './permission';
 import type { AccessSessionPolicies } from './session/session-policy';
 import type {
   AccountId,
-  InvitationId,
   MembershipId,
   RoleId,
   SessionId,
@@ -13,12 +12,23 @@ import type {
   AccessImpersonationEnded,
   AccessImpersonationStarted,
 } from './grant/grant-events';
+import type {
+  AccessInvitationAccepted,
+  AccessInvitationCreated,
+  AccessInvitationRevoked,
+} from './invitation/invitation-events';
 
 export type {
   AccessGrantExpired,
   AccessImpersonationEnded,
   AccessImpersonationStarted,
 } from './grant/grant-events';
+
+export type {
+  AccessInvitationAccepted,
+  AccessInvitationCreated,
+  AccessInvitationRevoked,
+} from './invitation/invitation-events';
 
 /**
  * Audit events — the security-relevant facts the system must never lose.
@@ -93,29 +103,8 @@ export type AccessSessionRevoked = {
   readonly occurredAt: string;
 };
 
-/** An email was invited to join an EXISTING account with given permissions
- * and/or roles (ADR-0011); the membership inherits both on first login. */
-export type AccessInvitationCreated = {
-  readonly type: 'invitation.created';
-  readonly invitationId: InvitationId;
-  readonly accountId: AccountId;
-  readonly email: string;
-  readonly permissions: ReadonlyArray<AccessPermission>;
-  readonly roleIds: ReadonlyArray<RoleId>;
-  readonly actorMembershipId: MembershipId;
-  readonly expiresAt: string;
-  readonly occurredAt: string;
-};
 
-/** The invited email signed in: membership attached to the inviting account. */
-export type AccessInvitationAccepted = {
-  readonly type: 'invitation.accepted';
-  readonly invitationId: InvitationId;
-  readonly accountId: AccountId;
-  readonly membershipId: MembershipId;
-  readonly userId: UserId;
-  readonly occurredAt: string;
-};
+
 
 /** A membership was removed from its account: sessions die with it in the
  * same transaction; the user's OTHER memberships are untouched. */
@@ -197,6 +186,7 @@ export type AccessAuditEvent =
   | AccessGrantExpired
   | AccessInvitationCreated
   | AccessInvitationAccepted
+  | AccessInvitationRevoked
   | AccessMemberRemoved
   | AccessSessionSwitched
   | AccessSettingsUpdated
@@ -221,6 +211,7 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'grant.expired',
   'invitation.created',
   'invitation.accepted',
+  'invitation.revoked',
   'member.removed',
   'session.switched',
   'settings.updated',

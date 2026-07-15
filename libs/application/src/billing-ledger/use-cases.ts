@@ -22,12 +22,23 @@ import { makeGenerateCharges } from './mutations/generate-charges';
  * via the domain; nothing is stored, so the views cannot disagree. Gated by
  * `billing.read` (customer `own` — delegable — and staff `any`).
  */
+/**
+ * Coverage plus the SUBSCRIBED PLAN's display name. The plan is not part of the
+ * domain `Coverage` (which is pure billing math), but every consumer that shows
+ * coverage also shows the plan, and the subscription is already loaded here —
+ * so resolving it once avoids a second round trip per org in the directory.
+ */
+export type AccountCoverage = {
+  readonly coverage: Coverage;
+  readonly planName: string | null;
+};
+
 export const makeGetCoverage =
   (deps: BillingLedgerDeps) =>
   async (input: {
     readonly actor: AccessActor;
     readonly accountId: string;
-  }): Promise<Result<Coverage, BillingLedgerUseCaseError>> => {
+  }): Promise<Result<AccountCoverage, BillingLedgerUseCaseError>> => {
     const accountId = makeAccountId(input.accountId);
     if (!accountId.ok) return err(accountId.error);
     const now = deps.clock.now().toISOString();
@@ -47,6 +58,7 @@ export const makeGetCoverage =
       );
 
     const charges = await deps.charges.listByAccount(accountId.value);
+    const plan = await deps.plans.findPlanById(sub.planId);
     const coverage = deriveCoverage({
       subscription: sub,
       charges,
@@ -54,7 +66,7 @@ export const makeGetCoverage =
       now,
       policy: { dormantDays: deps.policy.dormantDays },
     });
-    return ok(coverage);
+    return ok({ coverage, planName: plan?.displayName ?? null });
   };
 
 export type {

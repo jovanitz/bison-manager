@@ -18,6 +18,7 @@ import { guardGrantedPermissions } from '../access-admin/deps';
 import { accountNotFound } from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import type { RoleStore } from '../access-roles/ports';
+import type { NotificationSender } from '../ports/notifications';
 import { invalidInvitationEmail, invitationAlreadyPending } from './errors';
 import type { AccessInvitationUseCaseError } from './errors';
 import {
@@ -34,7 +35,10 @@ import { makeActivateInvitation } from './activate';
 import {
   makeListPendingInvitations,
   makeRegenerateInvitationLink,
-} from './pending';
+  makeRevokeInvitation,
+} from './pending/pending';
+import { makeResendInvitation } from './pending/resend';
+import type { InvitationLinks } from './pending/resend';
 
 export type AccessInvitationsDeps = {
   readonly invitations: AccessInvitationStore;
@@ -44,6 +48,9 @@ export type AccessInvitationsDeps = {
   readonly provisioner: IdentityProvisioner;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Outbound email (invitation resend today; billing dunning next). */
+  readonly notifications: NotificationSender;
+  readonly links: InvitationLinks;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -166,6 +173,8 @@ export type AccessInvitationsUseCases = {
   readonly regenerateInvitationLink: ReturnType<
     typeof makeRegenerateInvitationLink
   >;
+  readonly revokeInvitation: ReturnType<typeof makeRevokeInvitation>;
+  readonly resendInvitation: ReturnType<typeof makeResendInvitation>;
 };
 
 export const makeAccessInvitationsUseCases = (
@@ -175,4 +184,6 @@ export const makeAccessInvitationsUseCases = (
   activateInvitation: makeActivateInvitation(deps),
   listPendingInvitations: makeListPendingInvitations(deps),
   regenerateInvitationLink: makeRegenerateInvitationLink(deps),
+  revokeInvitation: makeRevokeInvitation(deps),
+  resendInvitation: makeResendInvitation(deps),
 });

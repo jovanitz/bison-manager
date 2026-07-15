@@ -1,5 +1,5 @@
 import { billingStoreContract } from '../../testing/billing/billing-store-contract';
-import { createInMemoryAccessStore } from '../../access/in-memory-access-store';
+import { createInMemoryAccessStore } from '../../access/in-memory/access-store';
 import { createInMemoryBillingStore } from './in-memory-billing-store';
 
 // The in-memory store is the reference implementation of the billing ports;

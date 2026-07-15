@@ -108,7 +108,6 @@ const InvitationsTab = ({
     </div>
     <DataTable
       columns={invitationColumns({
-        onCopyInvite: a.onCopyInvite,
         onResendInvite: a.onResendInvite,
         onRegenerate: a.onRegenerate,
         onRevokeInvitation: a.onRevokeInvitation,

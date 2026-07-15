@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InvitationId, MembershipId } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory/access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   accessContractSeed,

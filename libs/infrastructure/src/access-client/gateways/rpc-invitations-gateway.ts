@@ -56,4 +56,8 @@ export const createRpcInvitationsGateway = (deps: {
       'invitations.regenerate',
       { invitationId },
     ),
+  revoke: (invitationId) =>
+    callProcedure<void>(deps.api, 'invitations.revoke', { invitationId }),
+  resend: (invitationId) =>
+    callProcedure<void>(deps.api, 'invitations.resend', { invitationId }),
 });

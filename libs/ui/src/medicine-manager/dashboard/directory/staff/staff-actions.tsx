@@ -180,7 +180,9 @@ export const StaffActions = ({
   const [pending, setPending] = useState<Pending | null>(null);
   const reason = protectionReason(row);
   const run = () => {
-    if (pending?.kind === 'block') onBlockStaff(row.accountId, pending.next);
+    // Identity-scoped: keyed by userId. `disable`/`demote` below are
+    // ACCOUNT-scoped and correctly keep accountId — they are different id spaces.
+    if (pending?.kind === 'block') onBlockStaff(row.userId, pending.next);
     if (pending?.kind === 'disable')
       onDisableStaff(row.accountId, pending.next);
     if (pending?.kind === 'demote') onDemoteStaff(row.accountId);

@@ -4,7 +4,7 @@ import type {
   AccessAuditTrail,
 } from '@acme/application';
 import type { AccessAuditEvent } from '@acme/domain';
-import type { AccessStoreState } from './in-memory-access-seed';
+import type { AccessStoreState } from './access-seed';
 
 export const appendInMemoryAuditRecord = (
   state: AccessStoreState,

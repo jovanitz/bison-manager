@@ -128,6 +128,8 @@ export type StoredInvitation = {
   tokenHash: string | null;
   /** When a login-time attach bounced off the seat limit (ADR-0016 D1). */
   seatBlockedAt: string | null;
+  /** Withdrawn by staff before acceptance: stops being pending, token dies. */
+  revokedAt: string | null;
 };
 
 export type AccessStoreState = {

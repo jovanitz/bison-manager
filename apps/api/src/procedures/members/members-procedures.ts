@@ -67,6 +67,60 @@ const membershipProcedures = (
   }),
 ];
 
+/** The invitation lifecycle: list, rotate, revoke, resend. */
+const invitationProcedures = (
+  accessInvitations: AccessInvitationsUseCases,
+): ReadonlyArray<ApiProcedure> => [
+  defineApiProcedure({
+    name: 'invitations.pending',
+    summary:
+      'List unexpired, unactivated invitations — the dashboard pending list. ' +
+      'Never returns tokens (only the hash is stored); regenerate for a link.',
+    action: 'staff.read',
+    input: z.object({}).strict(),
+    handler: ({ actor }) => accessInvitations.listPendingInvitations({ actor }),
+  }),
+  defineApiProcedure({
+    name: 'invitations.regenerate',
+    summary:
+      'Rotate a pending invitation’s one-time link (new token + expiry); ' +
+      'returns the fresh token once, like creation.',
+    action: 'members.invite',
+    input: z.object({ invitationId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessInvitations.regenerateInvitationLink({
+        actor,
+        invitationId: input.invitationId,
+      }),
+  }),
+  defineApiProcedure({
+    name: 'invitations.revoke',
+    summary:
+      'Withdraw a pending invitation before it is accepted — the undo of an ' +
+      'invite. Its link stops activating; 404 if nothing pending matched.',
+    action: 'members.invite',
+    input: z.object({ invitationId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessInvitations.revokeInvitation({
+        actor,
+        invitationId: input.invitationId,
+      }),
+  }),
+  defineApiProcedure({
+    name: 'invitations.resend',
+    summary:
+      'Email the invitee a fresh activation link. Resending necessarily ' +
+      'ROTATES the token (only its hash is stored), so the previous link dies.',
+    action: 'members.invite',
+    input: z.object({ invitationId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessInvitations.resendInvitation({
+        actor,
+        invitationId: input.invitationId,
+      }),
+  }),
+];
+
 export const createMembersProcedures = (
   accessInvitations: AccessInvitationsUseCases,
   accessMembers: AccessMembersUseCases,
@@ -92,27 +146,6 @@ export const createMembersProcedures = (
       accessMembers.removeMember({ actor, membershipId: input.membershipId }),
   }),
   membersInvite(accessInvitations),
-  defineApiProcedure({
-    name: 'invitations.pending',
-    summary:
-      'List unexpired, unactivated invitations — the dashboard pending list. ' +
-      'Never returns tokens (only the hash is stored); regenerate for a link.',
-    action: 'staff.read',
-    input: z.object({}).strict(),
-    handler: ({ actor }) => accessInvitations.listPendingInvitations({ actor }),
-  }),
-  defineApiProcedure({
-    name: 'invitations.regenerate',
-    summary:
-      'Rotate a pending invitation’s one-time link (new token + expiry); ' +
-      'returns the fresh token once, like creation.',
-    action: 'members.invite',
-    input: z.object({ invitationId: z.string().min(1) }).strict(),
-    handler: ({ actor, input }) =>
-      accessInvitations.regenerateInvitationLink({
-        actor,
-        invitationId: input.invitationId,
-      }),
-  }),
+  ...invitationProcedures(accessInvitations),
   ...membershipProcedures(accessMembers),
 ];

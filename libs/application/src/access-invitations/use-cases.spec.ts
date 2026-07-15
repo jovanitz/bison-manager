@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import type {
   AccessInvitationCreated,
+  AccessInvitationRevoked,
   AccountKind,
   Role,
   RoleId,
@@ -10,6 +11,7 @@ import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
 import type {
   IdentityProvisioner,
   PendingAccessInvitation,
+  PendingInvitationSummary,
   PendingInvitationByToken,
 } from './ports';
 import { makeAccessInvitationsUseCases } from './use-cases';
@@ -27,12 +29,14 @@ const makeWorld = (input?: {
   byToken?: PendingInvitationByToken | null;
   provisioner?: IdentityProvisioner;
   roles?: ReadonlyArray<Role>;
+  pendingById?: PendingInvitationSummary | null;
 }) => {
   const created: Array<{
     invitation: { email: string; expiresAt: string; tokenHash: string };
     event: AccessInvitationCreated;
   }> = [];
   const consumed: string[] = [];
+  const revoked: Array<{ id: string; event: AccessInvitationRevoked }> = [];
   const useCases = makeAccessInvitationsUseCases({
     invitations: {
       createInvitation: async (invitation, event) => {
@@ -45,6 +49,12 @@ const makeWorld = (input?: {
       },
       listPending: async () => [],
       regenerateToken: async () => true,
+      findPendingById: async () => input?.pendingById ?? null,
+      revokeInvitation: async (id, event) => {
+        if (!(input?.pendingById ?? null)) return false;
+        revoked.push({ id, event });
+        return true;
+      },
     },
     accounts: {
       findAccount: async (id) =>
@@ -64,7 +74,7 @@ const makeWorld = (input?: {
     clock: fixedClock(new Date(TEST_ACCESS_NOW)),
     ids: sequentialIdGenerator('inv'),
   });
-  return { useCases, created, consumed };
+  return { useCases, created, consumed, revoked };
 };
 
 const OWN_READ = [{ action: 'customer.read', scope: 'own' }];

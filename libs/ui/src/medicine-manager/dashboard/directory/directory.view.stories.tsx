@@ -32,7 +32,6 @@ const inShell = (vm: DirectoryVM) =>
           onRegenerate={() => undefined}
           onOpenOrg={() => undefined}
           onOpenStaff={() => undefined}
-          onCopyInvite={() => undefined}
           onResendInvite={() => undefined}
           onRevokeInvitation={() => undefined}
           onInviteOrphan={() => undefined}
@@ -97,8 +96,7 @@ export const OrgDrilldown: Story = {
             onRegenerate={() => undefined}
             onOpenOrg={setOrgId}
             onOpenStaff={() => undefined}
-            onCopyInvite={() => undefined}
-            onResendInvite={() => undefined}
+              onResendInvite={() => undefined}
             onRevokeInvitation={() => undefined}
             onInviteOrphan={() => undefined}
             onDeleteOrphan={() => undefined}

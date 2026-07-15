@@ -10,9 +10,9 @@ import type {
   MembershipId,
   SessionId,
 } from '@acme/domain';
-import { appendInMemoryAuditRecord } from './in-memory-audit-trail';
-import { upsertPersonalRole } from './admin/in-memory-membership-perms';
-import type { AccessStoreState } from './in-memory-access-seed';
+import { appendInMemoryAuditRecord } from '../audit-trail';
+import { upsertPersonalRole } from '../../admin/in-memory-membership-perms';
+import type { AccessStoreState } from '../access-seed';
 
 /**
  * The billing seam of the onboarding (ADR-0016 Decision 2): org birth writes

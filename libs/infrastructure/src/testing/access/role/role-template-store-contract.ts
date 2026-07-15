@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeAccessPermission } from '@acme/domain';
 import type { AccessPermission, RoleTemplate } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory/access-seed';
 import {
   accessContractSeed,
   makeAccessContractIds,

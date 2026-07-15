@@ -20,6 +20,8 @@ export type CoverageDto = {
   readonly balanceMinor: number;
   readonly currency: string;
   readonly paidThroughAt: string | null;
+  /** Display name of the subscribed plan (ADR-0016 catalog). */
+  readonly plan: string | null;
 };
 
 export type CoverageReader = {
@@ -28,16 +30,25 @@ export type CoverageReader = {
 
 export type DirectoryStaff = {
   readonly accountId: string;
+  /** The IDENTITY — identity-scoped actions key off this, never `accountId`. */
+  readonly userId: string;
   readonly email: string | null;
   readonly displayName: string | null;
   /** The signed-in staff — surfaces self-moderation guards in the UI. */
   readonly isSelf: boolean;
+  readonly blocked: boolean;
+  readonly disabled: boolean;
+  /** Root membership (ADR-0011): protected from demote/block/disable. */
+  readonly isRoot: boolean;
 };
 
 export type DirectoryCustomer = {
   readonly accountId: string;
   readonly displayName: string;
   readonly email: string | null;
+  readonly blocked: boolean;
+  readonly disabled: boolean;
+  readonly memberCount: number;
   readonly coverage: CoverageDto | null;
 };
 
@@ -83,15 +94,22 @@ export const loadDirectory = async (
       accountId: c.accountId,
       displayName: c.displayName,
       email: c.email,
+      blocked: c.blocked,
+      disabled: c.disabled,
+      memberCount: c.memberCount,
       coverage: await deps.billing.coverageFor(c.accountId),
     })),
   );
   return ok({
     staff: staff.value.map((s) => ({
       accountId: s.accountId,
+      userId: s.userId,
       email: s.email,
       displayName: s.displayName,
       isSelf: s.accountId === selfAccountId,
+      blocked: s.blocked,
+      disabled: s.disabled,
+      isRoot: s.isRoot,
     })),
     customers: enrichedCustomers,
     orphans: orphans.value,

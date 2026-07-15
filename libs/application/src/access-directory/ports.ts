@@ -13,8 +13,21 @@ import type { AccountId } from '@acme/domain';
  */
 export type StaffAccountSummary = {
   readonly accountId: AccountId;
+  /**
+   * The IDENTITY behind the staff account. Identity-scoped actions
+   * (`identity.block`/`identity.unblock`) key off this, NEVER `accountId` —
+   * they are different id spaces and passing one for the other blocks the
+   * wrong subject.
+   */
+  readonly userId: string;
   readonly email: string | null;
   readonly displayName: string | null;
+  /** Soft-blocked identity: can sign in, cannot operate. */
+  readonly blocked: boolean;
+  /** Hard-disabled account: fails at actor resolution (401). */
+  readonly disabled: boolean;
+  /** Root membership (ADR-0011): protected — never demote, block or disable. */
+  readonly isRoot: boolean;
 };
 
 /**
@@ -29,6 +42,25 @@ export type OrphanIdentitySummary = {
   readonly createdAt: string;
 };
 
+/**
+ * One customer ORG as the admin directory lists it. Deliberately NOT
+ * `CustomerAccountSummary` (impersonation's search result): this is the
+ * administrative row, so it carries the moderation state and the roster size
+ * the directory renders. The billing plan is NOT here — it arrives per-org on
+ * the coverage read (ADR-0018), which already resolves the plan.
+ */
+export type CustomerDirectoryEntry = {
+  readonly accountId: AccountId;
+  readonly displayName: string;
+  readonly email: string | null;
+  /** Soft-blocked org: members can sign in, cannot operate. */
+  readonly blocked: boolean;
+  /** Hard-disabled account. */
+  readonly disabled: boolean;
+  /** Members in the org — the roster size, not a permission concept. */
+  readonly memberCount: number;
+};
+
 export type StaffDirectory = {
   /** Every staff account, in a stable order. */
   readonly listStaff: () => Promise<ReadonlyArray<StaffAccountSummary>>;
@@ -39,5 +71,13 @@ export type StaffDirectory = {
    */
   readonly listOrphanIdentities: () => Promise<
     ReadonlyArray<OrphanIdentitySummary>
+  >;
+  /**
+   * Every customer org with its administrative state. Distinct from
+   * `CustomerDirectory.search('')`, which answers support's impersonation
+   * lookup and must stay lean.
+   */
+  readonly listCustomerAccounts: () => Promise<
+    ReadonlyArray<CustomerDirectoryEntry>
   >;
 };

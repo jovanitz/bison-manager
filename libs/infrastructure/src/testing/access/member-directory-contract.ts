@@ -6,7 +6,7 @@ import type {
   MembershipId,
   SessionId,
 } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../access/in-memory-access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory/access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   ACCESS_CONTRACT_SESSION_EXPIRES as EXPIRES,

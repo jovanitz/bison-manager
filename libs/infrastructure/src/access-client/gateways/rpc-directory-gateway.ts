@@ -2,7 +2,7 @@ import { type Result, err, ok } from '@acme/shared';
 import { accessDenied, accessGatewayError } from '@acme/application';
 import type {
   ApiClient,
-  CustomerAccountSummary,
+  CustomerDirectoryEntry,
   DirectoryGateway,
   DirectoryGatewayError,
   OrphanIdentitySummary,
@@ -46,7 +46,7 @@ export const createRpcDirectoryGateway = (deps: {
       {},
     ),
   listCustomers: () =>
-    callProcedure<ReadonlyArray<CustomerAccountSummary>>(
+    callProcedure<ReadonlyArray<CustomerDirectoryEntry>>(
       deps.api,
       'customers.list',
       {},

@@ -34,10 +34,26 @@ export type DirectoryStoreState = {
     action: 'disable' | 'enable' | 'promote',
     accountId: string,
   ) => Promise<void>;
-  /** Returns the fresh activation token, or the error message. */
-  readonly invite: (email: string) => Promise<string>;
-  readonly regenerate: (invitationId: string) => Promise<string>;
+  /**
+   * The one-time activation token, or why it failed. Discriminated on purpose:
+   * a bare `string` cannot tell a token from an error message, and the caller
+   * would happily put an error into someone's clipboard.
+   */
+  readonly invite: (email: string) => Promise<TokenResult>;
+  readonly regenerate: (invitationId: string) => Promise<TokenResult>;
+  /** Withdraw a pending invitation; its link stops activating. */
+  readonly revoke: (invitationId: string) => Promise<void>;
+  /**
+   * Email the invitee a fresh link. Returns the failure message (there is no
+   * token to hand back — the point is that the MAIL carries it), so the caller
+   * can tell "sent" from "the mail provider is down" instead of guessing.
+   */
+  readonly resend: (invitationId: string) => Promise<string | null>;
 };
+
+export type TokenResult =
+  | { readonly ok: true; readonly token: string }
+  | { readonly ok: false; readonly message: string };
 
 export type DirectoryStoreDeps = {
   readonly access: AccessClientUseCases;
@@ -72,13 +88,29 @@ export const createDirectoryStore = (deps: DirectoryStoreDeps) =>
       },
       invite: async (email) => {
         const result = await inviteStaffToOwnAccount(deps, { email });
-        if (!result.ok) return result.error.message;
+        if (!result.ok) return { ok: false, message: result.error.message };
         await reload();
-        return result.value.token;
+        return { ok: true, token: result.value.token };
       },
+      // Rotating changes the expiry, so the list must reload — otherwise the
+      // row keeps showing the OLD expiry after a successful regenerate.
       regenerate: async (invitationId) => {
         const result = await deps.invitations.regenerate(invitationId);
-        return result.ok ? result.value.token : result.error.message;
+        if (!result.ok) return { ok: false, message: result.error.message };
+        await reload();
+        return { ok: true, token: result.value.token };
+      },
+      revoke: async (invitationId) => {
+        const result = await deps.invitations.revoke(invitationId);
+        if (result.ok) await reload();
+        else set({ error: result.error.message });
+      },
+      // The resend ROTATES the token server-side (new expiry), so reload.
+      resend: async (invitationId) => {
+        const result = await deps.invitations.resend(invitationId);
+        if (!result.ok) return result.error.message;
+        await reload();
+        return null;
       },
     };
   });

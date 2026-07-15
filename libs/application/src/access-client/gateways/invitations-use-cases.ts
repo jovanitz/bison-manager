@@ -33,6 +33,12 @@ export type InvitationsUseCases = {
   readonly regenerate: (
     invitationId: string,
   ) => Promise<Result<{ readonly token: string }, DirectoryGatewayError>>;
+  readonly revoke: (
+    invitationId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  readonly resend: (
+    invitationId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
 };
 
 export const makeInvitationsUseCases = (deps: {
@@ -43,4 +49,6 @@ export const makeInvitationsUseCases = (deps: {
   activate: (input) => deps.activation.activate(input),
   listPending: () => deps.invitations.listPending(),
   regenerate: (invitationId) => deps.invitations.regenerate(invitationId),
+  revoke: (invitationId) => deps.invitations.revoke(invitationId),
+  resend: (invitationId) => deps.invitations.resend(invitationId),
 });
