@@ -4,10 +4,6 @@ import type {
   AdminMembershipSnapshot,
 } from '@acme/application';
 import type {
-  AccessAccountDisabled,
-  AccessAccountEnabled,
-  AccessAccountPromoted,
-  AccessSessionPolicy,
   AccountId,
   AccountKind,
   AccountStatus,
@@ -22,6 +18,11 @@ import {
 } from './admin-sessions';
 import { assignWouldOrphanLocked, hasOtherAdminLocked } from './anti-orphan';
 import { oneOffFromRow, upsertPersonalRole } from './personal-role';
+import {
+  demoteAccountToCustomer,
+  promoteAccountToStaff,
+  setAccountStatus,
+} from './account-lifecycle';
 import { insertAuditEvent, isUuid } from '../rows';
 
 /**
@@ -80,54 +81,6 @@ const findMembership = async (
   };
 };
 
-const promoteAccountToStaff = async (
-  sql: Sql,
-  id: AccountId,
-  event: AccessAccountPromoted,
-  staffPolicy: AccessSessionPolicy,
-): Promise<void> => {
-  await sql.begin(async (tx) => {
-    await tx`
-      update public.accounts set kind = 'staff' where id = ${id}
-    `;
-    await tx`
-      update public.sessions s
-      set expires_at = least(
-        s.expires_at,
-        coalesce(s.last_seen_at, s.created_at) +
-          ${staffPolicy.idleTtlMs}::bigint * interval '1 millisecond',
-        s.created_at +
-          ${staffPolicy.maxLifetimeMs}::bigint * interval '1 millisecond'
-      )
-      from public.memberships m
-      where m.id = s.membership_id
-        and m.account_id = ${id}
-        and s.status = 'active'
-    `;
-    await insertAuditEvent(tx, event);
-  });
-};
-
-/** disable/enable share one audited UPDATE; only the patch differs. */
-const setAccountStatus = async (
-  sql: Sql,
-  id: AccountId,
-  patch: {
-    readonly status: 'active' | 'disabled';
-    readonly disabledAt: string | null;
-  },
-  event: AccessAccountDisabled | AccessAccountEnabled,
-): Promise<void> => {
-  await sql.begin(async (tx) => {
-    await tx`
-      update public.accounts
-      set status = ${patch.status}, disabled_at = ${patch.disabledAt}
-      where id = ${id}
-    `;
-    await insertAuditEvent(tx, event);
-  });
-};
-
 export const createPostgresAdminRepository = (
   sql: Sql,
 ): AccessAdminRepository => ({
@@ -149,6 +102,9 @@ export const createPostgresAdminRepository = (
 
   promoteAccountToStaff: (id, event, staffPolicy) =>
     promoteAccountToStaff(sql, id, event, staffPolicy),
+
+  demoteAccountToCustomer: (id, event, customerPolicy) =>
+    demoteAccountToCustomer(sql, id, event, customerPolicy),
 
   updatePermissions: (id, permissions, event, requireCoAdmin) =>
     sql.begin(async (tx) => {

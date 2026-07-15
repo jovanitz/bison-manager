@@ -57,4 +57,6 @@ export const createRpcDirectoryGateway = (deps: {
       'identities.orphaned',
       {},
     ),
+  purgeOrphan: (userId) =>
+    callProcedure<void>(deps.api, 'identities.delete', { userId }),
 });

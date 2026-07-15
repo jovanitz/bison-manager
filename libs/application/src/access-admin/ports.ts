@@ -1,6 +1,7 @@
 import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
+  AccessAccountDemoted,
   AccessAccountPromoted,
   AccessMemberRolesAssigned,
   AccessPermission,
@@ -110,6 +111,18 @@ export type AccessAdminRepository = {
     id: AccountId,
     event: AccessAccountPromoted,
     staffPolicy: AccessSessionPolicy,
+  ) => Promise<void>;
+  /**
+   * staff → customer, the inverse of promotion, atomically with the audit event.
+   * STRIPS every membership's roles in the same transaction — a customer account
+   * may not hold `any`-scoped or staff-only permissions, so leaving them would be
+   * a privilege the demotion is meant to remove. Sessions re-bind to the customer
+   * policy; the account reappears in the customer directory.
+   */
+  readonly demoteAccountToCustomer: (
+    id: AccountId,
+    event: AccessAccountDemoted,
+    customerPolicy: AccessSessionPolicy,
   ) => Promise<void>;
   readonly findSession: (id: SessionId) => Promise<AdminSessionSnapshot | null>;
   readonly revokeSession: (

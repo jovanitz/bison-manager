@@ -67,13 +67,20 @@ const buildActions = (store: DirectoryStore, nav: Nav): DirectoryActions => ({
           ? toast.error(error)
           : toast.success('A fresh link is on its way — the old one is dead.'),
       ),
-  onInviteOrphan: noop,
-  onDeleteOrphan: noop,
+  // An orphan belongs to no org, so "invite as staff" is just an invite into OUR
+  // staff account — the same use case the directory CTA calls. The row supplies
+  // the email; one without an email cannot be invited and the menu disables it.
+  onInviteOrphan: (email) =>
+    void store
+      .getState()
+      .invite(email)
+      .then((r) => copyFreshLink(r, 'Invitation created — link copied.')),
+  onDeleteOrphan: (userId) => void store.getState().purgeOrphan(userId),
   onScheduleDeletion: noop,
   onCancelDeletion: noop,
   onExportOrg: noop,
   onExportDirectory: noop,
-  onDemoteStaff: noop,
+  onDemoteStaff: (accountId) => void store.getState().admin('demote', accountId),
 });
 
 const DirectoryBound = ({

@@ -6,8 +6,8 @@ import type {
   MembershipId,
   SessionId,
 } from '@acme/domain';
-import { SEED_SESSION_CREATED_AT } from '../../access/in-memory/access-seed';
-import type { InMemoryAccessSeed } from '../../access/in-memory/access-seed';
+import { SEED_SESSION_CREATED_AT } from '../../access/in-memory/seed/access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory/seed/access-seed';
 import {
   ACCESS_CONTRACT_NOW as NOW,
   ACCESS_CONTRACT_SESSION_EXPIRES as SESSION_EXPIRES,
@@ -17,6 +17,8 @@ import {
 } from './access-store-fixtures';
 import type { AccessStorePorts } from './access-store-fixtures';
 import { adminRepositoryContract } from './admin-repository-contract';
+import { accountLifecycleContract } from './account-lifecycle-contract';
+import { auditTrailContract } from './audit-trail-contract';
 import { adminAntiOrphanContract } from './admin-anti-orphan-contract';
 import { memberDirectoryContract } from './member-directory-contract';
 import { roleContracts } from './role/contracts';
@@ -211,38 +213,11 @@ export const accessStoreContract = (
       expect(await store.customers.read(ids.acctSupport)).toBeNull();
     });
 
-    it('filters the audit trail by type, account and limit', async () => {
-      const ids = makeAccessContractIds();
-      const store = await makeStore(accessContractSeed(ids));
-      await store.auditTrail.append({
-        type: 'login.failed',
-        attemptedIdentifier: 'mallory@example.com',
-        occurredAt: NOW,
-      });
-      await store.auditTrail.append({
-        type: 'account.disabled',
-        accountId: ids.acctCustomer,
-        actorMembershipId: ids.membershipSupport,
-        reason: null,
-        occurredAt: NOW,
-      });
-
-      const byType = await store.auditTrail.list({
-        types: ['account.disabled'],
-      });
-      expect(byType).toHaveLength(1);
-      const byAccount = await store.auditTrail.list({
-        accountId: ids.acctCustomer,
-      });
-      expect(byAccount).toHaveLength(1);
-      expect(byAccount[0]?.event.type).toBe('account.disabled');
-      const limited = await store.auditTrail.list({ limit: 1 });
-      expect(limited).toHaveLength(1);
-      expect(limited[0]?.event.type).toBe('login.failed');
-    });
   });
 
   adminRepositoryContract(name, makeStore);
+  accountLifecycleContract(name, makeStore);
+  auditTrailContract(name, makeStore);
   adminAntiOrphanContract(name, makeStore);
   memberDirectoryContract(name, makeStore);
   roleContracts(name, makeStore);

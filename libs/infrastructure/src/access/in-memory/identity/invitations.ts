@@ -3,10 +3,11 @@ import type {
   PendingInvitationSummary,
 } from '@acme/application';
 import { appendInMemoryAuditRecord } from '../audit-trail';
+import { accountKindOf } from '../seed/access-seed';
 import type {
   AccessStoreState,
   StoredInvitation,
-} from '../access-seed';
+} from '../seed/access-seed';
 
 /**
  * PENDING = not accepted, not revoked, not expired. Every lookup goes through
@@ -47,9 +48,7 @@ const findPendingByEmail = (
       return Promise.resolve({
         invitationId: invitation.invitationId,
         accountId: invitation.accountId as never,
-        accountKind: state.customers.has(invitation.accountId)
-          ? ('customer' as const)
-          : ('staff' as const),
+        accountKind: accountKindOf(state, invitation.accountId),
         permissions: invitation.permissions,
         roleIds: invitation.roleIds as never,
         seatBlockedAt: invitation.seatBlockedAt,

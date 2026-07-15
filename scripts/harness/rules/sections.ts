@@ -33,6 +33,8 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
     'Re-enable a disabled account (the undo; unexpired sessions resume)',
   'account.promote':
     'Promote a customer account to staff (strict sessions, not impersonable)',
+  'account.demote':
+    'Demote a staff account back to customer, stripping its staff-grade permissions',
   'permissions.update': 'Replace the persistent permissions of a membership',
   'sessions.revoke': 'Revoke a session immediately (kills refresh tokens too)',
   'sessions.read':
@@ -58,6 +60,8 @@ const ACTION_DESCRIPTIONS: Record<AccessAction, string> = {
     'Administer the plan catalog and staff billing levers (ADR-0016) — owner-only in v1',
   'billing.read':
     "Read an org's billing summary: plan, phase, seats, trial/paid dates (staff any, org admin own)",
+  'identity.delete':
+    'Purge an ORPHAN auth identity (no membership anywhere) — irreversible, owner-only',
 };
 
 const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
@@ -67,6 +71,8 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
   'account.disabled': 'An account was disabled, by whom and why',
   'account.enabled': 'A disabled account was re-enabled, by whom',
   'account.promoted': 'A customer account became staff, by whom',
+  'account.demoted':
+    'A staff account was returned to customer (staff permissions stripped), by whom',
   'permissions.updated': 'Permissions replaced (records before and after)',
   'member.roles-assigned':
     "A membership's role assignment was replaced (records the new role set)",
@@ -83,6 +89,8 @@ const AUDIT_EVENT_DESCRIPTIONS: Record<AccessAuditEventType, string> = {
     'The invited identity logged in and joined the account',
   'invitation.revoked':
     'Staff withdrew a pending invitation before acceptance (its link stops activating)',
+  'identity.deleted':
+    'An orphan identity (no membership anywhere) was purged from the auth provider',
   'member.removed':
     'A membership was removed from its account, by whom (sessions included)',
   'session.switched':

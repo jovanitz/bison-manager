@@ -11,3 +11,4 @@ export * from './access/postgres/postgres-access-store';
 // Server-only auth adapters (node:crypto / admin secret key — never the browser).
 export * from './auth/provisioning/node-secret-token-service';
 export * from './auth/provisioning/supabase-admin-provisioner';
+export * from './auth/provisioning/supabase-identity-purger';

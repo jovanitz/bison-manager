@@ -2,11 +2,11 @@ import type { AccessMemberDirectory } from '@acme/application';
 import type { AccountId, MembershipId, RoleId, UserId } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../in-memory/audit-trail';
 import {
-  accountKindOf,
   oneOffPermissions,
   removeWouldOrphan,
 } from './in-memory-admin-repository';
-import type { AccessStoreState } from '../in-memory/access-seed';
+import { accountKindOf } from '../in-memory/seed/access-seed';
+import type { AccessStoreState } from '../in-memory/seed/access-seed';
 
 /** Members of one account; removal deletes membership + sessions (cascade). */
 export const makeInMemoryMemberDirectory = (

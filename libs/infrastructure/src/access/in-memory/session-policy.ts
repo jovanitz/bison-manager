@@ -6,9 +6,10 @@ import {
   ACCESS_SESSION_POLICY_DEFAULTS,
   accessSessionExpiryFrom,
 } from '@acme/domain';
-import type { AccessSessionPolicies, AccountKind } from '@acme/domain';
+import type { AccessSessionPolicies } from '@acme/domain';
 import { appendInMemoryAuditRecord } from './audit-trail';
-import type { AccessStoreState } from './access-seed';
+import { accountKindOf } from './seed/access-seed';
+import type { AccessStoreState } from './seed/access-seed';
 
 /**
  * In-memory session-policy store + activity recorder, sharing the store
@@ -16,10 +17,7 @@ import type { AccessStoreState } from './access-seed';
  * policy persists it, audits it, and immediately shrinks every live session
  * (tightening acts now; loosening is only gained through later slides).
  */
-const accountKindOf = (
-  state: AccessStoreState,
-  accountId: string,
-): AccountKind => (state.customers.has(accountId) ? 'customer' : 'staff');
+// account kind now comes from the canonical `accountKindOf` in access-seed.
 
 const shrinkLiveSessions = (
   state: AccessStoreState,

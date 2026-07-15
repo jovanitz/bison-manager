@@ -115,7 +115,7 @@ export const setSubjectBlocked = (
 export const adminAccount = (
   deps: { readonly accounts: AccountAdminGateway },
   input: {
-    readonly action: 'disable' | 'enable' | 'promote';
+    readonly action: 'disable' | 'enable' | 'promote' | 'demote';
     readonly accountId: string;
     readonly reason?: string | undefined;
   },
@@ -123,6 +123,7 @@ export const adminAccount = (
   if (input.action === 'disable')
     return deps.accounts.disable(input.accountId, input.reason);
   if (input.action === 'enable') return deps.accounts.enable(input.accountId);
+  if (input.action === 'demote') return deps.accounts.demote(input.accountId);
   return deps.accounts.promote(input.accountId);
 };
 

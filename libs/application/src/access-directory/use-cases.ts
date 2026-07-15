@@ -2,6 +2,8 @@ import { type Clock, type Result, err, ok } from '@acme/shared';
 import type { AccessActor } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
 import type { AccessUseCaseError } from '../access/errors';
+import { makePurgeOrphanIdentity } from './purge';
+import type { PurgeIdentityDeps } from './purge';
 import type {
   CustomerDirectoryEntry,
   OrphanIdentitySummary,
@@ -12,7 +14,10 @@ import type {
 export type AccessDirectoryDeps = {
   readonly staffDirectory: StaffDirectory;
   readonly clock: Clock;
-};
+} & Pick<
+  PurgeIdentityDeps,
+  'members' | 'invitations' | 'purger' | 'auditTrail'
+>;
 
 /**
  * The staff directory the platform-admin dashboard renders. A platform read,
@@ -88,6 +93,7 @@ export type AccessDirectoryUseCases = {
   readonly listStaff: ReturnType<typeof makeListStaff>;
   readonly listCustomers: ReturnType<typeof makeListCustomers>;
   readonly listOrphanIdentities: ReturnType<typeof makeListOrphanIdentities>;
+  readonly purgeOrphanIdentity: ReturnType<typeof makePurgeOrphanIdentity>;
 };
 
 export const makeAccessDirectoryUseCases = (
@@ -96,4 +102,5 @@ export const makeAccessDirectoryUseCases = (
   listStaff: makeListStaff(deps),
   listCustomers: makeListCustomers(deps),
   listOrphanIdentities: makeListOrphanIdentities(deps),
+  purgeOrphanIdentity: makePurgeOrphanIdentity(deps),
 });

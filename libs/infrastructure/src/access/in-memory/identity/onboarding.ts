@@ -12,7 +12,9 @@ import type {
 } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../audit-trail';
 import { upsertPersonalRole } from '../../admin/in-memory-membership-perms';
-import type { AccessStoreState } from '../access-seed';
+import type { AccountKind } from '@acme/domain';
+import { accountKindOf } from '../seed/access-seed';
+import type { AccessStoreState } from '../seed/access-seed';
 
 /**
  * The billing seam of the onboarding (ADR-0016 Decision 2): org birth writes
@@ -47,19 +49,26 @@ const movePermsToPersonalRole = (
 const storeMembership = (
   state: AccessStoreState,
   membership: NewIdentityMembership,
-  isRoot: boolean,
-  isAccountOwner: boolean,
+  opts: {
+    readonly isRoot: boolean;
+    readonly isAccountOwner: boolean;
+    readonly kind: AccountKind;
+  },
 ): void => {
-  state.accounts.set(membership.accountId, {
-    status: 'active',
-    blocked: false,
-  });
+  // The bootstrap owner's account is STAFF; a self-signup org creator's is
+  // CUSTOMER. An already-existing account is never clobbered here (invitation
+  // accepts run through `acceptInvitation`, which never re-creates the account).
+  const existing = state.accounts.get(membership.accountId);
+  state.accounts.set(
+    membership.accountId,
+    existing ?? { status: 'active', blocked: false, kind: opts.kind },
+  );
   state.memberships.set(membership.membershipId, {
     userId: membership.userId,
     accountId: membership.accountId,
-    isRoot,
+    isRoot: opts.isRoot,
     roleIds: [],
-    isAccountOwner,
+    isAccountOwner: opts.isAccountOwner,
   });
   movePermsToPersonalRole(
     state,
@@ -131,9 +140,7 @@ export const makeInMemoryIdentityOnboarding = (
         return {
           membershipId: id as MembershipId,
           accountId: membership.accountId as AccountId,
-          accountKind: state.customers.has(membership.accountId)
-            ? ('customer' as const)
-            : ('staff' as const),
+          accountKind: accountKindOf(state, membership.accountId),
         };
       }
     }
@@ -148,13 +155,21 @@ export const makeInMemoryIdentityOnboarding = (
   createOwnerMembership: async (membership, event) => {
     // The bootstrapped owner owns the account it is created in (ADR-0011);
     // root authority is the stronger flag, but ownership holds too.
-    storeMembership(state, membership, true, true);
+    storeMembership(state, membership, {
+      isRoot: true,
+      isAccountOwner: true,
+      kind: 'staff',
+    });
     appendInMemoryAuditRecord(state, event);
   },
 
   createCustomerMembership: async (membership, subscription, event) => {
     // Self-signup: the creator owns the org they just made (own-scope bypass).
-    storeMembership(state, membership, false, true);
+    storeMembership(state, membership, {
+      isRoot: false,
+      isAccountOwner: true,
+      kind: 'customer',
+    });
     state.customers.set(membership.accountId, {
       accountId: membership.accountId,
       displayName: membership.displayName,

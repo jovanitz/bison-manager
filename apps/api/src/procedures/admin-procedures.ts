@@ -45,6 +45,19 @@ const accountPromote = (accessAdmin: AccessAdminUseCases): ApiProcedure =>
       accessAdmin.promoteAccountToStaff({ actor, accountId: input.accountId }),
   });
 
+const accountDemote = (accessAdmin: AccessAdminUseCases): ApiProcedure =>
+  defineApiProcedure({
+    name: 'account.demote',
+    summary:
+      'Demote a staff account back to customer: strips its staff-grade ' +
+      'permissions, re-binds sessions to the customer policy, and returns it ' +
+      'to the customer directory. Refused for the root account.',
+    action: 'account.demote',
+    input: z.object({ accountId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessAdmin.demoteAccountToCustomer({ actor, accountId: input.accountId }),
+  });
+
 const permissionsUpdate = (accessAdmin: AccessAdminUseCases): ApiProcedure =>
   defineApiProcedure({
     name: 'permissions.update',
@@ -116,6 +129,7 @@ export const createAdminProcedures = (
   accountDisable(accessAdmin),
   accountEnable(accessAdmin),
   accountPromote(accessAdmin),
+  accountDemote(accessAdmin),
   permissionsUpdate(accessAdmin),
   sessionsRevoke(accessAdmin),
   sessionsRevokeAll(accessAdmin),

@@ -64,6 +64,7 @@ export const ACCESS_ACTIONS = [
   'account.disable',
   'account.enable',
   'account.promote',
+  'account.demote',
   'permissions.update',
   'sessions.revoke',
   'sessions.read',
@@ -81,6 +82,12 @@ export const ACCESS_ACTIONS = [
   'members.block',
   'plans.manage',
   'billing.read',
+  /**
+   * Purge an ORPHAN auth identity (no membership anywhere). Its own action, not
+   * a reuse of `staff.read`: listing orphans is a read, erasing a person's
+   * identity is destructive and irreversible, and the two must not share a key.
+   */
+  'identity.delete',
 ] as const;
 
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];
@@ -96,6 +103,30 @@ export const GRANT_ONLY_ACTIONS = ['customer.read'] as const;
 
 export const isGrantOnlyAction = (action: AccessAction): boolean =>
   (GRANT_ONLY_ACTIONS as ReadonlyArray<AccessAction>).includes(action);
+
+/**
+ * Actions the OWNERSHIP bypass (ADR-0011) never satisfies. Owning an org lets
+ * you ADMINISTER it; it does NOT let you cross the customer→staff trust boundary
+ * or moderate your account's platform standing. Promoting to staff, or
+ * disabling/enabling an account, require real staff authority (a permission) —
+ * never ownership.
+ *
+ * Without this, a self-signup org creator (who onboarding makes `isAccountOwner`
+ * on their own account) could `account.promote` THEIR OWN account to staff via
+ * the bypass; once staff, the customer-coherence guard — which only restricts
+ * customer accounts — stops applying, and they could grant themselves any staff
+ * action (up to the irreversible `identity.delete`). The exclusion is on the
+ * OWNER branch only: root, the platform super-admin, is unaffected.
+ */
+export const OWNER_UNBYPASSABLE_ACTIONS = [
+  'account.promote',
+  'account.demote',
+  'account.disable',
+  'account.enable',
+] as const satisfies ReadonlyArray<AccessAction>;
+
+export const isOwnerUnbypassableAction = (action: AccessAction): boolean =>
+  (OWNER_UNBYPASSABLE_ACTIONS as ReadonlyArray<AccessAction>).includes(action);
 
 /**
  * Boundary validation against a given action catalog (ADR-0015: vocabulary

@@ -10,6 +10,7 @@ import {
   makeAuditTrailUseCases,
   makeImpersonationUseCases,
 } from '@acme/application';
+import type { IdentityPurger } from '@acme/application';
 import type { AccessStore } from './store';
 
 /**
@@ -19,6 +20,7 @@ import type { AccessStore } from './store';
  */
 export const wireAccess = (deps: {
   readonly store: AccessStore;
+  readonly purger: IdentityPurger;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }) => {
@@ -39,6 +41,12 @@ export const wireAccess = (deps: {
     }),
     accessDirectory: makeAccessDirectoryUseCases({
       staffDirectory: store.staffDirectory,
+      // The orphan purge re-derives orphanhood from BOTH the provider-backed
+      // view and the membership directory before it erases anything.
+      members: store.members,
+      invitations: store.invitations,
+      purger: deps.purger,
+      auditTrail: store.auditTrail,
       clock,
     }),
     accessBlock: makeAccessBlockUseCases({

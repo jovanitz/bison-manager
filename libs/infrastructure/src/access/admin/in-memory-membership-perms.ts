@@ -10,7 +10,7 @@ import { appendInMemoryAuditRecord } from '../in-memory/audit-trail';
 import type {
   AccessStoreState,
   StoredMembership,
-} from '../in-memory/access-seed';
+} from '../in-memory/seed/access-seed';
 
 /**
  * Effective permissions of a stored membership: its direct list unioned with

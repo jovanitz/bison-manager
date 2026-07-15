@@ -1,4 +1,18 @@
+import type { Result, TaggedError } from '@acme/shared';
 import type { AccountId } from '@acme/domain';
+
+/**
+ * The auth provider's destructive admin surface. Separate from
+ * `IdentityProvisioner` (which MINTS identities during activation) on purpose:
+ * they are opposite capabilities, gated by different actions, and a port that
+ * both creates and erases invites a caller to hold more power than it needs.
+ */
+export type IdentityPurger = {
+  /** Erase an identity in the auth provider. IRREVERSIBLE. */
+  readonly deleteIdentity: (
+    userId: string,
+  ) => Promise<Result<void, TaggedError<'app/identity-purge-failed'>>>;
+};
 
 /**
  * Read-side directory of STAFF accounts — the platform-internal counterpart of

@@ -11,6 +11,7 @@ import type {
   AccessSessionPolicyStore,
   CustomerDirectory,
   IdentityOnboardingRepository,
+  IdentityPurger,
   RoleStore,
   RoleTemplateStore,
   StaffDirectory,
@@ -30,6 +31,7 @@ import {
 import {
   makeInMemoryCustomerDirectory,
   makeInMemoryStaffDirectory,
+  makeInMemoryStoreIdentityPurger,
 } from './directory';
 import { makeInMemoryAdminRepository } from '../admin/in-memory-admin-repository';
 import { makeInMemoryMemberDirectory } from '../admin/in-memory-member-directory';
@@ -43,11 +45,11 @@ import {
   makeInMemorySessionActivityRecorder,
   makeInMemorySessionPolicyStore,
 } from './session-policy';
-import { toAccessStoreState } from './access-seed';
+import { accountKindOf, toAccessStoreState } from './seed/access-seed';
 import type {
   AccessStoreState,
   InMemoryAccessSeed,
-} from './access-seed';
+} from './seed/access-seed';
 
 /**
  * In-memory implementation of every access port — the reference the Postgres
@@ -65,6 +67,7 @@ export type InMemoryAccessStore = {
   readonly grants: AccessGrantRepository;
   readonly customers: CustomerDirectory;
   readonly staffDirectory: StaffDirectory;
+  readonly identityPurger: IdentityPurger;
   readonly onboarding: IdentityOnboardingRepository;
   readonly sessionPolicies: AccessSessionPolicyStore;
   readonly sessionActivity: AccessSessionActivityRecorder;
@@ -92,9 +95,7 @@ const makeActorReader = (state: AccessStoreState): AccessActorReader => ({
         accountId: membership.accountId as AccountId,
       },
       accountStatus: account.status,
-      accountKind: state.customers.has(membership.accountId)
-        ? ('customer' as const)
-        : ('staff' as const),
+      accountKind: accountKindOf(state, membership.accountId),
       isRoot: membership.isRoot,
       isAccountOwner: membership.isAccountOwner,
       blocked:
@@ -155,6 +156,7 @@ export const createInMemoryAccessStore = (
     grants: makeGrantRepository(state),
     customers: makeInMemoryCustomerDirectory(state),
     staffDirectory: makeInMemoryStaffDirectory(state),
+    identityPurger: makeInMemoryStoreIdentityPurger(state),
     onboarding: makeInMemoryIdentityOnboarding(state, billing),
     sessionPolicies: makeInMemorySessionPolicyStore(state),
     sessionActivity: makeInMemorySessionActivityRecorder(state),

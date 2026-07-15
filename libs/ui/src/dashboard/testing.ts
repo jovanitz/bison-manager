@@ -67,6 +67,7 @@ export const mockDirectory = (
   listStaff: async () => ok(testStaff),
   listCustomers: async () => ok(testCustomers),
   listOrphans: async () => ok(testOrphans),
+  purgeOrphan: async () => ok(undefined),
   ...overrides,
 });
 

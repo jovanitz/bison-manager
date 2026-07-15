@@ -36,6 +36,7 @@ const makeDeps = (over: Record<string, unknown> = {}) =>
       listCustomers: async () =>
         ok([{ accountId: 'org-1', displayName: 'Clínica', email: 'c@x.mx' }]),
       listOrphans: async () => ok([]),
+      purgeOrphan: async () => ok(undefined),
     },
     invitations: {
       listPending: async () => ok([]),
@@ -55,6 +56,7 @@ const makeDeps = (over: Record<string, unknown> = {}) =>
       disable: async () => ok(undefined),
       enable: async () => ok(undefined),
       promote: async () => ok(undefined),
+      demote: async () => ok(undefined),
     },
     ...over,
   }) as unknown as DirectoryStoreDeps;

@@ -48,7 +48,10 @@ const OrphanMenu = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => actions.onInviteOrphan(row.userId)}>
+          <DropdownMenuItem
+            disabled={!row.email}
+            onSelect={() => row.email && actions.onInviteOrphan(row.email)}
+          >
             Invite as staff
           </DropdownMenuItem>
           <DropdownMenuSeparator />

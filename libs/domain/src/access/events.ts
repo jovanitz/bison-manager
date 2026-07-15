@@ -13,10 +13,17 @@ import type {
   AccessImpersonationStarted,
 } from './grant/grant-events';
 import type {
+  AccessAccountDemoted,
+  AccessAccountDisabled,
+  AccessAccountEnabled,
+  AccessAccountPromoted,
+} from './account/account-events';
+import type {
   AccessInvitationAccepted,
   AccessInvitationCreated,
   AccessInvitationRevoked,
 } from './invitation/invitation-events';
+import type { AccessIdentityDeleted } from './identity/identity-events';
 
 export type {
   AccessGrantExpired,
@@ -25,10 +32,19 @@ export type {
 } from './grant/grant-events';
 
 export type {
+  AccessAccountDemoted,
+  AccessAccountDisabled,
+  AccessAccountEnabled,
+  AccessAccountPromoted,
+} from './account/account-events';
+
+export type {
   AccessInvitationAccepted,
   AccessInvitationCreated,
   AccessInvitationRevoked,
 } from './invitation/invitation-events';
+
+export type { AccessIdentityDeleted } from './identity/identity-events';
 
 /**
  * Audit events — the security-relevant facts the system must never lose.
@@ -50,32 +66,6 @@ export type AccessLoginFailed = {
   readonly occurredAt: string;
 };
 
-export type AccessAccountDisabled = {
-  readonly type: 'account.disabled';
-  readonly accountId: AccountId;
-  readonly actorMembershipId: MembershipId;
-  readonly reason: string | null;
-  readonly occurredAt: string;
-};
-
-/** A disabled account was re-enabled (the undo of account.disabled). Its
- * sessions were never touched: whatever has not expired resumes working —
- * idle TTLs keep running in real time, so long suspensions die naturally. */
-export type AccessAccountEnabled = {
-  readonly type: 'account.enabled';
-  readonly accountId: AccountId;
-  readonly actorMembershipId: MembershipId;
-  readonly occurredAt: string;
-};
-
-/** A customer account became staff: strict session policy, never listed in
- * the customer directory (and therefore never impersonable) again. */
-export type AccessAccountPromoted = {
-  readonly type: 'account.promoted';
-  readonly accountId: AccountId;
-  readonly actorMembershipId: MembershipId;
-  readonly occurredAt: string;
-};
 
 export type AccessPermissionsUpdated = {
   readonly type: 'permissions.updated';
@@ -102,6 +92,7 @@ export type AccessSessionRevoked = {
   readonly actorMembershipId: MembershipId;
   readonly occurredAt: string;
 };
+
 
 
 
@@ -178,6 +169,7 @@ export type AccessAuditEvent =
   | AccessAccountDisabled
   | AccessAccountEnabled
   | AccessAccountPromoted
+  | AccessAccountDemoted
   | AccessPermissionsUpdated
   | AccessMemberRolesAssigned
   | AccessSessionRevoked
@@ -187,6 +179,7 @@ export type AccessAuditEvent =
   | AccessInvitationCreated
   | AccessInvitationAccepted
   | AccessInvitationRevoked
+  | AccessIdentityDeleted
   | AccessMemberRemoved
   | AccessSessionSwitched
   | AccessSettingsUpdated
@@ -203,6 +196,7 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'account.disabled',
   'account.enabled',
   'account.promoted',
+  'account.demoted',
   'permissions.updated',
   'member.roles-assigned',
   'session.revoked',
@@ -212,6 +206,7 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   'invitation.created',
   'invitation.accepted',
   'invitation.revoked',
+  'identity.deleted',
   'member.removed',
   'session.switched',
   'settings.updated',

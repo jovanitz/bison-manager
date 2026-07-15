@@ -1,6 +1,12 @@
-import type { CustomerDirectory, StaffDirectory } from '@acme/application';
+import { ok } from '@acme/shared';
+import type {
+  CustomerDirectory,
+  IdentityPurger,
+  StaffDirectory,
+} from '@acme/application';
 import type { AccountId } from '@acme/domain';
-import type { AccessStoreState } from './access-seed';
+import { isCustomerAccount } from './seed/access-seed';
+import type { AccessStoreState } from './seed/access-seed';
 
 /**
  * Security invariant (see the impersonation use cases): only customer accounts
@@ -15,8 +21,9 @@ export const makeInMemoryCustomerDirectory = (
     return [...state.customers.values()]
       .filter(
         (c) =>
-          c.displayName.toLowerCase().includes(needle) ||
-          (c.email ?? '').toLowerCase().includes(needle),
+          isCustomerAccount(state, c.accountId) &&
+          (c.displayName.toLowerCase().includes(needle) ||
+            (c.email ?? '').toLowerCase().includes(needle)),
       )
       .map(({ accountId, displayName, email }) => ({
         accountId,
@@ -24,7 +31,28 @@ export const makeInMemoryCustomerDirectory = (
         email,
       }));
   },
-  read: async (accountId) => state.customers.get(accountId) ?? null,
+  read: async (accountId) =>
+    isCustomerAccount(state, accountId)
+      ? (state.customers.get(accountId) ?? null)
+      : null,
+});
+
+const hasMembership = (state: AccessStoreState, userId: string): boolean =>
+  [...state.memberships.values()].some((m) => m.userId === userId);
+
+/**
+ * The dev-stub's identity purger, backed by the SAME state the orphan view
+ * reads. A purger that deleted "in the provider" while the store kept listing
+ * the orphan would make the stub world incoherent — and would hide exactly the
+ * bug we care about.
+ */
+export const makeInMemoryStoreIdentityPurger = (
+  state: AccessStoreState,
+): IdentityPurger => ({
+  deleteIdentity: async (userId) => {
+    state.users.delete(userId);
+    return ok(undefined);
+  },
 });
 
 /** The membership behind an account — a staff account holds exactly one. */
@@ -49,7 +77,7 @@ export const makeInMemoryStaffDirectory = (
 ): StaffDirectory => ({
   listStaff: async () =>
     [...state.accounts.entries()]
-      .filter(([id]) => !state.customers.has(id))
+      .filter(([id]) => !isCustomerAccount(state, id))
       .map(([id, account]) => {
         const membership = membershipOf(state, id);
         const userId = membership?.userId ?? '';
@@ -64,11 +92,22 @@ export const makeInMemoryStaffDirectory = (
         };
       }),
 
-  // No auth layer in memory, so nothing can be orphaned from it.
-  listOrphanIdentities: async () => [],
+  // The same shape as the real cross-schema query (auth.users ⋈ memberships):
+  // a seeded identity holding no membership anywhere IS an orphan.
+  listOrphanIdentities: async () =>
+    [...state.users.values()]
+      .filter((u) => !hasMembership(state, u.id))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((u) => ({
+        userId: u.id,
+        email: u.email,
+        createdAt: u.createdAt,
+      })),
 
   listCustomerAccounts: async () =>
-    [...state.customers.values()].map((customer) => {
+    [...state.customers.values()]
+      .filter((customer) => isCustomerAccount(state, customer.accountId))
+      .map((customer) => {
       const account = state.accounts.get(customer.accountId);
       return {
         accountId: customer.accountId,

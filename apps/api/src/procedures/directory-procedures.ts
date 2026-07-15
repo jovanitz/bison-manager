@@ -30,6 +30,16 @@ export const createDirectoryProcedures = (
     handler: ({ actor }) => accessDirectory.listCustomers({ actor }),
   }),
   defineApiProcedure({
+    name: 'identities.delete',
+    summary:
+      'Purge an ORPHAN auth identity (a sign-up that joined no org). ' +
+      'Irreversible; the server re-verifies orphanhood and refuses otherwise.',
+    action: 'identity.delete',
+    input: z.object({ userId: z.string().min(1) }).strict(),
+    handler: ({ actor, input }) =>
+      accessDirectory.purgeOrphanIdentity({ actor, userId: input.userId }),
+  }),
+  defineApiProcedure({
     name: 'identities.orphaned',
     summary:
       'List org-less ("zombie") auth identities — sign-ups belonging to no ' +

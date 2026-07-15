@@ -10,7 +10,7 @@ import type {
   Subscription,
   SubscriptionId,
 } from '@acme/domain';
-import type { InMemoryAccessSeed } from '../../access/in-memory/access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory/seed/access-seed';
 import type { InMemoryBillingSeed } from '../../billing/in-memory/billing-store-state';
 
 /**

@@ -20,6 +20,7 @@ const ownerAccessPreset: ReadonlyArray<AccessPermission> = [
   { action: 'account.disable', scope: 'any' },
   { action: 'account.enable', scope: 'any' },
   { action: 'account.promote', scope: 'any' },
+  { action: 'account.demote', scope: 'any' },
   { action: 'permissions.update', scope: 'any' },
   { action: 'sessions.revoke', scope: 'any' },
   { action: 'sessions.read', scope: 'any' },
@@ -34,6 +35,8 @@ const ownerAccessPreset: ReadonlyArray<AccessPermission> = [
   // ADR-0016: administering the plan catalog is owner-only in v1.
   { action: 'plans.manage', scope: 'any' },
   { action: 'billing.read', scope: 'any' },
+  // Irreversible platform cleanup — owner-only, never support.
+  { action: 'identity.delete', scope: 'any' },
 ];
 
 /**

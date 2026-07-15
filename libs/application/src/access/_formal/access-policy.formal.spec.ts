@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCESS_ACTIONS,
   isGrantOnlyAction,
+  isOwnerUnbypassableAction,
   type AccessAction,
   type AccessPermission,
 } from '@acme/domain';
@@ -124,7 +125,12 @@ const ownerAllowsIffOwnAccount = (x: ScopeCase): boolean =>
     }),
     x.action,
     x.resource,
-  ).allowed === (x.resource === x.ownAccount && !isGrantOnlyAction(x.action));
+  ).allowed ===
+  (x.resource === x.ownAccount &&
+    !isGrantOnlyAction(x.action) &&
+    // Account-lifecycle actions cross the customer→staff boundary and are never
+    // owner-bypassable (the escalation the adversarial review found).
+    !isOwnerUnbypassableAction(x.action));
 const deadRootDenies = (x: DeadCase): boolean =>
   decide(
     actorWith({
@@ -177,7 +183,7 @@ describe('formal: evaluateAccessPolicy', () => {
     ).not.toThrow();
   });
 
-  it('P7 — an account owner is authorized IFF the resource is its own account', () => {
+  it('P7 — an owner is authorized IFF own account AND the action is bypassable', () => {
     expect(() =>
       verify('owner ⇔ own account', genScope, ownerAllowsIffOwnAccount),
     ).not.toThrow();

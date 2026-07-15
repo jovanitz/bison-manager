@@ -21,6 +21,9 @@ export type DirectoryUseCases = {
   readonly listOrphans: () => Promise<
     Result<ReadonlyArray<OrphanIdentitySummary>, DirectoryGatewayError>
   >;
+  readonly purgeOrphan: (
+    userId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
 };
 
 export const makeDirectoryUseCases = (deps: {
@@ -29,4 +32,5 @@ export const makeDirectoryUseCases = (deps: {
   listStaff: () => deps.gateway.listStaff(),
   listCustomers: () => deps.gateway.listCustomers(),
   listOrphans: () => deps.gateway.listOrphans(),
+  purgeOrphan: (userId) => deps.gateway.purgeOrphan(userId),
 });

@@ -2,7 +2,10 @@ import type { AccessActor } from '../actor';
 import { accessGrantAllows } from '../grant/grant';
 import { accessPermissionAllows } from '../permission';
 import type { AccessResource } from '../permission';
-import { GRANT_ONLY_ACTIONS } from '../value-objects';
+import {
+  GRANT_ONLY_ACTIONS,
+  isOwnerUnbypassableAction,
+} from '../value-objects';
 import type { AccessAction, AccessGrantId } from '../value-objects';
 
 /**
@@ -55,6 +58,9 @@ const ownershipDecision = (
   // root/owner need an audited grant, so authority never escapes the audit trail.
   if (grantOnlyActions.includes(action)) return null;
   if (actor.isRoot) return { allowed: true, source: 'root' };
+  // Account-lifecycle actions cross the trust boundary — never owner-bypassable
+  // (a real staff owner reaches them by permission; a customer owner must not).
+  if (isOwnerUnbypassableAction(action)) return null;
   if (
     actor.isAccountOwner &&
     resource.accountId !== null &&

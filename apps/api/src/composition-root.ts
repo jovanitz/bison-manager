@@ -14,6 +14,7 @@ import { createApi } from './app';
 import { createApiProcedures } from './procedures';
 import type { ApiProcedure } from './rpc/procedure';
 import { wireAccess } from './wiring/access';
+import { toIdentityPurger } from './wiring/purger';
 import { toCreateOrgBilling, wireBilling } from './wiring/billing';
 import { wireIdentity } from './wiring/identity';
 import { wireInvitations } from './wiring/invitations';
@@ -71,7 +72,7 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accessSettings,
     accessMembers,
     impersonation,
-  } = wireAccess({ store, clock, ids });
+  } = wireAccess({ store, purger: toIdentityPurger(config, store), clock, ids });
   // Billing (ADR-0016): its own bounded context, composed over the access
   // store's member/ownership surface and the pre-built shared state (the
   // code floor is seeded idempotently by `toBillingStoreState`).

@@ -47,7 +47,7 @@ const EVENT_LABEL: Record<string, string> = {
   'account.disabled': 'Account disabled',
   'account.enabled': 'Account enabled',
   'account.promoted': 'Promoted to staff',
-  'staff.demoted': 'Demoted from staff',
+  'account.demoted': 'Demoted from staff',
   'org.deletion_scheduled': 'Deletion scheduled',
   'org.deletion_canceled': 'Deletion canceled',
   'invite.sent': 'Invitation sent',

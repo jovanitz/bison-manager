@@ -136,6 +136,18 @@ export const inMemoryAdmin = (seed: {
         if (account) accounts.set(id, { ...account, kind: 'staff' });
         audit.push(event);
       },
+      demoteAccountToCustomer: async (
+        id: AccountId,
+        event: AccessAuditEvent,
+      ) => {
+        const account = accounts.get(id);
+        if (account) accounts.set(id, { ...account, kind: 'customer' });
+        for (const [mid, m] of memberships) {
+          if (m.accountId === id)
+            memberships.set(mid, { ...m, permissions: [] });
+        }
+        audit.push(event);
+      },
       updatePermissions: async (
         id: MembershipId,
         permissions: ReadonlyArray<AccessPermission>,

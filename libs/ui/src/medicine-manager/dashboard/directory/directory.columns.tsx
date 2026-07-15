@@ -80,7 +80,9 @@ export type DirectoryActions = {
   readonly onResendInvite: (invitationId: string) => void;
   readonly onRevokeInvitation: (invitationId: string) => void;
   /** Orphaned identity (registered, no org). */
-  readonly onInviteOrphan: (userId: string) => void;
+  /** Inviting needs an EMAIL, not a userId — an orphan without one cannot be
+   *  invited at all, and the menu disables the action rather than send garbage. */
+  readonly onInviteOrphan: (email: string) => void;
   readonly onDeleteOrphan: (userId: string) => void;
   /** Dormant-org deletion review (ADR-0018) — a staged, reversible soft-delete. */
   readonly onScheduleDeletion: (accountId: string) => void;

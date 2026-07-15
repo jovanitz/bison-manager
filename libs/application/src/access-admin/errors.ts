@@ -10,6 +10,11 @@ export const sessionNotFound = defineError('app/session-not-found');
 export const sessionAlreadyRevoked = defineError('app/session-already-revoked');
 export const accountAlreadyStaff = defineError('app/account-already-staff');
 export const requiresStaffAccount = defineError('app/requires-staff-account');
+export const accountAlreadyCustomer = defineError(
+  'app/account-already-customer',
+);
+/** The root's account may never be demoted (super-admin protection). */
+export const cannotDemoteRoot = defineError('app/cannot-demote-root');
 export const accountNotDisabled = defineError('app/account-not-disabled');
 export const notDelegableToCustomer = defineError(
   'app/not-delegable-to-customer',
@@ -26,6 +31,8 @@ export type AccessAdminUseCaseError =
   | TaggedError<'app/session-not-found'>
   | TaggedError<'app/session-already-revoked'>
   | TaggedError<'app/account-already-staff'>
+  | TaggedError<'app/account-already-customer'>
+  | TaggedError<'app/cannot-demote-root'>
   | TaggedError<'app/requires-staff-account'>
   | TaggedError<'app/account-not-disabled'>
   | TaggedError<'app/not-delegable-to-customer'>

@@ -2,27 +2,23 @@ import type {
   AccessAuditRecord,
   CustomerAccountDetails,
 } from '@acme/application';
-import { createRole } from '@acme/domain';
 import type {
   AccessGrant,
   AccessPermission,
   AccessSessionPolicies,
-  AccountId,
+  AccountKind,
   AccountStatus,
   InvitationId,
   Role,
-  RoleId,
   RoleTemplate,
   SessionStatus,
 } from '@acme/domain';
 
 /**
- * Seed for the in-memory access store, shaped like the phase-4 tables:
- * accounts, memberships, sessions, grants and a customer directory. Ids are
- * raw strings (this is dev/test plumbing — the store brands them at its
- * boundary); relations are by id, and the actor is *derived* per read, so a
- * mutation (disable, revoke, grant) is visible on the very next request —
- * the revocation-immediacy guarantee the real adapters must also honour.
+ * The pure type surface of the in-memory access store: the seed shapes and the
+ * store STATE. Kept in its own module so both `access-seed` (which builds and
+ * consumes the state) and `seed-builders` (which constructs its maps) depend on
+ * it without depending on each other.
  */
 export type SeedAccount = {
   readonly id: string;
@@ -53,7 +49,6 @@ export type SeedSession = {
   readonly createdAt?: string;
 };
 
-export const SEED_SESSION_CREATED_AT = '2026-01-01T00:00:00.000Z';
 
 /**
  * Directory entries. Security invariant (see the impersonation use cases):
@@ -79,11 +74,17 @@ export type InMemoryAccessSeed = {
   /** Staff overrides of the default-role templates (ADR-0013/0014). */
   readonly roleTemplates?: ReadonlyArray<RoleTemplate>;
   /**
-   * Identities that exist in the auth provider but hold no membership yet
-   * (onboarding scenarios). Ignored by the in-memory store; the Postgres
-   * seeder creates them in auth.users so FK constraints hold.
+   * Identities that exist in the auth provider. Those holding no membership are
+   * the "orphans" the directory lists — in memory we now MATERIALIZE them (they
+   * used to be ignored), so the orphan view and its purge behave like the real
+   * cross-schema query (auth.users ⋈ memberships) instead of being empty.
+   * The Postgres seeder creates them in auth.users so FK constraints hold.
    */
-  readonly users?: ReadonlyArray<{ readonly id: string }>;
+  readonly users?: ReadonlyArray<{
+    readonly id: string;
+    readonly email?: string | null;
+    readonly createdAt?: string;
+  }>;
   /** User ids soft-blocked at the identity level (all their orgs). */
   readonly blockedIdentities?: ReadonlyArray<string>;
   /** Membership ids soft-blocked at the membership level (one org only). */
@@ -136,108 +137,24 @@ export type AccessStoreState = {
   readonly invitations: Map<string, StoredInvitation>;
   /** Runtime-editable session policy; null = domain defaults (version 1). */
   settings: { policies: AccessSessionPolicies; version: number } | null;
-  readonly accounts: Map<string, { status: AccountStatus; blocked: boolean }>;
+  readonly accounts: Map<
+    string,
+    { status: AccountStatus; blocked: boolean; kind: AccountKind }
+  >;
   readonly blockedIdentities: Set<string>;
   readonly blockedMemberships: Set<string>;
   readonly memberships: Map<string, StoredMembership>;
   readonly sessions: Map<string, StoredSession>;
   readonly customers: Map<string, CustomerAccountDetails>;
+  /** Auth-provider identities; those with no membership surface as orphans. */
+  readonly users: Map<
+    string,
+    { readonly id: string; readonly email: string | null; readonly createdAt: string }
+  >;
   readonly grants: Map<string, AccessGrant>;
   /** Dynamic role bundles (ADR-0011), keyed by role id. */
   readonly roles: Map<string, Role>;
   /** Staff template overrides (ADR-0013/0014), keyed by template key. */
   readonly roleTemplates: Map<string, RoleTemplate>;
   readonly auditRecords: AccessAuditRecord[];
-};
-
-/**
- * Roles-only (ADR-0014): a seed membership's one-off `permissions` are stored as
- * a per-membership **personal role** (never a direct slot). Returns the personal
- * role to create for each membership that seeds non-empty permissions, keyed by
- * membership id so its `roleIds` can reference it.
- */
-const seedPersonalRoles = (seed: InMemoryAccessSeed): Map<string, Role> => {
-  const out = new Map<string, Role>();
-  for (const m of seed.memberships ?? []) {
-    if (m.permissions.length === 0) continue;
-    const created = createRole({
-      id: crypto.randomUUID() as RoleId,
-      name: 'Personal permissions',
-      accountId: m.accountId as AccountId,
-      permissions: m.permissions,
-      isPersonal: true,
-    });
-    if (created.ok) out.set(m.id, created.value);
-  }
-  return out;
-};
-
-export const toAccessStoreState = (
-  seed: InMemoryAccessSeed,
-): AccessStoreState => {
-  const personal = seedPersonalRoles(seed);
-  return {
-    invitations: new Map(),
-    settings: null,
-    accounts: new Map(
-      (seed.accounts ?? []).map((a) => [
-        a.id,
-        { status: a.status ?? 'active', blocked: a.blocked ?? false },
-      ]),
-    ),
-    blockedIdentities: new Set(seed.blockedIdentities ?? []),
-    blockedMemberships: new Set(seed.blockedMemberships ?? []),
-    memberships: new Map(
-      (seed.memberships ?? []).map((m) => {
-        const own = personal.get(m.id);
-        const roleIds = own
-          ? [...(m.roleIds ?? []), own.id]
-          : [...(m.roleIds ?? [])];
-        return [
-          m.id,
-          {
-            userId: m.userId,
-            accountId: m.accountId,
-            isRoot: m.isRoot ?? false,
-            roleIds,
-            isAccountOwner: m.isAccountOwner ?? false,
-          },
-        ];
-      }),
-    ),
-    sessions: new Map(
-      (seed.sessions ?? []).map((s) => [
-        s.id,
-        {
-          membershipId: s.membershipId,
-          status: s.status ?? 'active',
-          expiresAt: s.expiresAt,
-          createdAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
-          lastSeenAt: s.createdAt ?? SEED_SESSION_CREATED_AT,
-          userAgent: null,
-          createdIp: null,
-          lastIp: null,
-        },
-      ]),
-    ),
-    customers: new Map(
-      (seed.customers ?? []).map((c) => [
-        c.accountId,
-        {
-          accountId: c.accountId as AccountId,
-          displayName: c.displayName,
-          email: c.email ?? null,
-          status: c.status ?? 'active',
-          createdAt: c.createdAt ?? '2026-01-01T00:00:00.000Z',
-        },
-      ]),
-    ),
-    grants: new Map((seed.grants ?? []).map((g) => [g.id, g])),
-    roles: new Map([
-      ...(seed.roles ?? []).map((r) => [r.id, r] as const),
-      ...[...personal.values()].map((r) => [r.id, r] as const),
-    ]),
-    roleTemplates: new Map((seed.roleTemplates ?? []).map((t) => [t.key, t])),
-    auditRecords: [],
-  };
 };

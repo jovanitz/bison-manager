@@ -1,7 +1,7 @@
 import postgres from 'postgres';
 import type { Sql } from 'postgres';
-import { SEED_SESSION_CREATED_AT } from '../access/in-memory/access-seed';
-import type { InMemoryAccessSeed } from '../access/in-memory/access-seed';
+import { SEED_SESSION_CREATED_AT } from '../access/in-memory/seed/access-seed';
+import type { InMemoryAccessSeed } from '../access/in-memory/seed/access-seed';
 
 /**
  * Test/dev plumbing: load an `InMemoryAccessSeed` into the Postgres schema so

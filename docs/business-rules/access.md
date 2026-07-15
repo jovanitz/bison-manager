@@ -58,6 +58,7 @@ gained through later activity.
 | `account.disable` | Disable an account (blocks login, refresh and actions) | ✅ any account | — | — | — |
 | `account.enable` | Re-enable a disabled account (the undo; unexpired sessions resume) | ✅ any account | — | — | — |
 | `account.promote` | Promote a customer account to staff (strict sessions, not impersonable) | ✅ any account | — | — | — |
+| `account.demote` | Demote a staff account back to customer, stripping its staff-grade permissions | ✅ any account | — | — | — |
 | `permissions.update` | Replace the persistent permissions of a membership | ✅ any account | — | — | ✅ own account |
 | `sessions.revoke` | Revoke a session immediately (kills refresh tokens too) | ✅ any account | — | ✅ own account | ✅ own account |
 | `sessions.read` | List a membership's sessions with device/IP context (active-sessions view) | ✅ any account | — | ✅ own account | ✅ own account |
@@ -75,6 +76,7 @@ gained through later activity.
 | `members.block` | Soft-block one member inside your own org (own scope): they can sign in but cannot operate | — | — | — | ✅ own account |
 | `plans.manage` | Administer the plan catalog and staff billing levers (ADR-0016) — owner-only in v1 | ✅ any account | — | — | — |
 | `billing.read` | Read an org's billing summary: plan, phase, seats, trial/paid dates (staff any, org admin own) | ✅ any account | ✅ any account | — | ✅ own account |
+| `identity.delete` | Purge an ORPHAN auth identity (no membership anywhere) — irreversible, owner-only | ✅ any account | — | — | — |
 
 Presets are starting bundles: an owner can change any membership's
 permissions afterwards (`permissions.update` is root-equivalent — whoever
@@ -144,6 +146,7 @@ generated — they are behavior, not documentation:
 | `account.disable` | `account.disable` | Disable an account; every session on it is denied from the next request. |
 | `account.enable` | `account.enable` | Re-enable a disabled account (old sessions stay dead). |
 | `account.promote` | `account.promote` | Promote a customer account to staff: strict session policy and out of the customer directory (never impersonable again). |
+| `account.demote` | `account.demote` | Demote a staff account back to customer: strips its staff-grade permissions, re-binds sessions to the customer policy, and returns it to the customer directory. Refused for the root account. |
 | `permissions.update` | `permissions.update` | Replace a membership's permission list (the source of truth). |
 | `sessions.revoke` | `sessions.revoke` | Revoke a session; it stops authorizing immediately. |
 | `sessions.revoke-all` | `sessions.revoke` | Log a membership out everywhere: revokes all of that membership's active sessions (audited one by one). |
@@ -156,6 +159,7 @@ generated — they are behavior, not documentation:
 | `members.unblock` | `members.block` | Lift a member soft-block within your org. |
 | `staff.list` | `staff.read` | List every staff (platform-internal) account — the staff directory the admin dashboard renders. Staff-only; never customer-visible. |
 | `customers.list` | `customer.search` | List every customer account — the customer directory the admin dashboard renders. Same permission as customer.search, no term needed. |
+| `identities.delete` | `identity.delete` | Purge an ORPHAN auth identity (a sign-up that joined no org). Irreversible; the server re-verifies orphanhood and refuses otherwise. |
 | `identities.orphaned` | `staff.read` | List org-less ("zombie") auth identities — sign-ups belonging to no account — for platform cleanup. Staff-only, gated by staff.read. |
 | `customer.search` | `customer.search` | Find customer accounts by name or email (support workflow). |
 | `customer.read` | `customer.read` | Read one customer account. Customers read their own; support needs an active impersonation grant on that exact account. |
@@ -211,6 +215,7 @@ re-authorizes itself with the concrete resource in hand.
 | `account.disabled` | An account was disabled, by whom and why |
 | `account.enabled` | A disabled account was re-enabled, by whom |
 | `account.promoted` | A customer account became staff, by whom |
+| `account.demoted` | A staff account was returned to customer (staff permissions stripped), by whom |
 | `permissions.updated` | Permissions replaced (records before and after) |
 | `member.roles-assigned` | A membership's role assignment was replaced (records the new role set) |
 | `session.revoked` | A session was revoked, by whom |
@@ -220,6 +225,7 @@ re-authorizes itself with the concrete resource in hand.
 | `invitation.created` | An email was invited into an account (with which permissions, by whom) |
 | `invitation.accepted` | The invited identity logged in and joined the account |
 | `invitation.revoked` | Staff withdrew a pending invitation before acceptance (its link stops activating) |
+| `identity.deleted` | An orphan identity (no membership anywhere) was purged from the auth provider |
 | `member.removed` | A membership was removed from its account, by whom (sessions included) |
 | `session.switched` | A user re-bound their session to another of their own memberships |
 | `settings.updated` | The session policy was reconfigured (records before and after) |

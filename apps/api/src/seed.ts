@@ -14,6 +14,23 @@ import type {
  */
 const hourAgo = (): string => new Date(Date.now() - 3_600_000).toISOString();
 
+/**
+ * Identities in the auth provider. The first three hold memberships; the last
+ * does NOT — it is the ORPHAN the directory lists and can purge (a sign-up that
+ * never onboarded). Keeping one in the seed is what makes the purge's guards
+ * exercisable end to end instead of theoretical.
+ */
+const SEED_USERS: InMemoryAccessSeed['users'] = [
+  { id: 'user-owner' },
+  { id: 'user-support' },
+  { id: 'user-customer' },
+  {
+    id: 'user-zombie',
+    email: 'zombie@acme.test',
+    createdAt: '2026-05-01T00:00:00.000Z',
+  },
+];
+
 export const seedWorld = (config: {
   readonly sessionExpiresAt: string;
   /** Login instant of the seeded sessions (defaults to one hour ago). */
@@ -79,6 +96,7 @@ export const seedWorld = (config: {
       email: 'ops@casapampa.example',
     },
   ],
+  users: SEED_USERS,
 });
 
 /**

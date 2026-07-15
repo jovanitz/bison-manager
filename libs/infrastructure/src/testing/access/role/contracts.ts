@@ -1,4 +1,4 @@
-import type { InMemoryAccessSeed } from '../../../access/in-memory/access-seed';
+import type { InMemoryAccessSeed } from '../../../access/in-memory/seed/access-seed';
 import type { AccessStorePorts } from '../access-store-fixtures';
 import { roleStoreContract } from './role-store-contract';
 import { roleTemplateStoreContract } from './role-template-store-contract';

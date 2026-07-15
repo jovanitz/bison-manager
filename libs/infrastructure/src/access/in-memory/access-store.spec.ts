@@ -3,7 +3,7 @@ import { identityOnboardingContract } from '../../testing/access/identity/onboar
 import { sessionPolicyContract } from '../../testing/access/session-policy-contract';
 import { toBillingStoreState } from '../../billing/in-memory/billing-store-state';
 import { createInMemorySubscriptionStore } from '../../billing/in-memory/in-memory-subscription-store';
-import type { InMemoryAccessSeed } from './access-seed';
+import type { InMemoryAccessSeed } from './seed/access-seed';
 import { createInMemoryAccessStore } from './access-store';
 
 /**

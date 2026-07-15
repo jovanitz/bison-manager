@@ -79,6 +79,7 @@ describe('the rpc pipeline', () => {
         .sort(),
     ).toEqual([
       'access.current',
+      'account.demote',
       'account.disable',
       'account.enable',
       'account.promote',
@@ -92,6 +93,7 @@ describe('the rpc pipeline', () => {
       'customer.read',
       'customer.search',
       'customers.list',
+      'identities.delete',
       'identities.orphaned',
       'identity.block',
       'identity.unblock',

@@ -12,7 +12,7 @@ export * from './api/api-item-repository';
 // the Node-only `postgres` driver, which breaks the web/mobile/desktop
 // bundles. The Node-side API composition root gets it via a dedicated entry
 // point (wired in phase 4c); specs import it relatively.
-export * from './access/in-memory/access-seed';
+export * from './access/in-memory/seed/access-seed';
 export * from './access/in-memory/access-store';
 // Store-agnostic composition (works over in-memory or Postgres ports alike).
 export * from './access/org-detail/access-org-detail-reader';
@@ -39,6 +39,7 @@ export * from './notifications/notification-senders';
 export * from './auth/supabase-auth-provider';
 export * from './auth/supabase-auth-api';
 export * from './auth/provisioning/in-memory-identity-provisioner';
+export * from './auth/provisioning/identity-purgers';
 
 // Access client adapters (browser-safe: fetch/ApiClient only)
 export * from './access-client/rpc-access-gateway';

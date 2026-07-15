@@ -21,7 +21,7 @@ const entries: readonly AuditRow[] = [
   },
   {
     id: '3',
-    type: 'staff.demoted',
+    type: 'account.demoted',
     category: 'access',
     actor: 'Ana Torres',
     target: { label: 'Cami Díaz', kind: 'staff', id: 'acc_03' },

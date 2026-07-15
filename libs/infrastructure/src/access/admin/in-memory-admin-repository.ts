@@ -6,6 +6,7 @@ import { accessSessionExpiryFrom } from '@acme/domain';
 import type {
   AccessAccountDisabled,
   AccessAccountEnabled,
+  AccessAccountDemoted,
   AccessAccountPromoted,
   AccessSessionPolicy,
   AccountId,
@@ -13,7 +14,8 @@ import type {
   SessionId,
 } from '@acme/domain';
 import { appendInMemoryAuditRecord } from '../in-memory/audit-trail';
-import type { AccessStoreState } from '../in-memory/access-seed';
+import { accountKindOf } from '../in-memory/seed/access-seed';
+import type { AccessStoreState } from '../in-memory/seed/access-seed';
 import {
   assignMembershipRoles,
   hasOtherAdmin,
@@ -28,8 +30,7 @@ export {
 } from './in-memory-membership-perms';
 
 /** Shared by the admin repo and the member directory (which lives apart). */
-export const accountKindOf = (state: AccessStoreState, accountId: string) =>
-  state.customers.has(accountId) ? ('customer' as const) : ('staff' as const);
+// account kind is read via the canonical `accountKindOf` (explicit kind).
 
 const accountHostsRoot = (
   state: AccessStoreState,
@@ -45,12 +46,23 @@ const promoteAccountToStaff = (
   event: AccessAccountPromoted,
   staffPolicy: AccessSessionPolicy,
 ): void => {
-  state.customers.delete(id);
+  const account = state.accounts.get(id);
+  if (account) state.accounts.set(id, { ...account, kind: 'staff' });
+  tightenAccountSessions(state, id, staffPolicy);
+  appendInMemoryAuditRecord(state, event);
+};
+
+/** Re-bound every active session of an account under a (new) session policy. */
+const tightenAccountSessions = (
+  state: AccessStoreState,
+  id: AccountId,
+  policy: AccessSessionPolicy,
+): void => {
   for (const [sessionId, session] of state.sessions) {
     const membership = state.memberships.get(session.membershipId);
     if (membership?.accountId !== id || session.status !== 'active') continue;
     const bounded = accessSessionExpiryFrom(
-      staffPolicy,
+      policy,
       session.createdAt,
       session.lastSeenAt,
     );
@@ -58,6 +70,26 @@ const promoteAccountToStaff = (
       state.sessions.set(sessionId, { ...session, expiresAt: bounded });
     }
   }
+};
+
+/**
+ * Demote: flip kind back to customer, STRIP every membership's roles (staff-grade
+ * permissions must not survive on a customer account — that is the whole security
+ * point), and re-bind sessions under the customer policy.
+ */
+const demoteAccountToCustomer = (
+  state: AccessStoreState,
+  id: AccountId,
+  event: AccessAccountDemoted,
+  customerPolicy: AccessSessionPolicy,
+): void => {
+  const account = state.accounts.get(id);
+  if (account) state.accounts.set(id, { ...account, kind: 'customer' });
+  for (const [mid, membership] of state.memberships) {
+    if (membership.accountId !== id) continue;
+    state.memberships.set(mid, { ...membership, roleIds: [] });
+  }
+  tightenAccountSessions(state, id, customerPolicy);
   appendInMemoryAuditRecord(state, event);
 };
 
@@ -108,7 +140,11 @@ const setAccountStatus = (
   event: AccessAccountDisabled | AccessAccountEnabled,
 ): void => {
   const prev = state.accounts.get(id);
-  state.accounts.set(id, { status, blocked: prev?.blocked ?? false });
+  state.accounts.set(id, {
+    status,
+    blocked: prev?.blocked ?? false,
+    kind: prev?.kind ?? 'staff',
+  });
   appendInMemoryAuditRecord(state, event);
 };
 
@@ -144,6 +180,8 @@ export const makeInMemoryAdminRepository = (
   },
   promoteAccountToStaff: async (id, event, staffPolicy) =>
     promoteAccountToStaff(state, id, event, staffPolicy),
+  demoteAccountToCustomer: async (id, event, customerPolicy) =>
+    demoteAccountToCustomer(state, id, event, customerPolicy),
   updatePermissions: async (id, permissions, event, requireCoAdmin) => {
     const membership = state.memberships.get(id);
     if (!membership) return { orphaned: false };

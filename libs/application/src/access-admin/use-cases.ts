@@ -12,7 +12,9 @@ import {
 } from './mutations/session-use-cases';
 import {
   accountAlreadyDisabled,
+  accountAlreadyCustomer,
   accountAlreadyStaff,
+  cannotDemoteRoot,
   accountNotDisabled,
   accountNotFound,
 } from './errors';
@@ -135,12 +137,50 @@ export const makePromoteAccountToStaff =
     return ok(undefined);
   };
 
+/** The inverse of promotion: staff → customer, staff permissions stripped. */
+export const makeDemoteAccountToCustomer =
+  (deps: AccessAdminDeps) =>
+  async (input: {
+    readonly actor: AccessActor;
+    readonly accountId: string;
+  }): AdminResult => {
+    const loaded = await loadAuthorizedAccount(deps, input, 'account.demote');
+    if (!loaded.ok) return err(loaded.error);
+    const { account, now } = loaded.value;
+    if (account.kind === 'customer') {
+      return err(
+        accountAlreadyCustomer(`Account ${input.accountId} is a customer.`),
+      );
+    }
+    // Defense in depth: loadAuthorizedAccount already blocks touching the root's
+    // account, but demotion is severe enough to name the refusal explicitly.
+    if (account.hostsRoot) {
+      return err(cannotDemoteRoot('The root account cannot be demoted.'));
+    }
+
+    const policies = await deps.settings.loadSessionPolicies();
+    await deps.admin.demoteAccountToCustomer(
+      account.id,
+      {
+        type: 'account.demoted',
+        accountId: account.id,
+        actorMembershipId: input.actor.membership.id,
+        occurredAt: now,
+      },
+      policies.customer,
+    );
+    return ok(undefined);
+  };
+
 export { makeUpdateUserPermissions };
 
 export type AccessAdminUseCases = {
   readonly disableAccount: ReturnType<typeof makeDisableAccount>;
   readonly enableAccount: ReturnType<typeof makeEnableAccount>;
   readonly promoteAccountToStaff: ReturnType<typeof makePromoteAccountToStaff>;
+  readonly demoteAccountToCustomer: ReturnType<
+    typeof makeDemoteAccountToCustomer
+  >;
   readonly updateUserPermissions: ReturnType<typeof makeUpdateUserPermissions>;
   readonly revokeSession: ReturnType<typeof makeRevokeSession>;
   readonly revokeAllSessions: ReturnType<typeof makeRevokeAllSessions>;
@@ -159,6 +199,7 @@ export const makeAccessAdminUseCases = (
   disableAccount: makeDisableAccount(deps),
   enableAccount: makeEnableAccount(deps),
   promoteAccountToStaff: makePromoteAccountToStaff(deps),
+  demoteAccountToCustomer: makeDemoteAccountToCustomer(deps),
   updateUserPermissions: makeUpdateUserPermissions(deps),
   revokeSession: makeRevokeSession(deps),
   revokeAllSessions: makeRevokeAllSessions(deps),

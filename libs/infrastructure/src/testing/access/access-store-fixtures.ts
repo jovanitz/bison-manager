@@ -31,7 +31,7 @@ import type {
   RoleTemplateStore,
   SubscriptionStore,
 } from '@acme/application';
-import type { InMemoryAccessSeed } from '../../access/in-memory/access-seed';
+import type { InMemoryAccessSeed } from '../../access/in-memory/seed/access-seed';
 
 /**
  * Shared fixtures for the access-store contract suite. Ids are random UUIDs

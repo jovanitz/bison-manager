@@ -38,4 +38,5 @@ export const createRpcAccountAdminGateway = (deps: {
     }),
   enable: (accountId) => call(deps.api, 'account.enable', { accountId }),
   promote: (accountId) => call(deps.api, 'account.promote', { accountId }),
+  demote: (accountId) => call(deps.api, 'account.demote', { accountId }),
 });

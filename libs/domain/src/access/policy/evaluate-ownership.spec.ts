@@ -112,6 +112,48 @@ describe('evaluateAccessPolicy — ownership bypass (ADR-0011)', () => {
     expect(system).toEqual({ allowed: false, reason: 'not-permitted' });
   });
 
+  it('an account owner CANNOT promote/disable/enable its own account (privilege escalation)', () => {
+    // The escalation the adversarial review found: a self-signup org creator is
+    // `isAccountOwner` on their own account, so without this the ownership bypass
+    // would let them `account.promote` themselves to staff — and a staff account
+    // escapes the customer-coherence guard, so they could then grant themselves
+    // any staff action. Account-lifecycle actions must fall through to the
+    // permission check, which a non-staff owner fails.
+    const owner = actor({ isAccountOwner: true });
+    for (const action of [
+      'account.promote',
+      'account.disable',
+      'account.enable',
+    ] as const) {
+      expect(
+        evaluateAccessPolicy({
+          actor: owner,
+          action,
+          resource: res('acct-own'),
+          now: NOW,
+        }),
+      ).toEqual({ allowed: false, reason: 'not-permitted' });
+    }
+  });
+
+  it('root can still promote/disable/enable — the exclusion is on the OWNER branch only', () => {
+    const root = actor({ isRoot: true });
+    for (const action of [
+      'account.promote',
+      'account.disable',
+      'account.enable',
+    ] as const) {
+      expect(
+        evaluateAccessPolicy({
+          actor: root,
+          action,
+          resource: res('acct-own'),
+          now: NOW,
+        }),
+      ).toEqual({ allowed: true, source: 'root' });
+    }
+  });
+
   it('respects an injected grant-only catalog (a different app’s vocabulary)', () => {
     const root = actor({ isRoot: true });
     // Default vocabulary: staff.read is not grant-only → root bypass allows it.

@@ -8,7 +8,7 @@ import type { DirectoryGatewayError } from './ports';
  * Split out of `ports.ts` to keep that file within the file-length budget.
  */
 
-/** Account lifecycle: disable (hard suspend), enable, promote (one-way). */
+/** Account lifecycle: disable, enable, promote (customer->staff), demote (staff->customer). */
 export type AccountAdminGateway = {
   readonly disable: (
     accountId: string,
@@ -18,6 +18,10 @@ export type AccountAdminGateway = {
     accountId: string,
   ) => Promise<Result<void, DirectoryGatewayError>>;
   readonly promote: (
+    accountId: string,
+  ) => Promise<Result<void, DirectoryGatewayError>>;
+  /** staff -> customer, stripping staff permissions (the inverse of promote). */
+  readonly demote: (
     accountId: string,
   ) => Promise<Result<void, DirectoryGatewayError>>;
 };

@@ -1,4 +1,4 @@
-import { defineError } from '@acme/shared';
+import { defineError, type TaggedError } from '@acme/shared';
 
 /**
  * Errors of the client-side access feature. Transport/HTTP failures collapse
@@ -6,3 +6,8 @@ import { defineError } from '@acme/shared';
  * existing `app/access-denied` so the UI treats both lines of defense alike.
  */
 export const accessGatewayError = defineError('app/access-gateway-error');
+
+/** The two failure modes any read/write through the API gateway collapses into. */
+export type DirectoryGatewayError = TaggedError<
+  'app/access-gateway-error' | 'app/access-denied'
+>;

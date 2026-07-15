@@ -31,7 +31,7 @@ export type DirectoryStoreState = {
     blocked: boolean,
   ) => Promise<void>;
   readonly admin: (
-    action: 'disable' | 'enable' | 'promote',
+    action: 'disable' | 'enable' | 'promote' | 'demote',
     accountId: string,
   ) => Promise<void>;
   /**
@@ -49,6 +49,8 @@ export type DirectoryStoreState = {
    * can tell "sent" from "the mail provider is down" instead of guessing.
    */
   readonly resend: (invitationId: string) => Promise<string | null>;
+  /** Erase an orphan identity. Irreversible; the server re-verifies orphanhood. */
+  readonly purgeOrphan: (userId: string) => Promise<void>;
 };
 
 export type TokenResult =
@@ -111,6 +113,11 @@ export const createDirectoryStore = (deps: DirectoryStoreDeps) =>
         if (!result.ok) return result.error.message;
         await reload();
         return null;
+      },
+      purgeOrphan: async (userId) => {
+        const result = await deps.directory.purgeOrphan(userId);
+        if (result.ok) await reload();
+        else set({ error: result.error.message });
       },
     };
   });
