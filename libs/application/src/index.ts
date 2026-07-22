@@ -114,6 +114,7 @@ export * from './access-client/gateways/client/orgs-use-cases';
 // component or a reactive store.
 export * from './flows/capabilities';
 export * from './flows/registry-types';
+export * from './flows/agent-executor';
 export * from './flows/client/org-admin';
 export * from './flows/client/roles';
 export * from './flows/client/home';
