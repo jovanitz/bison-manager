@@ -127,6 +127,12 @@ export const OWNER_UNBYPASSABLE_ACTIONS = [
   // Scheduling/cancelling an org's deletion is staff moderation, never a
   // self-service action an org owner performs on their own account.
   'account.delete',
+  // `plans.manage` gates the per-account billing levers (mark-paid, change-plan,
+  // set-override, void, refund). It is deliberately NOT customer-delegable, so
+  // the ownership bypass was the ONLY path a customer reached it — self-comping
+  // a free/premium subscription or refunding real money. Staff reach it by an
+  // `any`-scoped permission; owners must not reach it by ownership.
+  'plans.manage',
 ] as const satisfies ReadonlyArray<AccessAction>;
 
 export const isOwnerUnbypassableAction = (action: AccessAction): boolean =>

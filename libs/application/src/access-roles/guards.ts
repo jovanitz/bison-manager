@@ -5,10 +5,50 @@ import type {
   AccessPermission,
   AccountId,
   AccountKind,
+  RoleId,
 } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
 import { guardGrantedPermissions } from '../access-admin/deps';
+import type { AccessAdminUseCaseError } from '../access-admin/errors';
+import type { RoleStore } from './ports';
 import type { RoleUseCaseError } from './errors';
+
+/** Why a role-set failed the attachment law: unreachable (missing/foreign), or
+ *  carrying permissions the account's kind may not hold. */
+export type RolesForAccountIssue =
+  | { readonly kind: 'invalid' }
+  | { readonly kind: 'incoherent'; readonly error: AccessAdminUseCaseError };
+
+/**
+ * THE single coherence law for attaching platform/own roles to an account
+ * (ADR-0011). Every role must (1) exist, (2) be reachable by the account —
+ * platform-wide (`accountId: null`) or the account's OWN, never a foreign org's,
+ * and (3) carry only permissions coherent with the account's kind. Both the
+ * invitation path AND direct assignment MUST route through here, so the law
+ * cannot drift between them: without (3), a customer-org admin could attach a
+ * seeded platform role (Support) and smuggle staff-grade `any`-scoped powers
+ * (impersonation, cross-org reads) INTO a customer account — the escalation the
+ * audit found. Callers map the issue to their own error surface.
+ */
+export const guardRolesForAccount = async (
+  roles: Pick<RoleStore, 'findManyById'>,
+  accountId: AccountId,
+  accountKind: AccountKind,
+  roleIds: ReadonlyArray<RoleId>,
+): Promise<Result<void, RolesForAccountIssue>> => {
+  if (roleIds.length === 0) return ok(undefined);
+  const found = await roles.findManyById(roleIds);
+  if (found.length !== roleIds.length) return err({ kind: 'invalid' });
+  const foreign = found.some(
+    (role) => role.accountId !== null && role.accountId !== accountId,
+  );
+  if (foreign) return err({ kind: 'invalid' });
+  for (const role of found) {
+    const coherent = guardGrantedPermissions(role.permissions, accountKind);
+    if (!coherent.ok) return err({ kind: 'incoherent', error: coherent.error });
+  }
+  return ok(undefined);
+};
 
 export type RawPermission = { readonly action: string; readonly scope: string };
 

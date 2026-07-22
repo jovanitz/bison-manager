@@ -2,8 +2,12 @@ import { fixedClock, sequentialIdGenerator } from '@acme/shared';
 import { ACCESS_SESSION_POLICY_DEFAULTS } from '@acme/domain';
 import type {
   AccessAuditEvent,
+  AccountId,
+  AccountKind,
   BillingEvent,
   InvitationId,
+  Role,
+  RoleId,
   Subscription,
   UserId,
 } from '@acme/domain';
@@ -37,6 +41,11 @@ type IdentityWorldInput = {
   invitedOrgMembers?: number;
   /** Seat ceiling `seatLimitFor` resolves for CUSTOMER orgs (null = unlimited). */
   invitedOrgSeatLimit?: number | null;
+  /** The account's CURRENT kind at attach time (default = the invitation's
+   *  stored kind → coherent; set differently to simulate a demote before login). */
+  currentAccountKind?: AccountKind;
+  /** Roles resolvable by `findManyById` (for the role coherence re-check). */
+  roles?: ReadonlyArray<Role>;
 };
 
 type IdentityWorldState = {
@@ -123,6 +132,23 @@ const makeInvitationFakes = (
       if (account.kind === 'staff') return null;
       return input.invitedOrgSeatLimit ?? null;
     },
+  },
+  // Attach-time re-validation: current account kind + the role store.
+  accounts: {
+    findAccount: async (id: AccountId) => ({
+      id,
+      status: 'active' as const,
+      kind:
+        input.currentAccountKind ??
+        input.pendingInvitation?.accountKind ??
+        'staff',
+      hostsRoot: false,
+      pendingDeletionUntil: null,
+    }),
+  },
+  roles: {
+    findManyById: async (roleIds: ReadonlyArray<RoleId>) =>
+      (input.roles ?? []).filter((role) => roleIds.includes(role.id)),
   },
 });
 

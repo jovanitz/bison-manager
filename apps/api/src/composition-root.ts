@@ -108,6 +108,10 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     members: store.members,
     // ADR-0016 D1: the attach-time seat ceiling for invitation accepts.
     billing: { seatLimitFor: billing.guards.seatLimitFor },
+    // Re-validate an invitation's stored powers against the account's CURRENT
+    // kind at first-login attach (the account may have been demoted since).
+    accounts: store.admin,
+    roles: store.roles,
     clock,
     ids,
   });

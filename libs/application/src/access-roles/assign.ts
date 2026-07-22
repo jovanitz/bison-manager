@@ -2,11 +2,7 @@ import { type Clock, type Result, err, ok } from '@acme/shared';
 import { makeMembershipId } from '@acme/domain';
 import type { AccessActor, AccountId, RoleId } from '@acme/domain';
 import { authorizeAccessAction } from '../access/authorize';
-import {
-  guardGrantedPermissions,
-  guardOwnerTarget,
-  guardRootTarget,
-} from '../access-admin/deps';
+import { guardOwnerTarget, guardRootTarget } from '../access-admin/deps';
 import {
   accountNotFound,
   cannotOrphanAccount,
@@ -14,6 +10,7 @@ import {
 } from '../access-admin/errors';
 import type { AccessAdminRepository } from '../access-admin/ports';
 import type { RoleStore } from './ports';
+import { guardRolesForAccount } from './guards';
 import { roleNotFound, type RoleUseCaseError } from './errors';
 
 export type AssignMemberRolesDeps = {
@@ -27,42 +24,31 @@ export type AssignMemberRolesDeps = {
 const ROLE_ACTION = 'permissions.update' as const;
 
 /**
- * Validate that every requested role exists, is reachable by the account, AND
- * that its permissions are legal INSIDE that account.
- *
- * The last part is the one that matters. A platform role carries `accountId:
- * null`, so the "not another org's role" test alone lets it through for ANY
- * account — and an org owner reaches `permissions.update` on their own account
- * by the ownership bypass (ADR-0011). Together that let a customer org owner
- * self-assign a seeded staff role (Support, and anything holding `any`-scoped
- * or staff-only actions) and inherit its authority. Assigning a role now obeys
- * exactly the same coherence law as granting its permissions directly or
- * inviting someone with them: inside a customer org, nothing `any`-scoped and
- * nothing outside the customer-delegable set.
+ * Validate a role assignment through the ONE shared coherence law
+ * (`guardRolesForAccount`): every role exists, is reachable by the account, AND
+ * carries only permissions its kind may hold. That last part is what stops a
+ * customer org owner (who reaches `permissions.update` on their own account via
+ * the ownership bypass, ADR-0011) from self-assigning a seeded staff role
+ * (Support / anything `any`-scoped) and inheriting its authority. Invitation and
+ * direct assignment share the same guard so the law cannot drift between them.
  */
 const guardAssignableRoles = async (
   deps: AssignMemberRolesDeps,
   accountId: AccountId,
   roleIds: ReadonlyArray<RoleId>,
 ): Promise<Result<void, RoleUseCaseError>> => {
-  const roles = await deps.roles.findManyById(roleIds);
-  if (roles.length !== roleIds.length) {
-    return err(roleNotFound('One or more roles do not exist.'));
-  }
-  const foreign = roles.some(
-    (role) => role.accountId !== null && role.accountId !== accountId,
-  );
-  if (foreign) {
-    return err(roleNotFound('A role is not available to this account.'));
-  }
-
   const account = await deps.admin.findAccount(accountId);
   if (!account) return err(accountNotFound(`No account ${accountId}.`));
-  for (const role of roles) {
-    const coherent = guardGrantedPermissions(role.permissions, account.kind);
-    if (!coherent.ok) return err(coherent.error);
-  }
-  return ok(undefined);
+  const guarded = await guardRolesForAccount(
+    deps.roles,
+    accountId,
+    account.kind,
+    roleIds,
+  );
+  if (guarded.ok) return ok(undefined);
+  return guarded.error.kind === 'incoherent'
+    ? err(guarded.error.error)
+    : err(roleNotFound('A role is not available to this account.'));
 };
 
 /** Replace a membership's role assignment (ADR-0011, roles-only). */

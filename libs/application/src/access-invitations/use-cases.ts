@@ -142,6 +142,7 @@ export const makeCreateInvitation =
     const roleIds = await guardInvitationRoles(
       deps.roles,
       accountId.value,
+      account.kind,
       input.roleIds ?? [],
     );
     if (!roleIds.ok) return err(roleIds.error);

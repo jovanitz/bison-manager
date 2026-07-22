@@ -1,90 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { fixedClock, sequentialIdGenerator } from '@acme/shared';
-import type {
-  AccessInvitationCreated,
-  AccessInvitationRevoked,
-  AccountKind,
-  Role,
-  RoleId,
-} from '@acme/domain';
-import { TEST_ACCESS_NOW, testAccessActor } from '../access/testing';
-import type {
-  IdentityProvisioner,
-  PendingAccessInvitation,
-  PendingInvitationSummary,
-  PendingInvitationByToken,
-} from './ports';
-import { makeAccessInvitationsUseCases } from './use-cases';
-
-const EXPIRES = '2026-06-16T12:00:00.000Z'; // TEST_ACCESS_NOW + 7 days
-
-const okProvisioner: IdentityProvisioner = {
-  createIdentity: async () => ({ ok: true, value: { userId: 'user-new' } }),
-};
-
-const makeWorld = (input?: {
-  accountKind?: AccountKind;
-  accountExists?: boolean;
-  pending?: PendingAccessInvitation;
-  byToken?: PendingInvitationByToken | null;
-  provisioner?: IdentityProvisioner;
-  roles?: ReadonlyArray<Role>;
-  pendingById?: PendingInvitationSummary | null;
-}) => {
-  const created: Array<{
-    invitation: { email: string; expiresAt: string; tokenHash: string };
-    event: AccessInvitationCreated;
-  }> = [];
-  const consumed: string[] = [];
-  const revoked: Array<{ id: string; event: AccessInvitationRevoked }> = [];
-  const useCases = makeAccessInvitationsUseCases({
-    invitations: {
-      createInvitation: async (invitation, event) => {
-        created.push({ invitation, event });
-      },
-      findPendingByEmail: async () => input?.pending ?? null,
-      findPendingByTokenHash: async () => input?.byToken ?? null,
-      consumeToken: async (id) => {
-        consumed.push(id);
-      },
-      listPending: async () => [],
-      regenerateToken: async () => true,
-      findPendingById: async () => input?.pendingById ?? null,
-      revokeInvitation: async (id, event) => {
-        if (!(input?.pendingById ?? null)) return false;
-        revoked.push({ id, event });
-        return true;
-      },
-    },
-    accounts: {
-      findAccount: async (id) =>
-        (input?.accountExists ?? true)
-          ? { id, status: 'active', kind: input?.accountKind ?? 'staff' }
-          : null,
-    },
-    roles: {
-      findManyById: async (roleIds) =>
-        (input?.roles ?? []).filter((role) => roleIds.includes(role.id)),
-    },
-    tokens: {
-      issue: () => ({ token: 'plain-token', tokenHash: 'hash-of-plain-token' }),
-      hashOf: (token) => `hash-of-${token}`,
-    },
-    provisioner: input?.provisioner ?? okProvisioner,
-    clock: fixedClock(new Date(TEST_ACCESS_NOW)),
-    ids: sequentialIdGenerator('inv'),
-  });
-  return { useCases, created, consumed, revoked };
-};
-
-const OWN_READ = [{ action: 'customer.read', scope: 'own' }];
-
-const roleFixture = (id: string): Role => ({
-  id: id as RoleId,
-  name: id as Role['name'],
-  accountId: null,
-  permissions: [] as Role['permissions'],
-});
+import type { Role, RoleId } from '@acme/domain';
+import { testAccessActor } from '../access/testing';
+import type { PendingAccessInvitation } from './ports';
+import { EXPIRES, OWN_READ, makeWorld, roleFixture } from './use-cases.testkit';
 
 describe('createInvitation', () => {
   it('lets an owner invite an email, normalized and audited atomically', async () => {
@@ -200,6 +118,34 @@ describe('createInvitation', () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe('app/not-delegable-to-customer');
+  });
+
+  it('refuses attaching a platform role with any-scoped powers to a customer account (privilege escalation)', async () => {
+    // The audit finding: a customer-org admin attaches the seeded platform
+    // "Support" role (accountId null, so it passes the foreign check) whose
+    // permissions are any-scoped impersonation/customer.read — smuggling
+    // staff-grade cross-org powers INTO a customer account. The role path must
+    // obey the SAME coherence law as the direct `permissions` field.
+    const supportRole: Role = {
+      id: 'support' as RoleId,
+      name: 'Support' as Role['name'],
+      accountId: null,
+      permissions: [
+        { action: 'customer.read', scope: 'any' },
+        { action: 'impersonation.start', scope: 'any' },
+      ] as Role['permissions'],
+    };
+    const world = makeWorld({ accountKind: 'customer', roles: [supportRole] });
+    const r = await world.useCases.createInvitation({
+      actor: testAccessActor({ preset: 'owner' }),
+      accountId: 'acct-1',
+      email: 'attacker@example.com',
+      permissions: [],
+      roleIds: ['support'],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.tag).toBe('app/requires-staff-account');
+    expect(world.created).toHaveLength(0);
   });
 
   it('refuses a second invitation while one is pending for the email', async () => {

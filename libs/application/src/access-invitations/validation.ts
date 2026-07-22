@@ -1,7 +1,13 @@
 import { type Result, err, ok } from '@acme/shared';
 import { makeAccessPermission } from '@acme/domain';
-import type { AccessPermission, AccountId, RoleId } from '@acme/domain';
+import type {
+  AccessPermission,
+  AccountId,
+  AccountKind,
+  RoleId,
+} from '@acme/domain';
 import type { RoleStore } from '../access-roles/ports';
+import { guardRolesForAccount } from '../access-roles/guards';
 import { invitationRoleInvalid } from './errors';
 import type { AccessInvitationUseCaseError } from './errors';
 
@@ -26,26 +32,30 @@ export const parseInvitationPermissions = (
   return ok(permissions);
 };
 
-/** Validate the invitation's roles exist AND are reachable by the account
- * (platform roles or the account's own) — the same rule as direct assignment. */
+/**
+ * Validate the invitation's roles through the ONE shared coherence law
+ * (`guardRolesForAccount`): each role exists, is reachable by the account
+ * (platform-wide or the account's own), AND — the part this path was missing —
+ * carries only permissions the account's KIND may hold. Without the last check a
+ * customer-org admin could attach a seeded platform role (Support) and smuggle
+ * staff-grade `any`-scoped powers into a customer account. Same guard as direct
+ * assignment, so the law cannot drift.
+ */
 export const guardInvitationRoles = async (
   roles: Pick<RoleStore, 'findManyById'>,
   accountId: AccountId,
+  accountKind: AccountKind,
   rawRoleIds: ReadonlyArray<string>,
 ): Promise<Result<ReadonlyArray<RoleId>, AccessInvitationUseCaseError>> => {
   const roleIds = [...new Set(rawRoleIds)].map((id) => id as RoleId);
-  if (roleIds.length === 0) return ok(roleIds);
-  const found = await roles.findManyById(roleIds);
-  if (found.length !== roleIds.length) {
-    return err(invitationRoleInvalid('One or more roles do not exist.'));
-  }
-  const foreign = found.some(
-    (role) => role.accountId !== null && role.accountId !== accountId,
+  const guarded = await guardRolesForAccount(
+    roles,
+    accountId,
+    accountKind,
+    roleIds,
   );
-  if (foreign) {
-    return err(
-      invitationRoleInvalid('A role is not available to this account.'),
-    );
-  }
-  return ok(roleIds);
+  if (guarded.ok) return ok(roleIds);
+  return guarded.error.kind === 'incoherent'
+    ? err(guarded.error.error)
+    : err(invitationRoleInvalid('A role is not available to this account.'));
 };

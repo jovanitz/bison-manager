@@ -10,8 +10,10 @@ import type { AccessAdminRepository } from '../access-admin/ports';
 import type { AccessInvitationStore } from '../access-invitations/ports';
 import type { PendingAccessInvitation } from '../access-invitations/ports';
 import type { AccessMemberDirectory } from '../access-members/ports';
+import type { RoleStore } from '../access-roles/ports';
 import type { AccessSessionPolicyStore } from '../access-settings/ports';
 import type { EntitlementGuards } from '../billing-subscriptions/guards';
+import { coherentInvitedPowers } from './invited-powers';
 import type {
   IdentityOnboardingRepository,
   NewIdentityMembership,
@@ -32,6 +34,10 @@ export type IdentityDeps = {
   >;
   /** Multi-organization: a user may hold one membership per account. */
   readonly members: Pick<AccessMemberDirectory, 'listMembershipsByUser'>;
+  /** Re-validate an invitation's stored powers against the account's CURRENT
+   *  kind at attach time (the account may have been demoted since the invite). */
+  readonly accounts: Pick<AccessAdminRepository, 'findAccount'>;
+  readonly roles: Pick<RoleStore, 'findManyById'>;
   /** ADR-0016 D1: the resolved seat ceiling for the attach-time check. */
   readonly billing: {
     readonly seatLimitFor: EntitlementGuards['seatLimitFor'];
@@ -93,6 +99,7 @@ const acceptPendingInvitation = async (
     accountId: pending.accountId,
     kind: pending.accountKind,
   });
+  const powers = await coherentInvitedPowers(deps, pending);
   const membershipId = deps.ids.next() as MembershipId;
   const outcome = await deps.onboarding.acceptInvitation(
     {
@@ -101,8 +108,8 @@ const acceptPendingInvitation = async (
       userId: identity.userId,
       email: identity.email,
       displayName: identity.email,
-      permissions: pending.permissions,
-      roleIds: pending.roleIds,
+      permissions: powers.permissions,
+      roleIds: powers.roleIds,
       occurredAt,
     },
     { invitationId: pending.invitationId, seatLimit },

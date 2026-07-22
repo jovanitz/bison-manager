@@ -136,6 +136,24 @@ describe('evaluateAccessPolicy — ownership bypass (ADR-0011)', () => {
     }
   });
 
+  it('an account owner CANNOT manage plans/billing levers on its own account (self-comp escalation)', () => {
+    // Second escalation the audit found: `plans.manage` gates the per-account
+    // billing levers (markPaid / changePlan / setOverride / void / refund).
+    // Since it is deliberately NOT customer-delegable, the ownership bypass was
+    // the ONLY path a customer reached it — a self-signup owner could mark their
+    // own account paid forever, jump to a premium plan, or refund real money.
+    // It must fall through to the permission check, which a non-staff owner fails.
+    const owner = actor({ isAccountOwner: true });
+    expect(
+      evaluateAccessPolicy({
+        actor: owner,
+        action: 'plans.manage',
+        resource: res('acct-own'),
+        now: NOW,
+      }),
+    ).toEqual({ allowed: false, reason: 'not-permitted' });
+  });
+
   it('root can still promote/disable/enable — the exclusion is on the OWNER branch only', () => {
     const root = actor({ isRoot: true });
     for (const action of [

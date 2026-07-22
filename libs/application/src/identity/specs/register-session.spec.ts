@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accessPresetPermissions } from '@acme/domain';
-import type { AccountId } from '@acme/domain';
+import type { AccountId, Role, RoleId } from '@acme/domain';
 import type { ActiveIdentitySession } from '../ports';
 import {
   IDENTITY_TEST_CONTEXT,
@@ -106,6 +106,33 @@ describe('registerIdentitySession', () => {
       'invitation.accepted',
       'login.succeeded',
     ]);
+  });
+
+  it("drops an invitation's staff-grade powers when the account was demoted to customer before first login", async () => {
+    // The audit's onboarding residual: the invitation stored staff powers +
+    // kind at creation, but the account was demoted staff→customer since. The
+    // stored `any`-scoped role/permissions must NOT attach to a now-customer
+    // account — re-validated against the CURRENT kind, they are dropped and the
+    // invitee joins as a bare member (staff re-grant appropriately).
+    const supportRole: Role = {
+      id: 'support' as RoleId,
+      name: 'Support' as Role['name'],
+      accountId: null,
+      permissions: [
+        { action: 'impersonation.start', scope: 'any' },
+      ] as Role['permissions'],
+    };
+    const world = makeWorld({
+      pendingInvitation: pendingInvite({ roleIds: ['support' as RoleId] }),
+      currentAccountKind: 'customer',
+      roles: [supportRole],
+    });
+    const r = await register(world, 'invitee@example.com');
+    expect(r.ok).toBe(true);
+    expect(world.created[0]?.accountId).toBe('acct-owner');
+    expect(world.created[0]?.permissions).toEqual([]);
+    expect(world.created[0]?.roleIds).toEqual([]);
+    expect(world.accepted).toEqual(['inv-1']);
   });
 
   it('a user with an existing membership still joins the inviting account', async () => {
