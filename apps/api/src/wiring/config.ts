@@ -1,4 +1,5 @@
 import type { Clock, IdGenerator } from '@acme/shared';
+import type { Charge, Payment } from '@acme/domain';
 import type { NotificationSender } from '@acme/application';
 import type {
   InMemoryAccessSeed,
@@ -18,6 +19,12 @@ export type ApiConfig = {
   readonly seed?: InMemoryAccessSeed;
   /** In-memory billing world (plans + subscriptions) for dev/tests (ADR-0016). */
   readonly billingSeed?: InMemoryBillingSeed;
+  /** Dev-stub only: pre-populated ledger (charges + payments) so the org-detail
+   *  Ledger card has a real payment to void/refund. Never set from tests. */
+  readonly ledgerSeed?: {
+    readonly charges: readonly Charge[];
+    readonly payments: readonly Payment[];
+  };
   /**
    * TEST-ONLY seam: extra procedures appended to the registry. Used by the
    * pipeline contract tests (the declarative feature gate has no production

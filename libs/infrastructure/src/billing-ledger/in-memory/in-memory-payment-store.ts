@@ -6,8 +6,10 @@ import type { Payment } from '@acme/domain';
  * contract-tested against. Append-only: corrections are new compensating rows,
  * never edits.
  */
-export const createInMemoryPaymentStore = (): PaymentStore => {
-  let rows: readonly Payment[] = [];
+export const createInMemoryPaymentStore = (
+  initial: readonly Payment[] = [],
+): PaymentStore => {
+  let rows: readonly Payment[] = initial;
   return {
     listByAccount: async (accountId) =>
       rows.filter((p) => p.accountId === accountId),

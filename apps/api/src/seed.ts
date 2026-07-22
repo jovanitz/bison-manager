@@ -1,9 +1,64 @@
 import { accessPresetPermissions } from '@acme/domain';
-import type { Plan, PlanId, SubscriptionId } from '@acme/domain';
+import type {
+  Charge,
+  ChargeId,
+  Money,
+  Payment,
+  PaymentId,
+  Plan,
+  PlanId,
+  SubscriptionId,
+} from '@acme/domain';
 import type {
   InMemoryAccessSeed,
   InMemoryBillingSeed,
 } from '@acme/infrastructure';
+
+const MXN = (minor: number): Money => ({ minor, currency: 'MXN' });
+
+/**
+ * A settled charge + the payment that cleared it for `acct-customer` (dev stub
+ * only) — so the org-detail Ledger card has a real `payment` row the void /
+ * refund correction menu can act on. NOT seeded into the contract-test runtime,
+ * which asserts an empty ledger.
+ */
+export const seedDemoLedger = (): {
+  readonly charges: readonly Charge[];
+  readonly payments: readonly Payment[];
+} => ({
+  charges: [
+    {
+      id: 'chg-demo' as ChargeId,
+      accountId: 'acct-customer',
+      planId: SEED_PLAN_FREE.id,
+      period: {
+        from: '2026-05-05T00:00:00.000Z',
+        to: '2026-06-05T00:00:00.000Z',
+      },
+      dueDate: '2026-05-05T00:00:00.000Z',
+      subtotal: MXN(4900),
+      taxRateBps: 1600,
+      tax: MXN(784),
+      total: MXN(5684),
+      graceDays: 10,
+      status: 'paid',
+      paidAt: '2026-05-08T00:00:00.000Z',
+      coveredThrough: '2026-06-05T00:00:00.000Z',
+    },
+  ],
+  payments: [
+    {
+      id: 'pay-demo' as PaymentId,
+      accountId: 'acct-customer',
+      kind: 'payment',
+      amount: MXN(5684),
+      appliedTo: ['chg-demo' as ChargeId],
+      recordedByMembershipId: 'mem-owner',
+      reason: 'seed: bank transfer',
+      occurredAt: '2026-05-08T00:00:00.000Z',
+    },
+  ],
+});
 
 /**
  * The standard phase-3 world for the dev server and the contract tests: one

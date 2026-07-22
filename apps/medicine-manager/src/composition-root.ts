@@ -20,6 +20,8 @@ import {
   createInMemoryItemRepository,
   createRpcAccessGateway,
   createRpcAccountAdminGateway,
+  createRpcBillingGateway,
+  createRpcOrgDetailGateway,
   createRpcAuditGateway,
   createRpcSessionsGateway,
   createRpcSettingsGateway,
@@ -115,6 +117,10 @@ export const createMedicineManagerRuntime = (
   const block = makeBlockUseCases({ gateway: createRpcBlockGateway({ api }) });
   const roles = createRpcRolesGateway({ api });
   const accounts = createRpcAccountAdminGateway({ api });
+  // The org drill-down (ADR-0018): summary + roster read, and the billing
+  // surface (summary + coverage + ledger + levers + void/refund corrections).
+  const orgDetail = createRpcOrgDetailGateway({ api });
+  const billing = createRpcBillingGateway({ api });
   const audit = createRpcAuditGateway({ api });
   const sessions = createRpcSessionsGateway({ api });
   const settings = createRpcSettingsGateway({ api });
@@ -139,6 +145,8 @@ export const createMedicineManagerRuntime = (
       block,
       roles,
       accounts,
+      orgDetail,
+      billing,
       audit,
       sessions,
       settings,

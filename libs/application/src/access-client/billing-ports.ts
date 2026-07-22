@@ -12,6 +12,26 @@ import type { DirectoryGatewayError } from './ports';
 
 type GatewayResult<T> = Promise<Result<T, DirectoryGatewayError>>;
 
+/** One movement in the org's ledger (ADR-0018) — the API `billing.ledger` row.
+ *  Raw minor amounts + a running balance; the UI edge formats the labels. */
+export type LedgerEntryDto = {
+  readonly id: string;
+  readonly date: string;
+  readonly kind: 'charge' | 'payment' | 'refund' | 'void' | 'credit';
+  readonly amountMinor: number;
+  readonly runningBalanceMinor: number;
+  readonly chargeStatus?: 'open' | 'paid' | 'void';
+  readonly subtotalMinor?: number;
+  readonly taxMinor?: number;
+  readonly period?: { readonly from: string; readonly to: string };
+  readonly reason?: string;
+};
+
+export type LedgerViewDto = {
+  readonly entries: readonly LedgerEntryDto[];
+  readonly currency: string;
+};
+
 export type PlanPriceDto = {
   /** Integer cents, strictly positive — a free plan has `price: null`. */
   readonly amountCents: number;
@@ -163,6 +183,18 @@ export type BillingGateway = {
   readonly setOverride: (input: {
     readonly accountId: string;
     readonly overrides: PlanOverridesDto;
+    readonly reason: string;
+  }) => GatewayResult<void>;
+  /** The org's billing ledger (charges + payments) for the org-detail card. */
+  readonly listLedger: (accountId: string) => GatewayResult<LedgerViewDto>;
+  /** Append-only corrections (ADR-0018) — reason mandatory. `paymentId` is the
+   *  ledger entry id of a `payment` row. Both re-read coverage + ledger after. */
+  readonly voidPayment: (input: {
+    readonly paymentId: string;
+    readonly reason: string;
+  }) => GatewayResult<void>;
+  readonly refundPayment: (input: {
+    readonly paymentId: string;
     readonly reason: string;
   }) => GatewayResult<void>;
 };

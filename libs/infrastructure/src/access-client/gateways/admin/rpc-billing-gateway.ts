@@ -5,6 +5,7 @@ import type {
   BillingGateway,
   BillingSummaryDto,
   DirectoryGatewayError,
+  LedgerViewDto,
   PlanDto,
   PlanImpactPreviewDto,
   PlanSubscriberDto,
@@ -70,4 +71,8 @@ export const createRpcBillingGateway = (deps: {
   extendTrial: (input) => command(deps.api, 'billing.extendTrial', input),
   changePlan: (input) => command(deps.api, 'billing.changePlan', input),
   setOverride: (input) => command(deps.api, 'billing.setOverride', input),
+  listLedger: (accountId) =>
+    call<LedgerViewDto>(deps.api, 'billing.ledger', { accountId }),
+  voidPayment: (input) => command(deps.api, 'billing.void', input),
+  refundPayment: (input) => command(deps.api, 'billing.refund', input),
 });

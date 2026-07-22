@@ -1,8 +1,8 @@
 import type { Clock, IdGenerator } from '@acme/shared';
 import {
+  makeBillingLedgerUseCases,
   makeBillingPlansUseCases,
   makeBillingSubscriptionsUseCases,
-  makeGetCoverage,
   makeEntitlementGuards,
 } from '@acme/application';
 import type {
@@ -14,6 +14,7 @@ import type {
   CreateOrganizationDeps,
   EntitlementGuards,
 } from '@acme/application';
+import type { Charge, Payment } from '@acme/domain';
 import {
   createInMemoryBillingStore,
   createInMemoryChargeStore,
@@ -36,7 +37,13 @@ export type BillingWiring = {
   readonly plans: BillingPlansUseCases;
   readonly subscriptions: BillingSubscriptionsUseCases;
   readonly guards: EntitlementGuards;
-  /** Derived billing coverage (ADR-0018) for the Directory / org-detail reads. */
+  /**
+   * The billing-ledger use cases (ADR-0018) over ONE shared charge + payment
+   * store: coverage/ledger reads AND the mutations (record-payment, void,
+   * refund) that must see each other's writes. `getCoverage` is re-exposed for
+   * the Directory rows that only need coverage.
+   */
+  readonly ledger: BillingLedgerUseCases;
   readonly getCoverage: BillingLedgerUseCases['getCoverage'];
   /**
    * The raw port surface, for the enforcement wiring the use-case bundles do
@@ -77,6 +84,12 @@ export const wireBilling = (deps: {
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly state: BillingStoreState;
+  /** Dev-stub only: pre-populate the ledger so the org-detail Ledger card has a
+   *  real payment to void/refund. Absent in tests + Postgres. */
+  readonly ledgerSeed?: {
+    readonly charges: readonly Charge[];
+    readonly payments: readonly Payment[];
+  };
 }): BillingWiring => {
   const store = createInMemoryBillingStore({
     members: deps.access.members,
@@ -90,6 +103,24 @@ export const wireBilling = (deps: {
     clock: deps.clock,
     graceDays: BILLING_GRACE_DAYS,
   };
+  // ONE charge store + ONE payment store, shared by every ledger use case, so a
+  // recorded payment / void / refund is visible to the next coverage or ledger
+  // read (they were ephemeral before, so mutations vanished). The Postgres
+  // charge/payment adapters slot in here later, keyed on the same deps.
+  const ledger = makeBillingLedgerUseCases({
+    subscriptions: store.subscriptions,
+    plans: store.plans,
+    charges: createInMemoryChargeStore(deps.ledgerSeed?.charges),
+    payments: createInMemoryPaymentStore(deps.ledgerSeed?.payments),
+    clock: deps.clock,
+    ids: deps.ids.next,
+    policy: {
+      dormantDays: 90,
+      graceDays: 10,
+      currency: 'MXN',
+      taxRateBps: 1600,
+    },
+  });
   return {
     plans: makeBillingPlansUseCases({
       plans: store.plans,
@@ -98,23 +129,8 @@ export const wireBilling = (deps: {
     }),
     subscriptions: makeBillingSubscriptionsUseCases(shared),
     guards: makeEntitlementGuards(shared),
-    // Coverage read over the same in-memory subscriptions; the ledger charge
-    // store is empty until charge generation is wired (Postgres stores slot in
-    // here later). getCoverage reauthorizes billing.read at the API boundary.
-    getCoverage: makeGetCoverage({
-      subscriptions: store.subscriptions,
-      plans: store.plans,
-      charges: createInMemoryChargeStore(),
-      payments: createInMemoryPaymentStore(),
-      clock: deps.clock,
-      ids: deps.ids.next,
-      policy: {
-        dormantDays: 90,
-        graceDays: 10,
-        currency: 'MXN',
-        taxRateBps: 1600,
-      },
-    }),
+    ledger,
+    getCoverage: ledger.getCoverage,
     store,
   };
 };

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { productionBootErrors } from './boot-safety';
 import { createConsoleNotificationSender } from '@acme/infrastructure';
 import { createApiRuntime } from './composition-root';
-import { seedBillingWorld, seedWorld } from './seed';
+import { seedBillingWorld, seedDemoLedger, seedWorld } from './seed';
 
 // Env files (Node-native, no deps). Real environment variables always win;
 // files only fill gaps. `.env` (gitignored, personal overrides) loads before
@@ -89,6 +89,7 @@ const runtime = createApiRuntime({
           ).toISOString(),
         }),
         billingSeed: seedBillingWorld(),
+        ledgerSeed: seedDemoLedger(),
       }),
   ...(jwksUrl ? { jwksUrl } : {}),
   ...(env.data.SUPABASE_JWT_SECRET

@@ -3,7 +3,7 @@
  * the ledger, both optional. Extracted from the view so it stays a thin
  * composition, and grouped with the other billing pieces.
  */
-import { SubscriptionCard } from '../org-detail.subscription';
+import { SubscriptionCard } from './subscription';
 import { LedgerCard } from '../ledger/ledger';
 import type { OrgDetailActions, OrgDetailVM } from '../org-detail.types';
 

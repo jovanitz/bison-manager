@@ -5,21 +5,21 @@
  */
 import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Badge, type BadgeProps } from '../../../design-system/badge/badge';
-import { Button } from '../../../design-system/button/button';
+import { Badge, type BadgeProps } from '../../../../design-system/badge/badge';
+import { Button } from '../../../../design-system/button/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../design-system/card/card';
+} from '../../../../design-system/card/card';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-} from '../../../design-system/alert/alert';
-import type { OrgSubscriptionVM, SubscriptionPhase } from './org-detail.types';
+} from '../../../../design-system/alert/alert';
+import type { OrgSubscriptionVM, SubscriptionPhase } from '../org-detail.types';
 
 const phaseVariant: Record<SubscriptionPhase, BadgeProps['variant']> = {
   trialing: 'secondary',
@@ -36,12 +36,6 @@ const phaseLabel: Record<SubscriptionPhase, string> = {
   suspended: 'suspended',
   canceled: 'canceled',
 };
-
-/** Prototype "today" — fixtures live around here, so countdowns are stable. */
-const NOW = '2026-07-08';
-const daysFromNow = (iso: string): number =>
-  Math.round((Date.parse(iso) - Date.parse(NOW)) / 86_400_000);
-const plural = (n: number): string => (n === 1 ? '' : 's');
 
 const Fact = ({
   label,
@@ -76,21 +70,15 @@ const Seats = ({ sub }: { readonly sub: OrgSubscriptionVM }) => (
  *  recoverable). Dormant adds the "flagged for review" note. */
 const PhaseAlert = ({ sub }: { readonly sub: OrgSubscriptionVM }) => {
   if (sub.phase === 'grace') {
-    const days = sub.graceEndsAt ? daysFromNow(sub.graceEndsAt) : null;
     return (
       <Alert variant="warning">
         <AlertTriangle />
         <AlertTitle>Payment due — service still on</AlertTitle>
-        <AlertDescription>
-          {days !== null && days >= 0
-            ? `Suspends in ${days} day${plural(days)} if unpaid.`
-            : 'Suspends soon if unpaid.'}
-        </AlertDescription>
+        <AlertDescription>Suspends soon if unpaid.</AlertDescription>
       </Alert>
     );
   }
   if (sub.phase === 'suspended') {
-    const off = sub.suspendedSince ? -daysFromNow(sub.suspendedSince) : null;
     return (
       <Alert variant="destructive">
         <AlertTriangle />
@@ -98,7 +86,6 @@ const PhaseAlert = ({ sub }: { readonly sub: OrgSubscriptionVM }) => {
           {sub.dormant ? 'Suspended — flagged for review' : 'Service suspended'}
         </AlertTitle>
         <AlertDescription>
-          {off !== null ? `Off for ${off} day${plural(off)}. ` : ''}
           {sub.dormant ? 'Idle 3+ months — review for deletion. ' : ''}
           Reactivate to restore access — no data is lost.
         </AlertDescription>

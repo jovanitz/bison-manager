@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   DashboardShell,
   DirectorySection,
+  OrgDetailSection,
   RequireAdmin,
   type DashboardSection,
 } from '@acme/ui';
@@ -10,9 +11,9 @@ import {
  * The protected medicine-manager dashboard, in its own module so the router can
  * `lazy`-load it as a separate chunk. `RequireAdmin` shows the login gate until
  * an authorized staff member is present, then renders the shell. The shell owns
- * section navigation; today only Directory is wired (its store/flow/mapper over
- * the DI bundle) — the other nav entries are placeholders until their slices
- * land. Org/staff drill-down is a deliberate follow-up (no detail screen yet).
+ * section navigation; Directory is live and drills down IN-PAGE (master/detail,
+ * not a route) to the org-detail screen when a row is opened. Other nav entries
+ * are placeholders until their slices land; staff drill-down stays a follow-up.
  */
 const noop = () => undefined;
 
@@ -26,18 +27,31 @@ const Placeholder = ({ section }: { readonly section: DashboardSection }) => (
   </div>
 );
 
-const SectionContent = ({ section }: { readonly section: DashboardSection }) =>
-  section === 'Directory' ? (
-    <DirectorySection onOpenOrg={noop} onOpenStaff={noop} />
-  ) : (
-    <Placeholder section={section} />
-  );
+const DirectoryPane = ({
+  onOpenOrg,
+}: {
+  readonly onOpenOrg: (accountId: string) => void;
+}) => <DirectorySection onOpenOrg={onOpenOrg} onOpenStaff={noop} />;
 
 const MedicineManagerDashboard = () => {
   const [active, setActive] = useState<DashboardSection>('Directory');
+  const [openOrgId, setOpenOrgId] = useState<string | null>(null);
+  const navigate = (section: DashboardSection) => {
+    setOpenOrgId(null);
+    setActive(section);
+  };
+  const directory =
+    openOrgId !== null ? (
+      <OrgDetailSection
+        accountId={openOrgId}
+        onBack={() => setOpenOrgId(null)}
+      />
+    ) : (
+      <DirectoryPane onOpenOrg={setOpenOrgId} />
+    );
   return (
-    <DashboardShell active={active} onNavigate={setActive}>
-      <SectionContent section={active} />
+    <DashboardShell active={active} onNavigate={navigate}>
+      {active === 'Directory' ? directory : <Placeholder section={active} />}
     </DashboardShell>
   );
 };

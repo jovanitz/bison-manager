@@ -9,6 +9,7 @@ import type {
 import type {
   BillingGateway,
   BillingSummaryDto,
+  LedgerViewDto,
 } from '../../../access-client/billing-ports';
 import type { AccessClientUseCases } from '../../../access-client/use-cases';
 import { loadOrgDetail } from './org-detail';
@@ -81,10 +82,25 @@ const BILLING_SUMMARY: BillingSummaryDto = {
   heldForPayment: false,
 };
 
-const billing = (
-  over: Partial<Pick<BillingGateway, 'getSummary'>> = {},
-): Pick<BillingGateway, 'getSummary'> => ({
+const LEDGER: LedgerViewDto = {
+  currency: 'MXN',
+  entries: [
+    {
+      id: 'chg-1',
+      date: '2026-07-05T00:00:00Z',
+      kind: 'charge',
+      amountMinor: 5684,
+      runningBalanceMinor: 5684,
+      chargeStatus: 'open',
+    },
+  ],
+};
+
+type OrgBilling = Pick<BillingGateway, 'getSummary' | 'listLedger'>;
+
+const billing = (over: Partial<OrgBilling> = {}): OrgBilling => ({
   getSummary: async () => ok(BILLING_SUMMARY),
+  listLedger: async () => ok(LEDGER),
   ...over,
 });
 
@@ -145,11 +161,12 @@ describe('loadOrgDetail', () => {
     if (!result.ok) expect(result.error.tag).toBe('app/access-gateway-error');
   });
 
-  it('billing.read + plans.manage: subscription attached, levers enabled', async () => {
+  it('billing.read + plans.manage: subscription + ledger attached, levers enabled', async () => {
     const result = await loadOrgDetail(
       {
         access: access([
           { action: 'members.read', scope: 'any' },
+          { action: 'members.block', scope: 'any' },
           { action: 'billing.read', scope: 'any' },
           { action: 'plans.manage', scope: 'any' },
         ]),
@@ -161,6 +178,8 @@ describe('loadOrgDetail', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.subscription).toEqual(BILLING_SUMMARY);
+    expect(result.value.ledger).toEqual(LEDGER);
+    expect(result.value.canManageMembers).toBe(true);
     expect(result.value.canManageBilling).toBe(true);
   });
 
@@ -187,19 +206,23 @@ describe('loadOrgDetail', () => {
     expect(result.value.canManageBilling).toBe(false);
   });
 
-  it('without billing.read the summary is never fetched', async () => {
+  it('without billing.read neither summary nor ledger is fetched', async () => {
     const getSummary = vi.fn(async () => ok(BILLING_SUMMARY));
+    const listLedger = vi.fn(async () => ok(LEDGER));
     const result = await loadOrgDetail(
       {
         access: access([{ action: 'members.read', scope: 'any' }]),
         orgs: orgs(),
-        billing: billing({ getSummary }),
+        billing: billing({ getSummary, listLedger }),
       },
       { accountId: 'org-11' },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.subscription).toBeUndefined();
+    expect(result.value.ledger).toBeUndefined();
+    expect(result.value.canManageMembers).toBe(false);
     expect(getSummary).not.toHaveBeenCalled();
+    expect(listLedger).not.toHaveBeenCalled();
   });
 });

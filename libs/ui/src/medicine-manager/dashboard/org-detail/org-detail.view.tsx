@@ -3,12 +3,14 @@
  * an org's relevant info, its owner, and its member roster.
  *
  * @screen Medicine Manager / Dashboard / Org Detail
- * @phase draft
+ * @phase approved
  *
- * Presentational: a pure function of (ViewModel + actions). The roster is an
- * administrative read (`members.read` at `any` scope — staff hold it), NOT
- * impersonation; `canViewMembers` is a normal capability flag on the VM.
- * "View as customer" is the separate, grant-gated impersonation action.
+ * Signed off and wired: the seam is `org-detail.container.tsx` (billing levers +
+ * ledger void/refund + member block). Presentational still — a pure function of
+ * (ViewModel + actions). The roster is an administrative read (`members.read` at
+ * `any` scope — staff hold it), NOT impersonation; `canViewMembers` is a normal
+ * capability flag. "View as customer" (impersonation, a separate session-switch
+ * feature) is not wired here — its button stays hidden (`canImpersonate=false`).
  */
 import type { ReactNode } from 'react';
 import { ArrowLeft, Lock } from 'lucide-react';

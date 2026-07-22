@@ -72,7 +72,12 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     accessSettings,
     accessMembers,
     impersonation,
-  } = wireAccess({ store, purger: toIdentityPurger(config, store), clock, ids });
+  } = wireAccess({
+    store,
+    purger: toIdentityPurger(config, store),
+    clock,
+    ids,
+  });
   // Billing (ADR-0016): its own bounded context, composed over the access
   // store's member/ownership surface and the pre-built shared state (the
   // code floor is seeded idempotently by `toBillingStoreState`).
@@ -81,6 +86,9 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
     clock,
     ids,
     state: billingState,
+    ...(config.databaseUrl || !config.ledgerSeed
+      ? {}
+      : { ledgerSeed: config.ledgerSeed }),
   });
   // The enforcement vertical (ADR-0016 Decision 4): the pre-actor ownership
   // guard + trial-once probe + default plan feed org creation.
@@ -129,7 +137,7 @@ export const createApiRuntime = (config: ApiConfig): ApiRuntime => {
       }),
       billingPlans: billing.plans,
       billingSubscriptions: billing.subscriptions,
-      getCoverage: billing.getCoverage,
+      billingLedger: billing.ledger,
     }),
     // TEST-ONLY seam (see ApiConfig): pipeline contract tests inject probes.
     ...extraProceduresOf(config),

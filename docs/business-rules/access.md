@@ -205,6 +205,9 @@ generated — they are behavior, not documentation:
 | `billing.changePlan` | `plans.manage` | Staff lever: move an org to another plan (staff-only in v1). Retired plans are refused; hidden+active is assignable (legacy/custom home). |
 | `billing.setOverride` | `plans.manage` | Staff lever: set (or clear with null) the per-org entitlement exception — "you keep 25 seats" is one override, not a new plan. |
 | `billing.coverage` | `billing.read` | Read one org's derived billing coverage: paid-through, outstanding balance, lifecycle phase (grace/suspended/…) and the dormant flag. |
+| `billing.ledger` | `billing.read` | List one org's billing ledger: charges + payments in order, each with its signed amount and the running balance (ADR-0018). |
+| `billing.void` | `plans.manage` | Void a payment recorded by mistake — as if it never happened; reopens the charges it settled (ADR-0018). Mandatory reason. |
+| `billing.refund` | `plans.manage` | Refund a payment — money actually returned to the customer; reopens the charges it settled (ADR-0018). Mandatory reason. |
 
 Enforcement never relies on this table's "required action": every use case
 re-authorizes itself with the concrete resource in hand.

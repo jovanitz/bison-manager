@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { ok } from '@acme/shared';
 import { coverageToDto } from '@acme/application';
 import type { BillingLedgerUseCases } from '@acme/application';
-import { defineApiProcedure } from '../../rpc/procedure';
-import type { ApiProcedure } from '../../rpc/procedure';
+import { defineApiProcedure } from '../../../rpc/procedure';
+import type { ApiProcedure } from '../../../rpc/procedure';
 
 /**
  * The billing-ledger read the staff Directory + org-detail consume (ADR-0018):

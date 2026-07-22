@@ -14,6 +14,7 @@ import {
   makeVoidPayment,
 } from './mutations/reverse-payment';
 import { makeGenerateCharges } from './mutations/generate-charges';
+import { makeListLedger } from './queries/list-ledger';
 
 /**
  * `getCoverage` (ADR-0018 read model) — the one billing read the directory,
@@ -75,16 +76,19 @@ export type {
 } from './mutations/record-payment';
 export type { ReversePaymentInput } from './mutations/reverse-payment';
 export type { GenerateChargesInput } from './mutations/generate-charges';
+export type { AccountLedgerView, LedgerEntryView } from './queries/list-ledger';
 export {
   makeRecordPayment,
   makeCreditAccount,
   makeRefundPayment,
   makeVoidPayment,
   makeGenerateCharges,
+  makeListLedger,
 };
 
 export type BillingLedgerUseCases = {
   readonly getCoverage: ReturnType<typeof makeGetCoverage>;
+  readonly listLedger: ReturnType<typeof makeListLedger>;
   readonly recordPayment: ReturnType<typeof makeRecordPayment>;
   readonly creditAccount: ReturnType<typeof makeCreditAccount>;
   readonly voidPayment: ReturnType<typeof makeVoidPayment>;
@@ -96,6 +100,7 @@ export const makeBillingLedgerUseCases = (
   deps: BillingLedgerDeps,
 ): BillingLedgerUseCases => ({
   getCoverage: makeGetCoverage(deps),
+  listLedger: makeListLedger(deps),
   recordPayment: makeRecordPayment(deps),
   creditAccount: makeCreditAccount(deps),
   voidPayment: makeVoidPayment(deps),

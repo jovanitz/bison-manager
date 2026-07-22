@@ -3,6 +3,7 @@ import type {
   AccessClientUseCases,
   AccountAdminGateway,
   AuditGateway,
+  BillingGateway,
   SessionsGateway,
   SettingsGateway,
   BlockUseCases,
@@ -11,6 +12,7 @@ import type {
   InvitationsUseCases,
   ItemUseCases,
   MembersUseCases,
+  OrgDetailGateway,
   OrgsUseCases,
   RolesGateway,
 } from '@acme/application';
@@ -51,6 +53,10 @@ export type AppUseCases = {
   readonly settings?: SettingsGateway;
   /** Present in the client app: the caller's orgs + switching between them. */
   readonly orgs?: OrgsUseCases;
+  /** Present in the staff dashboard: the org drill-down (summary + roster). */
+  readonly orgDetail?: OrgDetailGateway;
+  /** Present in the staff dashboard: billing summary + levers + ledger (ADR-0018). */
+  readonly billing?: BillingGateway;
 };
 
 const UseCasesContext = createContext<AppUseCases | null>(null);
