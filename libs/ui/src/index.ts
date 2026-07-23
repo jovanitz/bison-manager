@@ -83,6 +83,7 @@ export * from './medicine-manager/dashboard/plans/plans.container';
 export * from './medicine-manager/dashboard/roles/roles.container';
 export * from './medicine-manager/dashboard/roles/templates.container';
 export * from './medicine-manager/dashboard/settings/settings.container';
+export * from './medicine-manager/dashboard/permissions/permissions.container';
 export * from './medicine-manager/dashboard/org-detail/org-detail.container';
 export * from './dashboard/invitations/invite-member-form';
 export * from './dashboard/invitations/activate-invitation-screen';

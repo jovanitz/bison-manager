@@ -5,7 +5,7 @@
  * section — access is per-identity, so it lives on the person).
  *
  * @screen Medicine Manager / Dashboard / Staff Detail
- * @phase draft
+ * @phase approved
  *
  * Presentational: composes the reusable MemberDetail + SessionsPanel over a
  * single, pre-selected member. Types live in ./permissions.types (import-free).

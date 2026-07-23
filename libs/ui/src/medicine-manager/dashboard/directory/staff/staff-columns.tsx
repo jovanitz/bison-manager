@@ -69,7 +69,12 @@ export const staffColumns = ({
       cell: ({ row }) => (
         <NameWithAvatar
           name={dash(row.original.displayName)}
-          onClick={() => onOpenStaff(row.original.accountId)}
+          onClick={() =>
+            onOpenStaff({
+              userId: row.original.userId,
+              accountId: row.original.accountId,
+            })
+          }
         />
       ),
     },

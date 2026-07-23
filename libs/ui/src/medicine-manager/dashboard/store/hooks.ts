@@ -12,6 +12,10 @@ import {
   createSettingsStore,
   type SettingsStore,
 } from './settings/settings-store';
+import {
+  createStaffDetailStore,
+  type StaffDetailStore,
+} from './permissions/staff-detail-store';
 
 /**
  * React binding for the Directory store: builds it from the DI bundles (memoized
@@ -75,6 +79,25 @@ export const useSettingsStore = (): SettingsStore | null => {
     () =>
       access && settings ? createSettingsStore({ access, settings }) : null,
     [access, settings],
+  );
+};
+
+/** React binding for one staff member's access detail (keyed by identity). */
+export const useStaffDetailStore = (
+  userId: string,
+  accountId: string,
+): StaffDetailStore | null => {
+  const { access, members, roles, sessions } = useUseCases();
+  return useMemo(
+    () =>
+      access && members && roles && sessions
+        ? createStaffDetailStore(
+            { access, members, roles, sessions },
+            userId,
+            accountId,
+          )
+        : null,
+    [access, members, roles, sessions, userId, accountId],
   );
 };
 

@@ -73,7 +73,7 @@ export type DirectoryActions = {
   /** Open an organization's detail (its owner + member roster). */
   readonly onOpenOrg: (accountId: string) => void;
   /** Open a staff member's access detail (permissions, roles, sessions). */
-  readonly onOpenStaff: (accountId: string) => void;
+  readonly onOpenStaff: (staff: { readonly userId: string; readonly accountId: string }) => void;
   /** Invitation lifecycle. */
   readonly onResendInvite: (invitationId: string) => void;
   readonly onRevokeInvitation: (invitationId: string) => void;

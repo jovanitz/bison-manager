@@ -108,24 +108,27 @@ export type StaffMembersViewModel =
       readonly canReadSessions: boolean;
     };
 
-export const loadStaffMembers = async (deps: {
-  readonly access: AccessClientUseCases;
+type RosterDeps = {
   readonly members: MembersUseCases;
   readonly roles: RolesGateway;
-}): Promise<Result<StaffMembersViewModel, DashboardError>> => {
-  const snapshot = await deps.access.currentAccess();
-  if (!snapshot.ok) return err(snapshot.error);
-  const access = snapshot.value;
-  if (!holdsAction(access, 'members.read')) return ok({ hidden: true });
+};
+
+/** Build the roster for `accountId`: its members + the roles assignable to them,
+ *  with the actor's edit/block/session gates. Shared by the two loaders below. */
+const buildRoster = async (
+  deps: RosterDeps,
+  access: CurrentAccessDto,
+  accountId: string,
+): Promise<Result<StaffMembersViewModel, DashboardError>> => {
   const [listed, roles] = await Promise.all([
-    deps.members.listMembers(access.accountId),
-    deps.roles.listRoles(access.accountId),
+    deps.members.listMembers(accountId),
+    deps.roles.listRoles(accountId),
   ]);
   if (!listed.ok) return err(listed.error);
   if (!roles.ok) return err(roles.error);
   return ok({
     hidden: false,
-    accountId: access.accountId,
+    accountId,
     access,
     members: listed.value,
     availableRoles: roles.value,
@@ -133,6 +136,27 @@ export const loadStaffMembers = async (deps: {
     canBlock: holdsAction(access, 'access.block'),
     canReadSessions: holdsAction(access, 'sessions.read'),
   });
+};
+
+export const loadStaffMembers = async (
+  deps: { readonly access: AccessClientUseCases } & RosterDeps,
+): Promise<Result<StaffMembersViewModel, DashboardError>> => {
+  const snapshot = await deps.access.currentAccess();
+  if (!snapshot.ok) return err(snapshot.error);
+  if (!holdsAction(snapshot.value, 'members.read')) return ok({ hidden: true });
+  return buildRoster(deps, snapshot.value, snapshot.value.accountId);
+};
+
+/** The roster for a SPECIFIC account — e.g. a Directory staff member's own
+ *  account (the caller selects the row by identity). Gated the same way. */
+export const loadAccountMembers = async (
+  deps: { readonly access: AccessClientUseCases } & RosterDeps,
+  accountId: string,
+): Promise<Result<StaffMembersViewModel, DashboardError>> => {
+  const snapshot = await deps.access.currentAccess();
+  if (!snapshot.ok) return err(snapshot.error);
+  if (!holdsAction(snapshot.value, 'members.read')) return ok({ hidden: true });
+  return buildRoster(deps, snapshot.value, accountId);
 };
 
 /** The audit-trail view: recent security events (gated on `audit.read`). */

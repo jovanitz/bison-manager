@@ -28,7 +28,7 @@ const LOADING_VM: DirectoryVM = {
 
 type Nav = {
   readonly onOpenOrg: (accountId: string) => void;
-  readonly onOpenStaff: (accountId: string) => void;
+  readonly onOpenStaff: (staff: { readonly userId: string; readonly accountId: string }) => void;
 };
 
 const buildActions = (store: DirectoryStore, nav: Nav): DirectoryActions => ({

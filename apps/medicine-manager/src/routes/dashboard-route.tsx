@@ -7,6 +7,7 @@ import {
   RolesSection,
   TemplatesSection,
   SettingsSection,
+  StaffDetailSection,
   RequireAdmin,
   type DashboardSection,
 } from '@acme/ui';
@@ -19,7 +20,6 @@ import {
  * not a route) to the org-detail screen when a row is opened. Other nav entries
  * are placeholders until their slices land; staff drill-down stays a follow-up.
  */
-const noop = () => undefined;
 
 const Placeholder = ({ section }: { readonly section: DashboardSection }) => (
   <div className="mx-auto max-w-md p-10 text-center">
@@ -31,33 +31,50 @@ const Placeholder = ({ section }: { readonly section: DashboardSection }) => (
   </div>
 );
 
+type StaffTarget = { readonly userId: string; readonly accountId: string };
+
 const DirectoryPane = ({
   onOpenOrg,
+  onOpenStaff,
 }: {
   readonly onOpenOrg: (accountId: string) => void;
-}) => <DirectorySection onOpenOrg={onOpenOrg} onOpenStaff={noop} />;
+  readonly onOpenStaff: (staff: StaffTarget) => void;
+}) => <DirectorySection onOpenOrg={onOpenOrg} onOpenStaff={onOpenStaff} />;
 
 const MedicineManagerDashboard = () => {
   const [active, setActive] = useState<DashboardSection>('Directory');
   const [openOrgId, setOpenOrgId] = useState<string | null>(null);
+  const [openStaff, setOpenStaff] = useState<StaffTarget | null>(null);
   const navigate = (section: DashboardSection) => {
     setOpenOrgId(null);
+    setOpenStaff(null);
     setActive(section);
   };
-  const directory =
-    openOrgId !== null ? (
-      <OrgDetailSection
-        accountId={openOrgId}
-        onBack={() => setOpenOrgId(null)}
-      />
-    ) : (
-      <DirectoryPane onOpenOrg={setOpenOrgId} />
+  // Directory drills down in-page to an org OR a staff member (by identity).
+  const directory = () => {
+    if (openOrgId !== null)
+      return (
+        <OrgDetailSection
+          accountId={openOrgId}
+          onBack={() => setOpenOrgId(null)}
+        />
+      );
+    if (openStaff !== null)
+      return (
+        <StaffDetailSection
+          userId={openStaff.userId}
+          accountId={openStaff.accountId}
+          onBack={() => setOpenStaff(null)}
+        />
+      );
+    return (
+      <DirectoryPane onOpenOrg={setOpenOrgId} onOpenStaff={setOpenStaff} />
     );
-  // Directory drills down in-page; Plans is its own wired section; the rest are
-  // placeholders until their slices land. A function (not a nested ternary) so
-  // each section stays readable and the lint's no-nested-ternary rule holds.
+  };
+  // Plans/Roles/Templates/Settings are their own wired sections; the rest are
+  // placeholders. A function (not a nested ternary) keeps the lint happy.
   const content = () => {
-    if (active === 'Directory') return directory;
+    if (active === 'Directory') return directory();
     if (active === 'Plans') return <PlansSection />;
     if (active === 'Roles') return <RolesSection />;
     if (active === 'Templates') return <TemplatesSection />;

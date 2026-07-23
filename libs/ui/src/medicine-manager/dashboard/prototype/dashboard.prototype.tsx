@@ -73,7 +73,10 @@ const Section = ({
 }: {
   readonly section: DashboardSection;
   readonly onOpenOrg: (accountId: string) => void;
-  readonly onOpenStaff: (accountId: string) => void;
+  readonly onOpenStaff: (staff: {
+    readonly userId: string;
+    readonly accountId: string;
+  }) => void;
 }) => {
   switch (section) {
     case 'Roles':
@@ -121,7 +124,10 @@ const DashboardBody = ({
   readonly orgId: string | null;
   readonly staffId: string | null;
   readonly onOpenOrg: (id: string) => void;
-  readonly onOpenStaff: (id: string) => void;
+  readonly onOpenStaff: (staff: {
+    readonly userId: string;
+    readonly accountId: string;
+  }) => void;
   readonly onBackOrg: () => void;
   readonly onBackStaff: () => void;
 }) => {
@@ -179,8 +185,8 @@ export const DashboardPrototype = () => {
             setOrgId(id);
             setStaffId(null);
           }}
-          onOpenStaff={(id) => {
-            setStaffId(id);
+          onOpenStaff={(staff) => {
+            setStaffId(staff.accountId);
             setOrgId(null);
           }}
           onBackOrg={() => setOrgId(null)}
