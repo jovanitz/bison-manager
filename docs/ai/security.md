@@ -60,3 +60,13 @@ help; this adds the security-specific controls.
 `audit` and `skill-scan` run **advisory** in CI today (a security baseline). Once
 the dependency tree is clean, promote `audit` to blocking on `--level=high`. Run
 `skill-scan` before trusting any **third-party** skill or MCP server.
+
+## Caller-agnostic operations (the AI-execution surface)
+
+We are heading toward an AI that runs user-permitted actions via prompts, driving
+the **same** registry flows the UI drives (`libs/application/src/flows/agent-executor.ts`).
+For that to be safe, a mutation must not depend on _who_ called it: its
+authorization and its audited **reason** live in the flow contract, never
+synthesized by a caller. The `operations` sensor (`pnpm harness operations`,
+**blocking**) enforces this. Read [operations.md](operations.md) before wiring any
+mutating lever.

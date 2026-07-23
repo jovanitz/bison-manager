@@ -45,7 +45,10 @@ export const resetTemplateInput = z.object({ key: z.string() });
 export const adminAccountInput = z.object({
   action: z.enum(['disable', 'enable', 'promote']),
   accountId: z.string(),
-  reason: z.string().optional(),
+  // Account-admin levers don't yet collect an audited reason from the caller —
+  // the Directory dispatches them without one. Deliberate carve-out until we
+  // capture it here the way Plans did (docs/ai/operations.md).
+  reason: z.string().optional(), // harness:reason-optional-ok
 });
 export const membershipInput = z.object({ membershipId: z.string() });
 export const sessionIdInput = z.object({ sessionId: z.string() });

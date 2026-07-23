@@ -130,6 +130,20 @@ if (!pu.ok) {
   );
 }
 
+// 6c) Caller-agnostic operations: an audited `reason` is a required field of the
+// flow contract, never synthesized in the UI/adapters (docs/ai/operations.md).
+const op = runSensor('operations.mjs');
+if (!op.ok) {
+  const lines = (op.report?.violations || [])
+    .map((v) => `- [${v.rule}] ${v.path}:${v.line} — ${v.detail}`)
+    .join('\n');
+  veto(
+    `Caller-agnostic operations violation — a mutation's audited reason must be a ` +
+      `required field of its flow contract, never originated by the UI/adapter. Fix ` +
+      `before finishing:\n\n${lines || op.res?.stderr || 'operations violations'}\n`,
+  );
+}
+
 // 7) If THIS change touched the harness itself, validate it stays portable across
 // Claude / Codex / git / CI (doctor). Only fires when harness files changed, so
 // normal app work doesn't pay for it.

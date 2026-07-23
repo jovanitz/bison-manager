@@ -27,6 +27,7 @@ it — none re-implement it.
 | **coverage**       | Per-layer line-coverage floor on the pure core (domain ≥90, application ≥75)                     | `pnpm harness coverage [--min-domain= --min-application=]`                  | —                      |
 | **formal**         | Property-based tests + exhaustive BFS model-checks of the pure core (`*.formal.spec.ts`)         | `pnpm harness formal`                                                       | —                      |
 | **purity**         | Pure layers (domain/application) free of side effects / non-determinism (call-level)             | `pnpm harness purity`                                                       | —                      |
+| **operations**     | Caller-agnostic operations: audited `reason` required in the flow contract, never UI-synthesized | `pnpm harness operations`                                                   | —                      |
 | **runtime-advice** | Does this diff touch a **faked seam** → runtime validation earns its cost? (else none)           | `pnpm harness runtime-advice [--base=<ref> --head=<ref>]`                   | —                      |
 | **e2e**            | **Real-browser** verification (Playwright/Chromium) + runtime bridge — web-only, no backend      | `pnpm harness e2e`                                                          | `verify-runtime`       |
 | **e2e-auth**       | Backend e2e: a giro's real auth stack + API + its apps (login, dashboard, onboarding — ADR-0017) | `pnpm harness e2e-auth`                                                     | —                      |
@@ -86,6 +87,7 @@ it — none re-implement it.
 - ✅ `coverage` — `scripts/harness/sensors/coverage.mjs` (CI gate; not in Stop hook)
 - ✅ `formal` — `scripts/harness/sensors/formal.mjs` (PBT + BFS model-check; `*.formal.spec.ts`; engine in `libs/application/src/access/_formal/property.ts`; also the Stop-hook guardrail + `pnpm gate`)
 - ✅ `purity` — `scripts/harness/sensors/purity.mjs` (engine in `@harness/core`; call-level side-effect/determinism check on the pure layers; Stop-hook guardrail + `pnpm gate`)
+- ✅ `operations` — `scripts/harness/sensors/operations.mjs` (caller-agnostic operations; reason-in-contract + no UI-synthesized reason; config in `harness.config.mjs`; Stop-hook guardrail; Guide: [operations.md](operations.md))
 - ✅ `runtime-advice` — `scripts/harness/sensors/runtime-advice.mjs` (faked-seam detector; seams in `harness.config.mjs`; advisory, drives the Stop-hook e2e nudge)
 - ✅ `e2e` — `scripts/harness/sensors/e2e.mjs` (Playwright; web-only runtime validation; `playwright.config.ts`, ignores `e2e/auth/**`)
 - ✅ `e2e-auth` — `scripts/harness/sensors/e2e-auth.mjs` (backend e2e; `playwright.auth.config.ts` global-setup boots Supabase + API + web/dashboard/client; specs: web login, staff dashboard, customer onboarding; Docker-heavy, on-demand)

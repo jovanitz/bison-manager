@@ -55,6 +55,23 @@ export default {
   sourceRoots: ['libs/', 'apps/'],
 
   /**
+   * `operations` sensor — the caller-agnostic operations policy
+   * (docs/ai/operations.md). A mutating operation's audited `reason` is a
+   * REQUIRED field of its flow contract, never synthesized by a caller.
+   *   reasonScan         → caller layers that must not ORIGINATE a reason
+   *                        (UI + client apps); a literal `reason: '…'` is a leak.
+   *   reasonScanExclude  → backend that legitimately authors reasons (the API
+   *                        seeds a demo world server-side).
+   *   reasonSchemaScan   → where the flow input Zod schemas live; a `reason`
+   *                        field there must be `z.string().min(1)`, not optional.
+   */
+  operations: {
+    reasonScan: ['libs/ui/src', 'apps'],
+    reasonScanExclude: ['apps/api'],
+    reasonSchemaScan: ['libs/application/src/flows'],
+  },
+
+  /**
    * `purity` sensor — layers that MUST be side-effect-free & deterministic
    * (no DOM/storage/network/console/timers, no wall-clock or RNG). Catches
    * impurity the import-ban can't (it's a call, not an import). Test doubles,

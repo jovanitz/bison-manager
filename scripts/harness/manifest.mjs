@@ -102,6 +102,15 @@ export const TOOLS = [
       'UI views phase-aware: @phase draft|approved, presentational-only, wiring seam',
     script: 'sensors/screens.mjs',
   },
+  {
+    name: 'operations',
+    group: 'check',
+    kind: 'static',
+    blocking: true,
+    summary:
+      'Caller-agnostic operations: audited reason required in the flow contract, never synthesized in UI/adapters',
+    script: 'sensors/operations.mjs',
+  },
   // ── analyze: understand a change (non-blocking) ───────────────────────────
   {
     name: 'impact',

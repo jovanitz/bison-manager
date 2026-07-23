@@ -20,6 +20,7 @@ only when the task needs it (progressive disclosure).
 | Place a change in the right layer / import                      | [docs/ai/architecture.md](docs/ai/architecture.md)                                            |
 | Check what is **forbidden** (hard rules)                        | [docs/ai/constraints.md](docs/ai/constraints.md)                                              |
 | Build something sensitive (auth, tokens, perms)                 | [docs/ai/security.md](docs/ai/security.md)                                                    |
+| Wire a **mutating operation** (reason, audit, caller/AI parity) | [docs/ai/operations.md](docs/ai/operations.md)                                                |
 | Understand how **auth/access actually works** (the model)       | [docs/ai/auth.md](docs/ai/auth.md)                                                            |
 | Build a feature end-to-end (the agent loop)                     | [docs/ai/workflow.md](docs/ai/workflow.md)                                                    |
 | Build a **screen/view** (presentational-first → wire, `@phase`) | [docs/ai/screens.md](docs/ai/screens.md)                                                      |
