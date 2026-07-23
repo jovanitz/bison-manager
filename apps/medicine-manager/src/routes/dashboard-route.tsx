@@ -4,6 +4,9 @@ import {
   DirectorySection,
   OrgDetailSection,
   PlansSection,
+  RolesSection,
+  TemplatesSection,
+  SettingsSection,
   RequireAdmin,
   type DashboardSection,
 } from '@acme/ui';
@@ -22,8 +25,8 @@ const Placeholder = ({ section }: { readonly section: DashboardSection }) => (
   <div className="mx-auto max-w-md p-10 text-center">
     <h1 className="text-lg font-medium text-foreground">{section}</h1>
     <p className="mt-2 text-sm text-muted-foreground">
-      This section isn’t wired yet. Directory and Plans are live — pick one from
-      the nav.
+      This section isn’t wired yet. Directory, Plans, Roles and Templates are
+      live — pick one from the nav.
     </p>
   </div>
 );
@@ -56,6 +59,9 @@ const MedicineManagerDashboard = () => {
   const content = () => {
     if (active === 'Directory') return directory;
     if (active === 'Plans') return <PlansSection />;
+    if (active === 'Roles') return <RolesSection />;
+    if (active === 'Templates') return <TemplatesSection />;
+    if (active === 'Settings') return <SettingsSection />;
     return <Placeholder section={active} />;
   };
   return (

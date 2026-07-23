@@ -9,8 +9,7 @@
 import { useState } from 'react';
 import { DashboardShell, type DashboardSection } from '../dashboard.shell';
 import { DirectoryView } from '../directory/directory.view';
-import { RolesView } from '../roles/roles.view';
-import { TemplatesView } from '../roles/templates.view';
+import { RolesSection, TemplatesSection } from './dashboard.prototype.roles';
 import { InviteView } from '../invite/invite.view';
 import { AuditView } from '../audit/audit.view';
 import { SettingsView } from '../settings/settings.view';
@@ -78,23 +77,9 @@ const Section = ({
 }) => {
   switch (section) {
     case 'Roles':
-      return (
-        <RolesView
-          vm={fx.rolesVM}
-          onCreate={noop}
-          onReset={noop}
-          onDelete={noop}
-        />
-      );
+      return <RolesSection />;
     case 'Templates':
-      return (
-        <TemplatesView
-          vm={fx.templatesVM}
-          onRename={noop}
-          onReset={noop}
-          onApplyToAll={noop}
-        />
-      );
+      return <TemplatesSection />;
     case 'Plans':
       return <PlansSection />;
     case 'Invite':

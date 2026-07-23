@@ -3,6 +3,15 @@ import { useStore } from 'zustand';
 import { useUseCases } from '../../../di/use-cases-context';
 import { createDirectoryStore, type DirectoryStore } from './directory-store';
 import { createPlansStore, type PlansStore } from './plans/plans-store';
+import { createRolesStore, type RolesStore } from './roles/roles-store';
+import {
+  createTemplatesStore,
+  type TemplatesStore,
+} from './roles/templates-store';
+import {
+  createSettingsStore,
+  type SettingsStore,
+} from './settings/settings-store';
 
 /**
  * React binding for the Directory store: builds it from the DI bundles (memoized
@@ -38,6 +47,34 @@ export const usePlansStore = (): PlansStore | null => {
   return useMemo(
     () => (access && billing ? createPlansStore({ access, billing }) : null),
     [access, billing],
+  );
+};
+
+/** React binding for the Roles store (access gate + the roles gateway). */
+export const useRolesStore = (): RolesStore | null => {
+  const { access, roles } = useUseCases();
+  return useMemo(
+    () => (access && roles ? createRolesStore({ access, roles }) : null),
+    [access, roles],
+  );
+};
+
+/** React binding for the Templates store (shares the same roles gateway). */
+export const useTemplatesStore = (): TemplatesStore | null => {
+  const { access, roles } = useUseCases();
+  return useMemo(
+    () => (access && roles ? createTemplatesStore({ access, roles }) : null),
+    [access, roles],
+  );
+};
+
+/** React binding for the Settings store (access gate + the settings gateway). */
+export const useSettingsStore = (): SettingsStore | null => {
+  const { access, settings } = useUseCases();
+  return useMemo(
+    () =>
+      access && settings ? createSettingsStore({ access, settings }) : null,
+    [access, settings],
   );
 };
 

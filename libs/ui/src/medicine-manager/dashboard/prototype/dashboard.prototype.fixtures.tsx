@@ -8,8 +8,6 @@ import type {
   PermissionsVM,
   SessionRow,
 } from '../permissions/permissions.types';
-import type { RolesVM } from '../roles/roles.view';
-import type { TemplatesVM } from '../roles/templates.view';
 import type { AuditVM } from '../audit/audit.view';
 import type { InviteVM } from '../invite/invite.view';
 import type { SettingsVM } from '../settings/settings.view';
@@ -85,46 +83,8 @@ export const permissionsVM: PermissionsVM = {
   canReadSessions: true,
 };
 
-export const rolesVM: RolesVM = {
-  canManage: true,
-  roles: [
-    {
-      id: 'r1',
-      name: 'Owner',
-      scopeLabel: 'platform',
-      permissions: ['*:any'],
-      isDefault: true,
-      synced: true,
-    },
-    {
-      id: 'r2',
-      name: 'Support',
-      scopeLabel: 'org_11',
-      permissions: ['staff.read:any', 'account.read:own'],
-      isDefault: false,
-      synced: false,
-    },
-  ],
-};
-
-export const templatesVM: TemplatesVM = {
-  canManage: true,
-  templates: [
-    { key: 'owner', name: 'Owner', scope: 'own', permissions: ['*:own'] },
-    {
-      key: 'admin',
-      name: 'Admin',
-      scope: 'own',
-      permissions: ['members.read:own', 'members.invite:own'],
-    },
-    {
-      key: 'member',
-      name: 'Member',
-      scope: 'own',
-      permissions: ['home.read:own'],
-    },
-  ],
-};
+// Roles + Templates fixtures live in ../roles/roles.fixtures (the interactive
+// prototype sections in dashboard.prototype.roles own their own state).
 
 export const auditVM: AuditVM = {
   entries: [
@@ -187,4 +147,6 @@ export const settingsVM: SettingsVM = {
     staffIdle: 1800000,
     staffMax: 43200000,
   },
+  canManage: true,
+  loading: false,
 };
