@@ -12,11 +12,11 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '../../../design-system/accordion/accordion';
-import { Badge } from '../../../design-system/badge/badge';
-import { Input } from '../../../design-system/input/input';
-import { Stack } from '../../../design-system/stack/stack';
-import { cn } from '../../../design-system/cn';
+} from '../../../../design-system/accordion/accordion';
+import { Badge } from '../../../../design-system/badge/badge';
+import { Input } from '../../../../design-system/input/input';
+import { Stack } from '../../../../design-system/stack/stack';
+import { cn } from '../../../../design-system/cn';
 import { Field } from './plans.form.fields';
 import {
   KNOWN_FEATURES,
@@ -24,7 +24,7 @@ import {
   text,
   toggle,
   type FeatureGroup,
-} from './plans.types';
+} from './plans.form.helpers';
 
 const FeatureRow = (p: {
   readonly f: string;

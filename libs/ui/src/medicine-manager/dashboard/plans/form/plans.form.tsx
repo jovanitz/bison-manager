@@ -11,22 +11,22 @@
  * - Edit submits "Review changes" — it chains into the blast-radius gate.
  */
 import { useState } from 'react';
-import { Button } from '../../../design-system/button/button';
-import { Input } from '../../../design-system/input/input';
-import { Stack } from '../../../design-system/stack/stack';
-import { Textarea } from '../../../design-system/textarea/textarea';
+import { Button } from '../../../../design-system/button/button';
+import { Input } from '../../../../design-system/input/input';
+import { Stack } from '../../../../design-system/stack/stack';
+import { Textarea } from '../../../../design-system/textarea/textarea';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-} from '../../../design-system/alert/alert';
+} from '../../../../design-system/alert/alert';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../../design-system/dialog/dialog';
+} from '../../../../design-system/dialog/dialog';
 import {
   AvailabilityField,
   Field,
@@ -35,15 +35,8 @@ import {
   PriceFields,
 } from './plans.form.fields';
 import { FeaturePicker } from './plans.form.features';
-import {
-  draftInvalid,
-  slugify,
-  text,
-  num,
-  type Patch,
-  type PlanDraft,
-  type PlanFormProps,
-} from './plans.types';
+import { draftInvalid, slugify, text, num } from './plans.form.helpers';
+import type { Patch, PlanDraft, PlanFormProps } from '../plans.types';
 
 /** Name + edit context. The key is derived silently on create (visible in
  *  the catalog table); edit shows it with the plan's reach — you should know
@@ -160,10 +153,26 @@ const FormFooter = ({
   </DialogFooter>
 );
 
+/** Create writes straight to the catalog (no second gate), so its audited
+ *  reason is collected here; edit gathers the reason later at the blast gate. */
+const CreateReason = (p: {
+  readonly value: string;
+  readonly set: (v: string) => void;
+}) => (
+  <Field label="Reason for the audit log (required)">
+    <Textarea
+      placeholder="Why add this plan to the catalog? Recorded on the plan.created event."
+      {...text(p.value, p.set)}
+    />
+  </Field>
+);
+
 const FormBody = ({ form, onSubmitForm, onCancelForm }: PlanFormProps) => {
   const [d, setD] = useState(form.draft);
+  const [reason, setReason] = useState('');
   const up: Patch = (p) => setD((x) => ({ ...x, ...p }));
   const editing = form.mode === 'edit';
+  const missingReason = !editing && reason.trim() === '';
   return (
     <>
       {form.error ? (
@@ -178,11 +187,12 @@ const FormBody = ({ form, onSubmitForm, onCancelForm }: PlanFormProps) => {
         editing={editing}
         subscribers={form.subscribers}
       />
+      {editing ? null : <CreateReason value={reason} set={setReason} />}
       <FormFooter
         editing={editing}
         submitting={form.submitting}
-        invalid={draftInvalid(d)}
-        onSubmit={() => onSubmitForm(d)}
+        invalid={draftInvalid(d) || missingReason}
+        onSubmit={() => onSubmitForm(d, editing ? undefined : reason.trim())}
         onCancel={onCancelForm}
       />
     </>

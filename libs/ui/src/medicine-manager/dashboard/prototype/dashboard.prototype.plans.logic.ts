@@ -6,13 +6,15 @@
  */
 import { type Dispatch, type SetStateAction } from 'react';
 import { toast } from '../../../design-system/toast/toaster';
-import { demoBlast, draftFromPlan } from '../plans/plans.fixtures';
+import { draftFromPlan } from '../plans/plans.fixtures';
 import type {
   BlastRadiusVM,
   PlanDraft,
   PlanFormVM,
   PlanRow,
+  ResetConfirmVM,
   RetireConfirmVM,
+  SetDefaultConfirmVM,
 } from '../plans/plans.types';
 
 export type Outcome = 'success' | 'error';
@@ -21,6 +23,38 @@ type SetPlans = Dispatch<SetStateAction<Plans>>;
 type SetForm = Dispatch<SetStateAction<PlanFormVM | undefined>>;
 type SetPending = Dispatch<SetStateAction<PendingEdit | undefined>>;
 type SetRetire = Dispatch<SetStateAction<RetireConfirmVM | undefined>>;
+type SetReset = Dispatch<SetStateAction<ResetConfirmVM | undefined>>;
+type SetDefault = Dispatch<SetStateAction<SetDefaultConfirmVM | undefined>>;
+
+/** Set-default flow (prototype): open the reason confirm, and on confirm move
+ *  the default marker locally so the demo reflects the change. */
+export const setDefaultActions = (deps: {
+  readonly plans: Plans;
+  readonly byId: (id: string) => PlanRow | undefined;
+  readonly pending: SetDefaultConfirmVM | undefined;
+  readonly setPending: SetDefault;
+  readonly setPlans: SetPlans;
+}) => ({
+  onSetDefault: (id: string) => {
+    const p = deps.byId(id);
+    if (p)
+      deps.setPending({
+        planId: id,
+        displayName: p.displayName,
+        currentDefaultName:
+          deps.plans.find((x) => x.isDefault)?.displayName ?? null,
+      });
+  },
+  onConfirmSetDefault: () => {
+    const id = deps.pending?.planId;
+    if (id)
+      deps.setPlans((ps) =>
+        ps.map((p) => ({ ...p, isDefault: p.planId === id })),
+      );
+    deps.setPending(undefined);
+  },
+  onCancelSetDefault: () => deps.setPending(undefined),
+});
 
 const wait = () => new Promise<void>((res) => setTimeout(res, 900));
 const FAIL = 'The billing service didn’t respond. Please try again.';
@@ -75,8 +109,8 @@ const runAction = async (o: {
 export const rowActions = (deps: {
   readonly byId: (id: string) => PlanRow | undefined;
   readonly setForm: (f: PlanFormVM) => void;
-  readonly setPending: (p: PendingEdit) => void;
   readonly setRetire: (r: RetireConfirmVM) => void;
+  readonly setReset: (r: ResetConfirmVM) => void;
 }) => ({
   onEdit: (id: string) => {
     const p = deps.byId(id);
@@ -90,9 +124,12 @@ export const rowActions = (deps: {
   },
   onReset: (id: string) => {
     const p = deps.byId(id);
-    if (!p) return;
-    const draft = draftFromPlan(p);
-    deps.setPending({ planId: id, draft, blast: demoBlast(p, draft) });
+    if (p)
+      deps.setReset({
+        planId: id,
+        displayName: p.displayName,
+        subscribers: p.subscribers,
+      });
   },
   onRetire: (id: string) => {
     const p = deps.byId(id);
@@ -152,4 +189,17 @@ export const buildConfirmRetire =
       toastOk: `“${r.displayName}” retired`,
       toastFail: 'Could not retire plan',
       done: () => setRetire(undefined),
+    });
+
+// Prototype reset: there is no code seed here, so the demo just confirms the
+// audited action — the real screen restores the plan to its code floor.
+export const buildConfirmReset =
+  (fail: boolean, r: ResetConfirmVM, setReset: SetReset) => () =>
+    runAction({
+      fail,
+      setBusy: (b, e) => setReset((x) => x && { ...x, resetting: b, error: e }),
+      apply: () => undefined,
+      toastOk: `“${r.displayName}” reset to defaults`,
+      toastFail: 'Could not reset plan',
+      done: () => setReset(undefined),
     });

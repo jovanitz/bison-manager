@@ -16,13 +16,17 @@ import { demoBlast, emptyDraft, plansVM } from '../plans/plans.fixtures';
 import type {
   PlanDraft,
   PlanFormVM,
+  ResetConfirmVM,
   RetireConfirmVM,
+  SetDefaultConfirmVM,
 } from '../plans/plans.types';
 import {
   buildConfirmEdit,
+  buildConfirmReset,
   buildConfirmRetire,
   buildCreate,
   rowActions,
+  setDefaultActions,
   type Outcome,
   type PendingEdit,
 } from './dashboard.prototype.plans.logic';
@@ -52,6 +56,10 @@ export const PlansSection = () => {
   const [form, setForm] = useState<PlanFormVM | undefined>(undefined);
   const [pending, setPending] = useState<PendingEdit | undefined>(undefined);
   const [retire, setRetire] = useState<RetireConfirmVM | undefined>(undefined);
+  const [reset, setReset] = useState<ResetConfirmVM | undefined>(undefined);
+  const [setDefault, setSetDefault] = useState<SetDefaultConfirmVM | undefined>(
+    undefined,
+  );
   const [outcome, setOutcome] = useState<Outcome>('success');
   const fail = outcome === 'error';
   const byId = (id: string) => plans.find((p) => p.planId === id);
@@ -77,11 +85,20 @@ export const PlansSection = () => {
           form,
           pendingEdit: pending?.blast,
           pendingRetire: retire,
+          pendingReset: reset,
+          pendingSetDefault: setDefault,
         }}
         onCreate={() =>
           setForm({ mode: 'create', planId: null, draft: emptyDraft })
         }
-        {...rowActions({ byId, setForm, setPending, setRetire })}
+        {...rowActions({ byId, setForm, setRetire, setReset })}
+        {...setDefaultActions({
+          plans,
+          byId,
+          pending: setDefault,
+          setPending: setSetDefault,
+          setPlans,
+        })}
         onSubmitForm={submitForm}
         onCancelForm={() => setForm(undefined)}
         onConfirmEdit={() =>
@@ -93,6 +110,10 @@ export const PlansSection = () => {
           retire && void buildConfirmRetire(fail, retire, setRetire, setPlans)()
         }
         onCancelRetire={() => setRetire(undefined)}
+        onConfirmReset={() =>
+          reset && void buildConfirmReset(fail, reset, setReset)()
+        }
+        onCancelReset={() => setReset(undefined)}
       />
     </Stack>
   );

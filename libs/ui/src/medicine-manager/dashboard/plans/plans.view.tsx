@@ -4,7 +4,7 @@
  * legacy/custom plan playbook, with the blast-radius confirm gate on edits.
  *
  * @screen Medicine Manager / Dashboard / Plans
- * @phase draft
+ * @phase approved
  *
  * Presentational: a pure function of (ViewModel + actions). `canManage`, the
  * blast-radius preview (`pendingEdit`), the create/edit form (`form`) and the
@@ -21,9 +21,11 @@ import {
   AlertTitle,
 } from '../../../design-system/alert/alert';
 import { planColumns } from './plans.columns';
-import { PlanFormDialog } from './plans.form';
+import { PlanFormDialog } from './form/plans.form';
 import { ReviewChangesDialog } from './review/review';
 import { RetireConfirmDialog } from './review/retire';
+import { ResetConfirmDialog } from './review/reset';
+import { SetDefaultConfirmDialog } from './review/set-default';
 import type { PlansActions, PlansVM } from './plans.types';
 
 const Header = ({
@@ -45,18 +47,82 @@ const Header = ({
   </div>
 );
 
-export const PlansView = ({
+/** The one-at-a-time flow overlays (create/edit form, blast-radius, retire,
+ *  reset, set-default). Split out so `PlansView` stays under the size cap. */
+type OverlayActions = Pick<
+  PlansActions,
+  | 'onConfirmEdit'
+  | 'onCancelEdit'
+  | 'onSubmitForm'
+  | 'onCancelForm'
+  | 'onConfirmRetire'
+  | 'onCancelRetire'
+  | 'onConfirmReset'
+  | 'onCancelReset'
+  | 'onConfirmSetDefault'
+  | 'onCancelSetDefault'
+>;
+
+const PlanOverlays = ({
   vm,
-  onCreate,
-  onEdit,
-  onReset,
-  onRetire,
   onConfirmEdit,
   onCancelEdit,
   onSubmitForm,
   onCancelForm,
   onConfirmRetire,
   onCancelRetire,
+  onConfirmReset,
+  onCancelReset,
+  onConfirmSetDefault,
+  onCancelSetDefault,
+}: { readonly vm: PlansVM } & OverlayActions) => (
+  <>
+    {vm.pendingEdit ? (
+      <ReviewChangesDialog
+        pending={vm.pendingEdit}
+        onConfirmEdit={onConfirmEdit}
+        onCancelEdit={onCancelEdit}
+      />
+    ) : null}
+    {vm.form ? (
+      <PlanFormDialog
+        form={vm.form}
+        onSubmitForm={onSubmitForm}
+        onCancelForm={onCancelForm}
+      />
+    ) : null}
+    {vm.pendingRetire ? (
+      <RetireConfirmDialog
+        pendingRetire={vm.pendingRetire}
+        onConfirmRetire={onConfirmRetire}
+        onCancelRetire={onCancelRetire}
+      />
+    ) : null}
+    {vm.pendingReset ? (
+      <ResetConfirmDialog
+        pendingReset={vm.pendingReset}
+        onConfirmReset={onConfirmReset}
+        onCancelReset={onCancelReset}
+      />
+    ) : null}
+    {vm.pendingSetDefault ? (
+      <SetDefaultConfirmDialog
+        pendingSetDefault={vm.pendingSetDefault}
+        onConfirmSetDefault={onConfirmSetDefault}
+        onCancelSetDefault={onCancelSetDefault}
+      />
+    ) : null}
+  </>
+);
+
+export const PlansView = ({
+  vm,
+  onCreate,
+  onEdit,
+  onReset,
+  onRetire,
+  onSetDefault,
+  ...overlay
 }: { readonly vm: PlansVM } & PlansActions) => {
   if (vm.loading) return <Skeleton className="h-96 w-full" />;
   if (vm.error)
@@ -75,32 +141,13 @@ export const PlansView = ({
           onEdit,
           onReset,
           onRetire,
+          onSetDefault,
         })}
         data={vm.plans}
         searchPlaceholder="Search plans…"
         empty="No plans in the catalog."
       />
-      {vm.pendingEdit ? (
-        <ReviewChangesDialog
-          pending={vm.pendingEdit}
-          onConfirmEdit={onConfirmEdit}
-          onCancelEdit={onCancelEdit}
-        />
-      ) : null}
-      {vm.form ? (
-        <PlanFormDialog
-          form={vm.form}
-          onSubmitForm={onSubmitForm}
-          onCancelForm={onCancelForm}
-        />
-      ) : null}
-      {vm.pendingRetire ? (
-        <RetireConfirmDialog
-          pendingRetire={vm.pendingRetire}
-          onConfirmRetire={onConfirmRetire}
-          onCancelRetire={onCancelRetire}
-        />
-      ) : null}
+      <PlanOverlays vm={vm} {...overlay} />
     </div>
   );
 };

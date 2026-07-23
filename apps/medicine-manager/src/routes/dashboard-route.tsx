@@ -3,6 +3,7 @@ import {
   DashboardShell,
   DirectorySection,
   OrgDetailSection,
+  PlansSection,
   RequireAdmin,
   type DashboardSection,
 } from '@acme/ui';
@@ -21,8 +22,8 @@ const Placeholder = ({ section }: { readonly section: DashboardSection }) => (
   <div className="mx-auto max-w-md p-10 text-center">
     <h1 className="text-lg font-medium text-foreground">{section}</h1>
     <p className="mt-2 text-sm text-muted-foreground">
-      This section isn’t wired yet. The Directory is live — pick it from the
-      nav.
+      This section isn’t wired yet. Directory and Plans are live — pick one from
+      the nav.
     </p>
   </div>
 );
@@ -49,9 +50,17 @@ const MedicineManagerDashboard = () => {
     ) : (
       <DirectoryPane onOpenOrg={setOpenOrgId} />
     );
+  // Directory drills down in-page; Plans is its own wired section; the rest are
+  // placeholders until their slices land. A function (not a nested ternary) so
+  // each section stays readable and the lint's no-nested-ternary rule holds.
+  const content = () => {
+    if (active === 'Directory') return directory;
+    if (active === 'Plans') return <PlansSection />;
+    return <Placeholder section={active} />;
+  };
   return (
     <DashboardShell active={active} onNavigate={navigate}>
-      {active === 'Directory' ? directory : <Placeholder section={active} />}
+      {content()}
     </DashboardShell>
   );
 };

@@ -4,22 +4,16 @@
  * plans.types.ts; the feature picker in plans.form.features.tsx.
  */
 import type { ReactNode } from 'react';
-import { Checkbox } from '../../../design-system/checkbox/checkbox';
-import { Input } from '../../../design-system/input/input';
-import { Label } from '../../../design-system/label/label';
-import { Stack } from '../../../design-system/stack/stack';
+import { Checkbox } from '../../../../design-system/checkbox/checkbox';
+import { Input } from '../../../../design-system/input/input';
+import { Label } from '../../../../design-system/label/label';
+import { Stack } from '../../../../design-system/stack/stack';
 import {
   RadioGroup,
   RadioGroupItem,
-} from '../../../design-system/radio-group/radio-group';
-import {
-  asInterval,
-  noPrice,
-  num,
-  type Patch,
-  type PlanDraft,
-  type PlanVisibility,
-} from './plans.types';
+} from '../../../../design-system/radio-group/radio-group';
+import { asInterval, noPrice, num } from './plans.form.helpers';
+import type { Patch, PlanDraft, PlanVisibility } from '../plans.types';
 
 /** Input-token classes for the two tiny native selects (currency/interval). */
 const sel = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm';

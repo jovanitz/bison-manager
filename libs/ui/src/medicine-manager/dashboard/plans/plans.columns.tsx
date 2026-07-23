@@ -51,37 +51,50 @@ const PlanCell = ({ plan }: { readonly plan: PlanRow }) => (
 );
 
 const PlanActions = ({
-  planId,
+  plan,
   onEdit,
   onReset,
   onRetire,
-}: { readonly planId: string } & Pick<
+  onSetDefault,
+}: { readonly plan: PlanRow } & Pick<
   PlansActions,
-  'onEdit' | 'onReset' | 'onRetire'
->) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="ghost" size="icon" aria-label="Plan actions">
-        <MoreHorizontal />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem onSelect={() => onEdit(planId)}>
-        Edit plan
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onReset(planId)}>
-        Reset to defaults
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onSelect={() => onRetire(planId)}
-        className="text-destructive focus:text-destructive"
-      >
-        Retire plan
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
+  'onEdit' | 'onReset' | 'onRetire' | 'onSetDefault'
+>) => {
+  const { planId } = plan;
+  // The default is what NEW orgs get, so only an active + public plan can be it
+  // (a retired plan is closed to new; a hidden plan must never be a default).
+  const canBeDefault =
+    !plan.isDefault && plan.status === 'active' && plan.visibility === 'public';
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Plan actions">
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onEdit(planId)}>
+          Edit plan
+        </DropdownMenuItem>
+        {canBeDefault ? (
+          <DropdownMenuItem onSelect={() => onSetDefault(planId)}>
+            Set as default
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onSelect={() => onReset(planId)}>
+          Reset to defaults
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => onRetire(planId)}
+          className="text-destructive focus:text-destructive"
+        >
+          Retire plan
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 const baseColumns: ColumnDef<PlanRow>[] = [
   {
@@ -140,9 +153,10 @@ export const planColumns = ({
   onEdit,
   onReset,
   onRetire,
+  onSetDefault,
 }: { readonly canManage: boolean } & Pick<
   PlansActions,
-  'onEdit' | 'onReset' | 'onRetire'
+  'onEdit' | 'onReset' | 'onRetire' | 'onSetDefault'
 >): ColumnDef<PlanRow>[] => {
   if (!canManage) return baseColumns;
   return [
@@ -153,10 +167,11 @@ export const planColumns = ({
       cell: ({ row }) => (
         <div className="text-right">
           <PlanActions
-            planId={row.original.planId}
+            plan={row.original}
             onEdit={onEdit}
             onReset={onReset}
             onRetire={onRetire}
+            onSetDefault={onSetDefault}
           />
         </div>
       ),

@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { PlansView } from './plans.view';
 import type {
   BlastRadiusVM,
   PlanFormVM,
+  PlanRow,
+  PlansActions,
   PlansVM,
+  ResetConfirmVM,
   RetireConfirmVM,
+  SetDefaultConfirmVM,
 } from './plans.types';
 import {
   plansVM,
@@ -15,6 +19,8 @@ import {
   formCreateVM,
   formEditVM,
   retireVM,
+  resetVM,
+  setDefaultVM,
   emptyDraft,
   draftFromPlan,
   demoBlast,
@@ -36,12 +42,17 @@ const actions = {
   onEdit: () => undefined,
   onRetire: () => undefined,
   onReset: () => undefined,
+  onSetDefault: () => undefined,
+  onConfirmSetDefault: () => undefined,
+  onCancelSetDefault: () => undefined,
   onConfirmEdit: () => undefined,
   onCancelEdit: () => undefined,
   onSubmitForm: () => undefined,
   onCancelForm: () => undefined,
   onConfirmRetire: () => undefined,
   onCancelRetire: () => undefined,
+  onConfirmReset: () => undefined,
+  onCancelReset: () => undefined,
 };
 
 const inShell = (vm: PlansVM) =>
@@ -58,64 +69,102 @@ type Flow = {
   readonly form?: PlanFormVM | undefined;
   readonly pendingEdit?: BlastRadiusVM | undefined;
   readonly pendingRetire?: RetireConfirmVM | undefined;
+  readonly pendingReset?: ResetConfirmVM | undefined;
+  readonly pendingSetDefault?: SetDefaultConfirmVM | undefined;
 };
+
+type Openers = Pick<
+  PlansActions,
+  'onEdit' | 'onReset' | 'onRetire' | 'onSetDefault' | 'onSubmitForm'
+>;
+
+/** The overlay-opening handlers, extracted so the interactive host stays under
+ *  the size cap. Each opens exactly one overlay from a clicked row; an edit
+ *  submit chains into the blast-radius confirm. */
+const overlayOpeners = (
+  byId: (id: string) => PlanRow | undefined,
+  setFlow: Dispatch<SetStateAction<Flow>>,
+): Openers => ({
+  onEdit: (id) => {
+    const p = byId(id);
+    if (p)
+      setFlow({
+        form: {
+          mode: 'edit',
+          planId: id,
+          draft: draftFromPlan(p),
+          subscribers: p.subscribers,
+        },
+      });
+  },
+  onReset: (id) => {
+    const p = byId(id);
+    if (p)
+      setFlow({
+        pendingReset: {
+          planId: id,
+          displayName: p.displayName,
+          subscribers: p.subscribers,
+        },
+      });
+  },
+  onRetire: (id) => {
+    const p = byId(id);
+    if (p)
+      setFlow({
+        pendingRetire: {
+          planId: id,
+          displayName: p.displayName,
+          subscribers: p.subscribers,
+        },
+      });
+  },
+  onSetDefault: (id) => {
+    const p = byId(id);
+    const current = plansVM.plans.find((x) => x.isDefault);
+    if (p)
+      setFlow({
+        pendingSetDefault: {
+          planId: id,
+          displayName: p.displayName,
+          currentDefaultName: current?.displayName ?? null,
+        },
+      });
+  },
+  onSubmitForm: (draft) =>
+    setFlow((f) =>
+      f.form?.mode === 'edit'
+        ? { pendingEdit: demoBlast(byId(f.form.planId ?? ''), draft) }
+        : {},
+    ),
+});
 
 /**
  * Interactive host: state lives in the story, the view stays pure. Create /
  * Edit open the form; an edit submit chains into the blast-radius confirm;
- * Retire opens its confirm; Cancel/X/Confirm all close back to the catalog.
+ * Retire / Reset / Set-default open their confirms; Cancel/X/Confirm all close.
  */
 const FlowHost = ({ initial }: { readonly initial: Flow }) => {
   const [flow, setFlow] = useState<Flow>(initial);
   const byId = (id: string) => plansVM.plans.find((p) => p.planId === id);
-  const open = (next: Flow) => () => setFlow(next);
-  const closed = open({});
+  const closed = () => setFlow({});
   return (
     <DashboardShell active="Plans">
       <PlansView
         vm={{ ...plansVM, ...flow }}
-        onCreate={open({
-          form: { mode: 'create', planId: null, draft: emptyDraft },
-        })}
-        onEdit={(id) => {
-          const p = byId(id);
-          if (p)
-            setFlow({
-              form: {
-                mode: 'edit',
-                planId: id,
-                draft: draftFromPlan(p),
-                subscribers: p.subscribers,
-              },
-            });
-        }}
-        onReset={(id) => {
-          const p = byId(id);
-          if (p) setFlow({ pendingEdit: demoBlast(p, draftFromPlan(p)) });
-        }}
-        onRetire={(id) => {
-          const p = byId(id);
-          if (p)
-            setFlow({
-              pendingRetire: {
-                planId: id,
-                displayName: p.displayName,
-                subscribers: p.subscribers,
-              },
-            });
-        }}
-        onSubmitForm={(draft) =>
-          setFlow((f) =>
-            f.form?.mode === 'edit'
-              ? { pendingEdit: demoBlast(byId(f.form.planId ?? ''), draft) }
-              : {},
-          )
+        onCreate={() =>
+          setFlow({ form: { mode: 'create', planId: null, draft: emptyDraft } })
         }
+        {...overlayOpeners(byId, setFlow)}
+        onConfirmSetDefault={closed}
+        onCancelSetDefault={closed}
         onCancelForm={closed}
         onConfirmEdit={closed}
         onCancelEdit={closed}
         onConfirmRetire={closed}
         onCancelRetire={closed}
+        onConfirmReset={closed}
+        onCancelReset={closed}
       />
     </DashboardShell>
   );
@@ -143,6 +192,18 @@ export const EditPlanFlow: Story = {
 export const RetireConfirm: Story = {
   render: () => (
     <FlowHost initial={{ pendingRetire: retireVM.pendingRetire }} />
+  ),
+};
+/** Reset a plan to its code floor — reason-gated, a mass live-edit; the domain
+ *  rejects a reset on a plan with no code seed (row ⋯ → Reset to defaults). */
+export const ResetConfirm: Story = {
+  render: () => <FlowHost initial={{ pendingReset: resetVM.pendingReset }} />,
+};
+/** Make a plan the default for new orgs — reason-gated; existing orgs unaffected.
+ *  Only active + public non-default plans offer it (row ⋯ → Set as default). */
+export const SetDefaultConfirm: Story = {
+  render: () => (
+    <FlowHost initial={{ pendingSetDefault: setDefaultVM.pendingSetDefault }} />
   ),
 };
 /** A role without `plans.manage` — catalog readable, no create/edit levers. */

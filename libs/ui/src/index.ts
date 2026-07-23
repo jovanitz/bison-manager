@@ -79,6 +79,7 @@ export * from './dashboard/dashboard-screen';
 // (ADR-0017 giro isolation, ADR-0018 billing coverage).
 export * from './medicine-manager/dashboard/dashboard.shell';
 export * from './medicine-manager/dashboard/directory/directory.container';
+export * from './medicine-manager/dashboard/plans/plans.container';
 export * from './medicine-manager/dashboard/org-detail/org-detail.container';
 export * from './dashboard/invitations/invite-member-form';
 export * from './dashboard/invitations/activate-invitation-screen';

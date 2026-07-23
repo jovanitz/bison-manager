@@ -91,16 +91,6 @@ export type PlanFormVM = {
   readonly error?: string | undefined;
 };
 
-/** Stable key auto-derived from the display name — staff never types keys. */
-export const slugify = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-    .join('-');
-
 /** Retire = closed to new subscriptions, never delete — even staff. */
 export type RetireConfirmVM = {
   readonly planId: string;
@@ -113,47 +103,36 @@ export type RetireConfirmVM = {
 };
 
 /**
- * The closed feature union the form offers — plans combine capabilities the
- * code enforces; creating a plan cannot invent functionality. Keys are
- * NAMESPACED (`group.feature`), which is what lets the picker UI scale:
- * grouping and search derive from the key itself, no extra catalog needed.
+ * Reset = restore the plan to its code floor (ADR-0016). A mass live-edit in
+ * disguise, so — like an edit — it is audited with a reason. There is no
+ * blast-radius preview endpoint for a reset, so the confirm warns rather than
+ * counts; the domain rejects a reset on a plan with no code seed.
  */
-export const KNOWN_FEATURES: readonly string[] = [
-  'reports.advanced',
-  'reports.scheduled',
-  'export.csv',
-  'export.pdf',
-  'branding.custom',
-  'branding.domain',
-  'audit.export',
-  'audit.retention-1y',
-  'members.bulk-import',
-  'api.access',
-  'integrations.whatsapp',
-  'support.priority',
-];
-
-export type FeatureGroup = {
-  readonly name: string;
-  readonly keys: readonly string[];
+export type ResetConfirmVM = {
+  readonly planId: string;
+  readonly displayName: string;
+  readonly subscribers: number;
+  /** The reset request is in flight (button spinner). */
+  readonly resetting?: boolean | undefined;
+  /** The reset failed — shown inline so the staff can retry. */
+  readonly error?: string | undefined;
 };
 
-/** Group namespaced keys by prefix, filtered by a search query. Pure. */
-export const featureGroups = (
-  keys: readonly string[],
-  query: string,
-): readonly FeatureGroup[] => {
-  const q = query.trim().toLowerCase();
-  const hits = keys.filter((k) => k.toLowerCase().includes(q));
-  const prefixes = [...new Set(hits.map((k) => k.split('.')[0] ?? k))];
-  return prefixes.map((prefix) => ({
-    // Short prefixes are acronyms (api → API); the rest just capitalize.
-    name:
-      prefix.length <= 3
-        ? prefix.toUpperCase()
-        : prefix.charAt(0).toUpperCase() + prefix.slice(1),
-    keys: hits.filter((k) => (k.split('.')[0] ?? k) === prefix),
-  }));
+/**
+ * The confirm gate on plans.setDefault. LOW blast radius — it only changes which
+ * plan NEW organizations start on; existing subscriptions are untouched — so no
+ * over-limit/lose-feature preview is needed. But it IS audited (the model records
+ * `billing.default-plan-changed`), so a reason is required, like every plan write.
+ */
+export type SetDefaultConfirmVM = {
+  readonly planId: string;
+  readonly displayName: string;
+  /** The plan LOSING the default marker, if any — shown so staff see the swap. */
+  readonly currentDefaultName: string | null;
+  /** The request is in flight (button spinner, inputs locked). */
+  readonly setting?: boolean | undefined;
+  /** The set-default failed — shown inline so the staff can retry. */
+  readonly error?: string | undefined;
 };
 
 export type PlansVM = {
@@ -168,6 +147,10 @@ export type PlansVM = {
   readonly form?: PlanFormVM | undefined;
   /** A retire awaiting its confirm dialog. */
   readonly pendingRetire?: RetireConfirmVM | undefined;
+  /** A reset-to-defaults awaiting its confirm dialog. */
+  readonly pendingReset?: ResetConfirmVM | undefined;
+  /** A set-as-default awaiting its confirm dialog. */
+  readonly pendingSetDefault?: SetDefaultConfirmVM | undefined;
 };
 
 export type PlansActions = {
@@ -176,20 +159,27 @@ export type PlansActions = {
   readonly onRetire: (planId: string) => void;
   /** Restore the code floor — a mass live-edit, same confirm gate. */
   readonly onReset: (planId: string) => void;
+  /** Make a plan the default for NEW orgs — opens its (reason) confirm. */
+  readonly onSetDefault: (planId: string) => void;
+  readonly onConfirmSetDefault: (reason: string) => void;
+  readonly onCancelSetDefault: () => void;
   readonly onConfirmEdit: (reason: string) => void;
   readonly onCancelEdit: () => void;
-  /** Form submit — edit chains into the blast-radius confirm. */
-  readonly onSubmitForm: (draft: PlanDraft) => void;
+  /** Reset commits with an audited reason — opens its confirm. */
+  readonly onConfirmReset: (reason: string) => void;
+  readonly onCancelReset: () => void;
+  /**
+   * Form submit. On create the reason is collected in the form (there is no
+   * second gate), so it rides along; on edit it is `undefined` — the reason is
+   * gathered later at the blast-radius confirm (`onConfirmEdit`).
+   */
+  readonly onSubmitForm: (draft: PlanDraft, reason?: string) => void;
   readonly onCancelForm: () => void;
-  readonly onConfirmRetire: () => void;
+  readonly onConfirmRetire: (reason: string) => void;
   readonly onCancelRetire: () => void;
 };
 
-/**
- * Import-free helpers + prop types for plans.form.tsx — hosted here so that
- * file stays inside the hard file-size caps. No imports, so the file keeps
- * its contract.
- */
+/** Prop types for the form + confirm dialogs (helpers → plans.form.helpers.ts). */
 export type PlanFormProps = { readonly form: PlanFormVM } & Pick<
   PlansActions,
   'onSubmitForm' | 'onCancelForm'
@@ -199,41 +189,13 @@ export type RetireConfirmProps = {
   readonly pendingRetire: RetireConfirmVM;
 } & Pick<PlansActions, 'onConfirmRetire' | 'onCancelRetire'>;
 
+export type ResetConfirmProps = {
+  readonly pendingReset: ResetConfirmVM;
+} & Pick<PlansActions, 'onConfirmReset' | 'onCancelReset'>;
+
+export type SetDefaultConfirmProps = {
+  readonly pendingSetDefault: SetDefaultConfirmVM;
+} & Pick<PlansActions, 'onConfirmSetDefault' | 'onCancelSetDefault'>;
+
 /** A partial-draft updater — what the form's controlled inputs call. */
 export type Patch = (patch: Partial<PlanDraft>) => void;
-
-type Ev = { readonly target: { readonly value: string } };
-
-const int = (v: string) => Math.max(0, Math.trunc(Number(v) || 0));
-
-export const asInterval = (v: string) => (v === 'year' ? 'year' : 'month');
-
-export const toggle = (list: readonly string[], f: string, on: boolean) =>
-  on ? [...list, f] : list.filter((x) => x !== f);
-
-export const noPrice = (none: boolean): PlanPrice | null =>
-  none ? null : { amountCents: 0, currency: 'MXN', interval: 'month' };
-
-/** Controlled text-input props: value + onChange in one spread. */
-export const text = (value: string, set: (v: string) => void) => ({
-  value,
-  onChange: (e: Ev) => set(e.target.value),
-});
-
-/** Controlled non-negative-integer input props. */
-export const num = (value: number, set: (v: number) => void) => ({
-  type: 'number' as const,
-  min: 0,
-  value,
-  onChange: (e: Ev) => set(int(e.target.value)),
-});
-
-/**
- * Form submit gate: name + note required, and a present price must be > 0 —
- * a decided price of $0 is NOT "no price yet" (`price: null`), which is the
- * only state the ADR exempts from delinquency blocking.
- */
-export const draftInvalid = (d: PlanDraft) =>
-  !d.displayName.trim() ||
-  !d.internalNote.trim() ||
-  (d.price !== null && d.price.amountCents <= 0);

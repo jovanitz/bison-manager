@@ -208,3 +208,19 @@ export const retireVM: PlansVM = {
   ...plansVM,
   pendingRetire: { planId: 'plan_3', displayName: 'Pro', subscribers: 6 },
 };
+
+/** Resetting the (active, public) Pro plan to its code-floor defaults. */
+export const resetVM: PlansVM = {
+  ...plansVM,
+  pendingReset: { planId: 'plan_2', displayName: 'Pro', subscribers: 37 },
+};
+
+/** Making the (active, public) Pro plan the default — replacing Free. */
+export const setDefaultVM: PlansVM = {
+  ...plansVM,
+  pendingSetDefault: {
+    planId: 'plan_2',
+    displayName: 'Pro',
+    currentDefaultName: 'Free',
+  },
+};

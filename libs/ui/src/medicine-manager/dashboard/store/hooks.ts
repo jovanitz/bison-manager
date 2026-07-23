@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useStore } from 'zustand';
 import { useUseCases } from '../../../di/use-cases-context';
 import { createDirectoryStore, type DirectoryStore } from './directory-store';
+import { createPlansStore, type PlansStore } from './plans/plans-store';
 
 /**
  * React binding for the Directory store: builds it from the DI bundles (memoized
@@ -25,6 +26,18 @@ export const useDirectoryStore = (): DirectoryStore | null => {
           })
         : null,
     [access, directory, invitations, coverage, block, accounts],
+  );
+};
+
+/**
+ * React binding for the Plans store: built from the DI bundles it needs (access
+ * for the `plans.manage` gate + the billing gateway). Null until both are wired.
+ */
+export const usePlansStore = (): PlansStore | null => {
+  const { access, billing } = useUseCases();
+  return useMemo(
+    () => (access && billing ? createPlansStore({ access, billing }) : null),
+    [access, billing],
   );
 };
 
