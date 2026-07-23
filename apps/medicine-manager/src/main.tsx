@@ -6,10 +6,14 @@ import { createMedicineManagerRuntime } from './composition-root';
 
 // Build the runtime once at the edge, then hand its use cases to the React
 // tree. Local-stack defaults mirror apps/dashboard: the anon key printed by
-// `supabase start` is a public dev value (never a secret). Setting
-// VITE_DEV_AUTH=1 (dev only) swaps Supabase for a static dev session so the app
-// runs against the API's dev-stub seeded world with no interactive login.
-const devAuth = import.meta.env.DEV && import.meta.env['VITE_DEV_AUTH'] === '1';
+// `supabase start` is a public dev value (never a secret). VITE_DEV_AUTH (dev
+// only) swaps Supabase for a static dev session against the API's dev-stub
+// seeded world: `=1` skips the login (auto-authenticated), `=login` shows the
+// real login screen and any sign-in click drops straight in (to demo the flow).
+const devAuthMode = import.meta.env.DEV
+  ? import.meta.env['VITE_DEV_AUTH']
+  : undefined;
+const devAuth = devAuthMode === '1' || devAuthMode === 'login';
 
 const runtime = createMedicineManagerRuntime({
   apiBaseUrl: import.meta.env['VITE_API_BASE_URL'] ?? 'http://localhost:3333',
@@ -18,6 +22,7 @@ const runtime = createMedicineManagerRuntime({
     import.meta.env['VITE_SUPABASE_ANON_KEY'] ??
     'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
   devAuth,
+  devStartSignedOut: devAuthMode === 'login',
   devSession: import.meta.env['VITE_DEV_SESSION'] ?? 'session-owner',
 });
 

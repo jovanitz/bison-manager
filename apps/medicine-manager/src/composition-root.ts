@@ -60,6 +60,12 @@ export type MedicineManagerConfig = {
    */
   devAuth: boolean;
   devSession: string;
+  /**
+   * LOCAL-ONLY: with `devAuth`, start signed OUT so the real login screen shows
+   * and any sign-in click drops into the seeded world (to demo the login flow).
+   * Default false = auto-authenticated (skip the login). Never set in prod.
+   */
+  devStartSignedOut?: boolean;
 };
 
 export type MedicineManagerRuntime = {
@@ -68,13 +74,36 @@ export type MedicineManagerRuntime = {
   readonly logger: Logger;
 };
 
+/** The dev fake provider, optionally starting at the login screen (demo mode)
+ *  with the sign-in flag persisted so a refresh keeps you in. */
+const buildDevAuth = (
+  config: MedicineManagerConfig,
+  platform: Platform,
+): AuthProvider => {
+  if (!config.devStartSignedOut)
+    return createFakeAuthProvider({ accessToken: config.devSession });
+  return createFakeAuthProvider(
+    { accessToken: config.devSession },
+    {
+      startSignedOut: true,
+      storage: {
+        get: () => platform.secureStorage.get('mm-dev-auth'),
+        set: (v) =>
+          v
+            ? platform.secureStorage.set('mm-dev-auth', v)
+            : platform.secureStorage.remove('mm-dev-auth'),
+      },
+    },
+  );
+};
+
 /** Identity behind the port: the dev seam locally, Supabase everywhere else. */
 const buildAuth = (
   config: MedicineManagerConfig,
   platform: Platform,
 ): AuthProvider =>
   config.devAuth
-    ? createFakeAuthProvider({ accessToken: config.devSession })
+    ? buildDevAuth(config, platform)
     : createSupabaseAuthProvider({
         supabaseUrl: config.supabaseUrl,
         anonKey: config.supabaseAnonKey,
